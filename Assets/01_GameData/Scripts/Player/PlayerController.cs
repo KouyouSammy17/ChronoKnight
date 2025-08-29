@@ -101,9 +101,6 @@ public class PlayerController : MonoBehaviour
     private bool isTapWallJump => _isWallJumpLerping || _isWallJumping;
     private float _postWallJumpTimer = 0f;
 
-    private float PlayerTimerDT =>
-    (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
-    ? Time.unscaledDeltaTime : Time.deltaTime;
     // ───────────────────────────────────────────────────────────────────────────────
     // Public properties (for Animator)
     // ───────────────────────────────────────────────────────────────────────────────
@@ -200,12 +197,6 @@ public class PlayerController : MonoBehaviour
     public float Acceleration => _acceleration;
     public float Deceleration => _deceleration;
 
-    public float RotateSpeed { get => _rotateSpeed; set => _rotateSpeed = value; }
-    public float DashForce { get => _dashForce; set => _dashForce = value; }
-    public float JumpForce { get => _jumpForce; set => _jumpForce = value; }
-    public float WallJumpForce { get => _wallJumpForce; set => _wallJumpForce = value; }
-    public float WallJumpHorizontalForce { get => _wallJumpHorizontalForce; set => _wallJumpHorizontalForce = value; }
-
     /// <summary>Multiply current accel/decel (used during Turbo).</summary>
     public void ScaleAccelDecel(float mult)
     {
@@ -220,6 +211,66 @@ public class PlayerController : MonoBehaviour
         _acceleration = acc;
         _deceleration = dec;
     }
+
+    // ---------------------------------------------------------------------------
+    // Exposed properties for Turbo Mode
+    //
+    // These getters and setters provide controlled access to internal movement
+    // parameters such as rotation speed, dash force and jump forces. Exposing
+    // them allows the TurboModeManager to temporarily scale these values when
+    // entering Turbo Mode and to restore them when exiting. Without these
+    // properties Turbo Mode could not adjust the player's movement feel beyond
+    // simply increasing MoveSpeed.
+
+    /// <summary>
+    /// Gets or sets the rotation speed used when slerping towards the target
+    /// rotation. Turbo Mode scales this value so the player still turns quickly
+    /// relative to a slowed world.
+    /// </summary>
+    public float RotateSpeed
+    {
+        get => _rotateSpeed;
+        set => _rotateSpeed = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the horizontal dash force. Turbo Mode scales this so
+    /// dashes feel consistent when the world is slowed.
+    /// </summary>
+    public float DashForce
+    {
+        get => _dashForce;
+        set => _dashForce = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the vertical jump force. Exposed so Turbo Mode can scale
+    /// jump height/impulse to compensate for slowed physics updates.
+    /// </summary>
+    public float JumpForce
+    {
+        get => _jumpForce;
+        set => _jumpForce = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the wall jump vertical force. Exposed for Turbo scaling.
+    /// </summary>
+    public float WallJumpForce
+    {
+        get => _wallJumpForce;
+        set => _wallJumpForce = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the wall jump horizontal force. Exposed for Turbo scaling.
+    /// </summary>
+    public float WallJumpHorizontalForce
+    {
+        get => _wallJumpHorizontalForce;
+        set => _wallJumpHorizontalForce = value;
+    }
+
 
     // ───────────────────────────────────────────────────────────────────────────────
     // Input Callbacks (New Input System)
@@ -505,17 +556,18 @@ public class PlayerController : MonoBehaviour
             _currentVelocity.z
         );
     }
+
     private void HandleDashTimers()
     {
         if (_dashCooldownTimer > 0f)
-            _dashCooldownTimer -= PlayerTimerDT;  // was Time.deltaTime
+            _dashCooldownTimer -= Time.deltaTime;
     }
 
     private void HandleDash()
     {
         if (!_isDashing) return;
 
-        _dashTimer -= PlayerTimerDT;              // was Time.deltaTime
+        _dashTimer -= Time.deltaTime;
         _rb.linearVelocity = _dashDirection * _dashForce
                            + new Vector3(0, _rb.linearVelocity.y, 0);
 
