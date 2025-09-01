@@ -1,5 +1,8 @@
 ﻿using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.InputSystem;
+// Include CombatController for setting attack speed buff during Turbo Mode
+// This script assumes the CombatController is on the same GameObject as the PlayerController or PlayerAnimator.
 
 public class TurboModeManager : MonoBehaviour
 {
@@ -48,7 +51,7 @@ public class TurboModeManager : MonoBehaviour
     // Store the computed compensation factor so it can be reused during Turbo
     private float _comp;
 
-    
+  
 
     /// <summary>
     /// The current Turbo compensation factor (1/slowFactor * playerSpeedMult).
@@ -86,9 +89,6 @@ public class TurboModeManager : MonoBehaviour
             _player.WallJumpForce = _origWallJumpForce * _comp;
             _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
         }
-
-        // Note: TurboModeManager no longer forces animator speed every frame.
-        // CombatTurboManager now manages animation speed, so nothing to enforce here.
     }
 
     public bool TryStartTurbo(PlayerController player, PlayerAnimator anim)

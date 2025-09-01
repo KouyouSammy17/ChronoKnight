@@ -39,65 +39,42 @@ public class CombatTurboManager : MonoBehaviour
         // Grab TurboModeManager (may be null if Turbo isn't configured)
         var turbo = TurboModeManager.Instance;
         bool active = (turbo != null && turbo.IsActive);
+        // Determine compensation factor. When inactive, comp = 1.
+        float comp = (active && turbo != null) ? turbo.TurboComp : 1f;
 
-        if (active)
+        // Fetch the current attack speed buff from the combat controller.
+        // If CombatController is missing (shouldn't happen with RequireComponent), skip.
+        if (_combat != null)
         {
-            // If Turbo just started, capture the baseline buff from other systems
-            if (!_wasTurboActive)
+            float currentBuff = _combat.AttackSpeedBuff;
+            // Derive the underlying base buff. When Turbo is active the controller's
+            // AttackSpeedBuff has been multiplied by comp. When inactive it is just
+            // the base buff. Divide by comp to recover the base value in both cases.
+            float estimatedBase = currentBuff / comp;
+            if (!Mathf.Approximately(estimatedBase, _baseBuff))
             {
-                if (_combat != null)
-                {
-                    _baseBuff = _combat.AttackSpeedBuff;
-                }
+                _baseBuff = estimatedBase;
             }
-            // Compute final buff as baseline * turbo compensation
-            float comp = turbo.TurboComp;
-            float finalBuff = _baseBuff * comp;
-            if (_combat != null)
-            {
-                _combat.SetAttackSpeedBuff(finalBuff);
-            }
-            if (_playerAnim != null)
-            {
-                // Speed up all animations (locomotion/idle) only by the Turbo compensation
-                _playerAnim.SetAttackSpeed(comp);
-            }
+
+            // Compute the final buff to apply: base buff times comp if Turbo is active,
+            // otherwise just the base buff. This ensures momentum buffs stack with Turbo
+            // rather than being overwritten.
+            float finalBuff = active ? _baseBuff * comp : _baseBuff;
+            _combat.SetAttackSpeedBuff(finalBuff);
         }
-        else
+
+        // Adjust the animator speed. All animations should be sped up by comp while
+        // Turbo is active and reset to normal otherwise. Note: SetAttackSpeed
+        // multiplies the Animator.speed property on PlayerAnimator; using it here
+        // ensures locomotion/idle/attack states all scale consistently.
+        if (_playerAnim != null)
         {
-            if (_wasTurboActive)
-            {
-                // Turbo just ended: restore baseline buff and reset animator speed
-                if (_combat != null)
-                {
-                    _combat.SetAttackSpeedBuff(_baseBuff);
-                }
-                if (_playerAnim != null)
-                {
-                    _playerAnim.SetAttackSpeed(1f);
-                }
-            }
-            else
-            {
-                // Turbo inactive: check if the base buff changed due to momentum buffs
-                if (_combat != null)
-                {
-                    float currentBuff = _combat.AttackSpeedBuff;
-                    if (!Mathf.Approximately(currentBuff, _baseBuff))
-                    {
-                        _baseBuff = currentBuff;
-                    }
-                    // Ensure the combat buff is set to baseline
-                    _combat.SetAttackSpeedBuff(_baseBuff);
-                }
-                // Keep animator speed at normal
-                if (_playerAnim != null)
-                {
-                    _playerAnim.SetAttackSpeed(1f);
-                }
-            }
+            float animSpeed = active ? comp : 1f;
+            _playerAnim.SetAttackSpeed(animSpeed);
         }
-        // Update the previous Turbo state tracker
+
+        // Track the previous Turbo state. Currently unused but retained for potential
+        // future logic (e.g., one-shot events on entering/exiting Turbo).
         _wasTurboActive = active;
     }
 }
