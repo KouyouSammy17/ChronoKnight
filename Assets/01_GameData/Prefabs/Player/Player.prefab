@@ -178,8 +178,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Damage: 0
-  KnockbackForce: 0
   MomentumGain: 0
+  _enemyHitFeedback: {fileID: 0}
 --- !u!1 &2491485958184236743
 GameObject:
   m_ObjectHideFlags: 0
@@ -359,6 +359,8 @@ MeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -380,6 +382,7 @@ MeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
@@ -592,6 +595,7 @@ GameObject:
   - component: {fileID: 4824774254867511453}
   - component: {fileID: 4947035130095512096}
   - component: {fileID: 3471398806271338333}
+  - component: {fileID: 2298466729405537635}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -680,10 +684,6 @@ MonoBehaviour:
     m_ActionId: 852140f2-7766-474d-8707-702459ba45f3
     m_ActionName: 'Player/Interact[/Keyboard/e]'
   - m_PersistentCalls:
-      m_Calls: []
-    m_ActionId: 27c5f898-bc57-4ee1-8800-db469aca5fe3
-    m_ActionName: 'Player/Crouch[/Keyboard/c]'
-  - m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 4028094239222328936}
         m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
@@ -767,8 +767,24 @@ MonoBehaviour:
       m_Calls: []
     m_ActionId: 82837ee0-e22f-4332-b2b2-cb4ff7c77289
     m_ActionName: 'Player/Heavy Attack[/Mouse/rightButton]'
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 4028094239222328936}
+        m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
+        m_MethodName: OnTurbo
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: d1b32718-aa9b-41bb-9be0-69219696b788
+    m_ActionName: 'Player/Activate Turbo Mode[/Keyboard/e]'
   m_NeverAutoSwitchControlSchemes: 0
-  m_DefaultControlScheme: 
+  m_DefaultControlScheme: Keyboard&Mouse
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 0}
@@ -802,10 +818,10 @@ Rigidbody:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7524616865943299786}
-  serializedVersion: 4
+  serializedVersion: 5
   m_Mass: 8
-  m_Drag: 0
-  m_AngularDrag: 0
+  m_LinearDamping: 0
+  m_AngularDamping: 0
   m_CenterOfMass: {x: 0, y: 0, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
@@ -930,19 +946,16 @@ MonoBehaviour:
     speedMultiplier: 1.1
     damage: 7
     momentumGain: 5
-    knockbackForce: 2
   - stepName: Attack2
     inputWindow: 0.12
     speedMultiplier: 1.1
     damage: 10
     momentumGain: 7
-    knockbackForce: 2.5
   - stepName: Attack3
     inputWindow: 0.1
     speedMultiplier: 1.1
     damage: 20
     momentumGain: 10
-    knockbackForce: 3
   _playerController: {fileID: 4028094239222328936}
   _playerAnim: {fileID: 5094041688594640025}
   _weaponHitbox: {fileID: 762516929213984562}
@@ -959,6 +972,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   baseMoveSpeed: 5
+--- !u!114 &2298466729405537635
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7524616865943299786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1be0f2792aa48814f94a7799205571a6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatTurboManager
 --- !u!1 &8059948321506089467
 GameObject:
   m_ObjectHideFlags: 0
@@ -1373,8 +1398,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Damage: 0
-  KnockbackForce: 5
   MomentumGain: 0
+  _enemyHitFeedback: {fileID: 0}
 --- !u!4 &8681519432241719552 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2136295158872739227, guid: ffbfc5bcd82b49545bd3927bd29429a4, type: 3}

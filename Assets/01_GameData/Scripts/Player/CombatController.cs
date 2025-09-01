@@ -5,6 +5,13 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
+/// <summary>
+/// Handles player combat combos. This is a copy of the upstream CombatController
+/// from the ChronoKnight project. It exposes attack speed and damage multipliers
+/// and controls combo timing, buffering, and hitbox activation. Attack speed
+/// can be modified via SetAttackSpeedBuff, which is now driven by
+/// CombatTurboManager when Turbo Mode is active.
+/// </summary>
 [RequireComponent(typeof(Collider))]
 public class CombatController : MonoBehaviour
 {
@@ -52,8 +59,23 @@ public class CombatController : MonoBehaviour
             _bufferedAttack = true;
     }
 
+    /// <summary>
+    /// Set a global damage multiplier for all combo steps.
+    /// </summary>
     public void SetDamageMultiplier(float m) => _damageMul = m;
+
+    /// <summary>
+    /// Set a speed buff multiplier for attack animations. This is multiplied with
+    /// each ComboStep.speedMultiplier in StartComboAsync. Turbo Mode uses this
+    /// to speed up combos.
+    /// </summary>
     public void SetAttackSpeedBuff(float b) => _speedBuff = b;
+
+    /// <summary>
+    /// Current attack speed buff applied via SetAttackSpeedBuff (e.g. from momentum buffs).
+    /// Turbo buffs should multiply this rather than overwrite it.
+    /// </summary>
+    public float AttackSpeedBuff => _speedBuff;
 
     // called from Animator events:
     public void OnOpenComboWindow()
@@ -172,5 +194,4 @@ public class CombatController : MonoBehaviour
             _canBuffer = false;
         }
     }
-
 }
