@@ -147,6 +147,54 @@ public class PlayerController : MonoBehaviour
         set => _moveSpeed = value;
     }
 
+    // -----------------------------------------------------------------------------
+    // Additional public accessors for Turbo Mode
+    // These expose internal movement parameters so TurboModeManager can scale them.
+    /// <summary>
+    /// Speed at which the character rotates toward the target yaw. Exposed for Turbo.
+    /// </summary>
+    public float RotateSpeed
+    {
+        get => _rotateSpeed;
+        set => _rotateSpeed = value;
+    }
+
+    /// <summary>
+    /// Dash force applied to the player. Exposed for Turbo.
+    /// </summary>
+    public float DashForce
+    {
+        get => _dashForce;
+        set => _dashForce = value;
+    }
+
+    /// <summary>
+    /// Vertical jump impulse. Exposed for Turbo.
+    /// </summary>
+    public float JumpForce
+    {
+        get => _jumpForce;
+        set => _jumpForce = value;
+    }
+
+    /// <summary>
+    /// Vertical component of a wall jump. Exposed for Turbo.
+    /// </summary>
+    public float WallJumpForce
+    {
+        get => _wallJumpForce;
+        set => _wallJumpForce = value;
+    }
+
+    /// <summary>
+    /// Horizontal component of a wall jump. Exposed for Turbo.
+    /// </summary>
+    public float WallJumpHorizontalForce
+    {
+        get => _wallJumpHorizontalForce;
+        set => _wallJumpHorizontalForce = value;
+    }
+
     /// <summary>
     /// Clears the movement buffer and its timer.
     /// </summary>
@@ -210,65 +258,6 @@ public class PlayerController : MonoBehaviour
     {
         _acceleration = acc;
         _deceleration = dec;
-    }
-
-    // ---------------------------------------------------------------------------
-    // Exposed properties for Turbo Mode
-    //
-    // These getters and setters provide controlled access to internal movement
-    // parameters such as rotation speed, dash force and jump forces. Exposing
-    // them allows the TurboModeManager to temporarily scale these values when
-    // entering Turbo Mode and to restore them when exiting. Without these
-    // properties Turbo Mode could not adjust the player's movement feel beyond
-    // simply increasing MoveSpeed.
-
-    /// <summary>
-    /// Gets or sets the rotation speed used when slerping towards the target
-    /// rotation. Turbo Mode scales this value so the player still turns quickly
-    /// relative to a slowed world.
-    /// </summary>
-    public float RotateSpeed
-    {
-        get => _rotateSpeed;
-        set => _rotateSpeed = value;
-    }
-
-    /// <summary>
-    /// Gets or sets the horizontal dash force. Turbo Mode scales this so
-    /// dashes feel consistent when the world is slowed.
-    /// </summary>
-    public float DashForce
-    {
-        get => _dashForce;
-        set => _dashForce = value;
-    }
-
-    /// <summary>
-    /// Gets or sets the vertical jump force. Exposed so Turbo Mode can scale
-    /// jump height/impulse to compensate for slowed physics updates.
-    /// </summary>
-    public float JumpForce
-    {
-        get => _jumpForce;
-        set => _jumpForce = value;
-    }
-
-    /// <summary>
-    /// Gets or sets the wall jump vertical force. Exposed for Turbo scaling.
-    /// </summary>
-    public float WallJumpForce
-    {
-        get => _wallJumpForce;
-        set => _wallJumpForce = value;
-    }
-
-    /// <summary>
-    /// Gets or sets the wall jump horizontal force. Exposed for Turbo scaling.
-    /// </summary>
-    public float WallJumpHorizontalForce
-    {
-        get => _wallJumpHorizontalForce;
-        set => _wallJumpHorizontalForce = value;
     }
 
 
@@ -385,38 +374,42 @@ public class PlayerController : MonoBehaviour
     }
     private void Update()
     {
+        // Compute a delta time that ignores global slow-mo when Turbo Mode is active.
+        // This ensures timers (dash, jump buffers, coyote time, etc.) count down in real time
+        // even when Time.timeScale is reduced. When Turbo is inactive we use Time.deltaTime.
+        float dt = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
+            ? Time.unscaledDeltaTime
+            : Time.deltaTime;
+
         if (_isDashing)
         {
             _dashJumpBufferCounter = _dashJumpBufferTime;
         }
         else
         {
-            _dashJumpBufferCounter -= Time.deltaTime;
+            _dashJumpBufferCounter -= dt;
         }
-
-
 
         // 1) Wall detection
         CheckWall();
 
         // count down the post-wall-jump lock
         if (_postWallJumpTimer > 0f)
-            _postWallJumpTimer -= Time.deltaTime;
+            _postWallJumpTimer -= dt;
 
         // 2) Dash & movement input
-        HandleDashTimers();
+        HandleDashTimers(dt);
 
         // only tick the buffer down when input is actually “live” (i.e. not mid-attack)
         if (_moveBufferCounter > 0f)
         {
             if (_inputEnabled)
-                _moveBufferCounter -= Time.deltaTime;
+                _moveBufferCounter -= dt;
         }
         else
         {
             _moveInputBuffer = Vector2.zero;
         }
-
 
         bool wasGroundedThisFrame = IsGroundedCheck();
 
@@ -434,14 +427,14 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            _coyoteTimeCounter -= Time.deltaTime;
+            _coyoteTimeCounter -= dt;
             if (_coyoteTimeCounter <= 0f)
                 _isGrounded = false;
         }
 
         // 3) Jump input & execution (ground, double, wall)
         HandleJump();
-        HandleContinuousMovementMomentum();
+        HandleContinuousMovementMomentum(dt);
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
@@ -557,17 +550,21 @@ public class PlayerController : MonoBehaviour
         );
     }
 
-    private void HandleDashTimers()
+    private void HandleDashTimers(float dt)
     {
         if (_dashCooldownTimer > 0f)
-            _dashCooldownTimer -= Time.deltaTime;
+            _dashCooldownTimer -= dt;
     }
 
     private void HandleDash()
     {
         if (!_isDashing) return;
+        // Use real-time delta for dash duration when Turbo Mode is active so dash length feels consistent
+        float dt = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
+            ? Time.unscaledDeltaTime
+            : Time.deltaTime;
 
-        _dashTimer -= Time.deltaTime;
+        _dashTimer -= dt;
         _rb.linearVelocity = _dashDirection * _dashForce
                            + new Vector3(0, _rb.linearVelocity.y, 0);
 
@@ -656,9 +653,14 @@ public class PlayerController : MonoBehaviour
         float heldHeight = transform.position.y - _jumpStartY;
 
         // 1. Wall Jump Lerp (controlled arc)
+        // compute real-time delta for vertical motion when Turbo Mode is active
+        float dt = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
+            ? Time.unscaledDeltaTime
+            : Time.deltaTime;
+
         if (_isWallJumpLerping)
         {
-            _wallJumpLerpTimer -= Time.deltaTime;
+            _wallJumpLerpTimer -= dt;
             float t = 1f - (_wallJumpLerpTimer / _wallJumpLerpTime);
             _rb.linearVelocity = Vector3.Lerp(_wallJumpStartVelocity, _wallJumpTargetVelocity, t);
             if (_wallJumpLerpTimer <= 0f) _isWallJumpLerping = false;
@@ -668,7 +670,7 @@ public class PlayerController : MonoBehaviour
         // 2. Wall Jump Immunity (skip gravity/slide)
         if (_isWallJumping)
         {
-            _wallJumpTimer -= Time.deltaTime;
+            _wallJumpTimer -= dt;
             if (_wallJumpTimer <= 0f) _isWallJumping = false;
             return;
         }
@@ -706,7 +708,8 @@ public class PlayerController : MonoBehaviour
         // 6. Fast Fall
         if (vY < 0f)
         {
-            _rb.linearVelocity += Vector3.up * Physics.gravity.y * (_fallMultiplier - 1f) * Time.deltaTime;
+            // Use unscaled delta for gravity when Turbo is active so falling speed feels normal
+            _rb.linearVelocity += Vector3.up * Physics.gravity.y * (_fallMultiplier - 1f) * dt;
         }
 
         if (_isDashJump && vY > 0f && (_rb.position.y - _jumpStartY) > 1.2f)
@@ -796,7 +799,7 @@ public class PlayerController : MonoBehaviour
         );
     }
 
-    private void HandleContinuousMovementMomentum()
+    private void HandleContinuousMovementMomentum(float dt)
     {
         // Ignore during wall slide, wall jump, dash, or input lock
         if (!_inputEnabled || _isDashing || _isWallSliding || isTapWallJump) return;
@@ -804,7 +807,7 @@ public class PlayerController : MonoBehaviour
         // Only count if there’s actual directional input
         if (_moveInput.sqrMagnitude > 0.01f)
         {
-            _movementMomentumTimer += Time.deltaTime;
+            _movementMomentumTimer += dt;
 
             // Gain momentum every 1 second of continuous movement
             if (_movementMomentumTimer >= 1f)

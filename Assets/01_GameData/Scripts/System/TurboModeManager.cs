@@ -38,12 +38,23 @@ public class TurboModeManager : MonoBehaviour
     private float _originalAnimSpeed;
     private float _origAcc, _origDec;
 
-    // Additional player parameters cached during Turbo so they can be restored.
+    // Turbo scaling caches for additional movement parameters
     private float _originalRotateSpeed;
     private float _originalDashForce;
-    private float _origJump;
-    private float _origWallJump;
-    private float _origWallJumpH;
+    private float _origJumpForce;
+    private float _origWallJumpForce;
+    private float _origWallJumpHForce;
+
+    // Store the computed compensation factor so it can be reused during Turbo
+    private float _comp;
+
+    
+
+    /// <summary>
+    /// The current Turbo compensation factor (1/slowFactor * playerSpeedMult).
+    /// Other systems can use this to scale their own values when Turbo is active.
+    /// </summary>
+    public float TurboComp => _comp;
 
     private void Awake()
     {
@@ -59,6 +70,25 @@ public class TurboModeManager : MonoBehaviour
             _cooldownTimer -= Time.unscaledDeltaTime;  // real-time cooldown
             if (_cooldownTimer <= 0f) _onCooldown = false;
         }
+
+        // If Turbo Mode is active, continually reapply the compensated movement values.
+        // This prevents other systems (e.g., MomentumBuffsManager) from overriding
+        // the player's speed, acceleration, rotation, dash, and jump parameters
+        // while Turbo is active. Without this, buffs or debuffs applied elsewhere
+        // could inadvertently cancel out Turbo scaling.
+        if (_isActive && _player != null)
+        {
+            _player.SetMoveSpeed(_originalMoveSpeed * _comp);
+            _player.SetAccelDecel(_origAcc * _comp, _origDec * _comp);
+            _player.RotateSpeed = _originalRotateSpeed * _comp;
+            _player.DashForce = _originalDashForce * _comp;
+            _player.JumpForce = _origJumpForce * _comp;
+            _player.WallJumpForce = _origWallJumpForce * _comp;
+            _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
+        }
+
+        // Note: TurboModeManager no longer forces animator speed every frame.
+        // CombatTurboManager now manages animation speed, so nothing to enforce here.
     }
 
     public bool TryStartTurbo(PlayerController player, PlayerAnimator anim)
@@ -78,46 +108,40 @@ public class TurboModeManager : MonoBehaviour
         _player = player;
         _anim = anim;
 
+        // Cache originals
         _originalMoveSpeed = _player.MoveSpeed;
-        _originalAnimSpeed = 1f; // we set animator speed additively
+        _originalAnimSpeed = 1f;
 
         // World slowdown
-        Time.timeScale = _slowFactor;                  // e.g., 0.35
+        Time.timeScale = _slowFactor;
         Time.fixedDeltaTime = _originalFixedDelta * _slowFactor;
 
-        // Player feels faster than the world:
-        //   comp = cancel world slow (1/slowFactor) × your extra boost (1.5x)
-        float comp = (1f / _slowFactor) * _playerSpeedMult; // e.g., 1/0.35 * 1.5 ≈ 4.2857
+        // Compute compensation and store for reuse during Turbo
+        _comp = (1f / _slowFactor) * _playerSpeedMult;
 
-        // MoveSpeed already boosted:
-        _originalMoveSpeed = _player.MoveSpeed;
-        _player.SetMoveSpeed(_originalMoveSpeed * comp);
-
-        // Animator already sped up:
-        _originalAnimSpeed = 1f;
-        _anim?.SetAttackSpeed(comp);
-
-        // NEW: match acceleration feel during slow-mo
+        // Cache additional movement parameters
         _origAcc = _player.Acceleration;
         _origDec = _player.Deceleration;
-        _player.ScaleAccelDecel(comp);
-
-        // Cache and scale additional movement parameters so Turbo feels responsive
-        // even when the world is slowed. Without scaling these values the player
-        // would rotate and dash at the same pace as the slowed world.
         _originalRotateSpeed = _player.RotateSpeed;
         _originalDashForce = _player.DashForce;
-        _origJump = _player.JumpForce;
-        _origWallJump = _player.WallJumpForce;
-        _origWallJumpH = _player.WallJumpHorizontalForce;
+        _origJumpForce = _player.JumpForce;
+        _origWallJumpForce = _player.WallJumpForce;
+        _origWallJumpHForce = _player.WallJumpHorizontalForce;
 
-        _player.RotateSpeed = _originalRotateSpeed * comp;
-        _player.DashForce = _originalDashForce * comp;
-        _player.JumpForce = _origJump * comp;
-        _player.WallJumpForce = _origWallJump * comp;
-        _player.WallJumpHorizontalForce = _origWallJumpH * comp;
+        // Apply compensation to player movement/physics. Use SetAccelDecel to set
+        // exact compensated values rather than scaling (avoids compounding if other
+        // systems adjust acceleration or deceleration while Turbo is active).
+        _player.SetMoveSpeed(_originalMoveSpeed * _comp);
+        _player.SetAccelDecel(_origAcc * _comp, _origDec * _comp);
+        _player.RotateSpeed = _originalRotateSpeed * _comp;
+        _player.DashForce = _originalDashForce * _comp;
+        _player.JumpForce = _origJumpForce * _comp;
+        _player.WallJumpForce = _origWallJumpForce * _comp;
+        _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
 
-        // Snap horizontal velocity so the player immediately feels the speed boost.
+        // Note: combat animation speed buff is now managed by CombatTurboManager.
+
+        // If the player was holding a direction, snap to new speed immediately
         if (_player.IsHoldingMove)
         {
             _player.ApplyBufferedMovement(_player.GetLastMoveInput());
@@ -125,7 +149,6 @@ public class TurboModeManager : MonoBehaviour
 
         _isActive = true;
         onTurboStart?.Invoke();
-        // Run the timer in unscaled (real) time
         _player.StartCoroutine(Co_TurboTimer());
         return true;
     }
@@ -149,21 +172,21 @@ public class TurboModeManager : MonoBehaviour
         Time.timeScale = 1f;
         Time.fixedDeltaTime = _originalFixedDelta;
 
-        // Restore player movement feel and parameters
+        // Restore player movement feel and physics
         if (_player != null)
         {
-            // Restore base movement speed
             _player.SetMoveSpeed(_originalMoveSpeed);
-            // Restore accel/decel
             _player.SetAccelDecel(_origAcc, _origDec);
-            // Restore rotate/dash/jump settings
             _player.RotateSpeed = _originalRotateSpeed;
             _player.DashForce = _originalDashForce;
-            _player.JumpForce = _origJump;
-            _player.WallJumpForce = _origWallJump;
-            _player.WallJumpHorizontalForce = _origWallJumpH;
+            _player.JumpForce = _origJumpForce;
+            _player.WallJumpForce = _origWallJumpForce;
+            _player.WallJumpHorizontalForce = _origWallJumpHForce;
         }
-        _anim?.SetAttackSpeed(_originalAnimSpeed);
+
+        // Restore animator speed. Combat animation buff is handled by CombatTurboManager.
+        if (_anim != null)
+            _anim.SetAttackSpeed(_originalAnimSpeed);
 
         // Resume momentum gain
         MomentumManager.Instance?.SetGainPaused(false);
