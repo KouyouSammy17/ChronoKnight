@@ -196,6 +196,36 @@ public class PlayerController : MonoBehaviour
     }
 
     /// <summary>
+    /// Fall multiplier used to accelerate falling. Exposed so Turbo Mode can
+    /// adjust it during slow‑motion to maintain consistent fall speeds.
+    /// </summary>
+    public float FallMultiplier
+    {
+        get => _fallMultiplier;
+        set => _fallMultiplier = value;
+    }
+
+    /// <summary>
+    /// Maximum fall speed (terminal velocity). Exposed in case Turbo Mode
+    /// needs to adjust it. Currently unchanged during Turbo.
+    /// </summary>
+    public float MaxFallSpeed
+    {
+        get => _maxFallSpeed;
+        set => _maxFallSpeed = value;
+    }
+
+    /// <summary>
+    /// Downward slide speed while wall sliding. Exposed so Turbo Mode can
+    /// adjust it if necessary. Currently unchanged during Turbo.
+    /// </summary>
+    public float WallSlideSpeed
+    {
+        get => _wallSlideSpeed;
+        set => _wallSlideSpeed = value;
+    }
+
+    /// <summary>
     /// Clears the movement buffer and its timer.
     /// </summary>
     public void ClearBufferedMovement()
