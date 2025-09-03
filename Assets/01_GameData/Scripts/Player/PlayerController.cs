@@ -250,6 +250,19 @@ public class PlayerController : MonoBehaviour
     public bool IsHoldingMove => _isHoldingMove;
     public Vector2 GetLastMoveInput() => _lastMoveInput;
 
+    /// <summary>
+    /// Returns a delta time that ignores global slow‑mo when Turbo Mode is active.
+    /// When Turbo is active, this returns Time.unscaledDeltaTime; otherwise
+    /// Time.deltaTime.  Use this helper to keep vertical motion such as falling
+    /// consistent regardless of the current Time.timeScale.  Without this,
+    /// falls and timers feel sluggish during Turbo Mode when the physics step
+    /// is slowed.
+    /// </summary>
+    private float TurboAwareDeltaTime =>
+        (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
+            ? Time.unscaledDeltaTime
+            : Time.deltaTime;
+
     // ───────────────────────────────────────────────────────────────────────────────
     // Public Interface for Locking/Unlocking Input (new)
     // ───────────────────────────────────────────────────────────────────────────────
@@ -683,10 +696,12 @@ public class PlayerController : MonoBehaviour
         float heldHeight = transform.position.y - _jumpStartY;
 
         // 1. Wall Jump Lerp (controlled arc)
-        // compute real-time delta for vertical motion when Turbo Mode is active
-        float dt = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
-            ? Time.unscaledDeltaTime
-            : Time.deltaTime;
+        // Compute a delta time appropriate for vertical motion.  When Turbo Mode is
+        // active the global timeScale slows down physics and reduces Time.deltaTime
+        // in FixedUpdate.  Use TurboAwareDeltaTime to ignore the reduced timeScale
+        // during Turbo so gravity and timers run at their original pace.  This
+        // prevents falling and jump timers from feeling sluggish in slow‑motion.
+        float dt = TurboAwareDeltaTime;
 
         if (_isWallJumpLerping)
         {

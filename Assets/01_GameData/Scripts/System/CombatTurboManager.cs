@@ -14,12 +14,10 @@ public class CombatTurboManager : MonoBehaviour
     private CombatController _combat;
     private PlayerAnimator _playerAnim;
 
-    // Tracks the baseline attack speed buff provided by other systems (e.g. momentum buffs).
-    // When Turbo Mode is active, we multiply this by the Turbo compensation factor.
-    private float _baseBuff = 1f;
-    // Remember whether Turbo Mode was active on the previous frame. Used to detect
-    // when Turbo just started or just ended.
-    private bool _wasTurboActive = false;
+    // No extra state is required. Attack speed buffing and Turbo compensation
+    // are applied directly in CombatController.  This manager only scales the
+    // animator speed when not in a combo, to make idle/locomotion animations
+    // reflect Turbo slow/fast time.
 
     private void Awake()
     {
@@ -36,45 +34,33 @@ public class CombatTurboManager : MonoBehaviour
 
     private void Update()
     {
-        // Grab TurboModeManager (may be null if Turbo isn't configured)
+        // Determine the Turbo compensation factor.  When Turbo is inactive, comp = 1.
         var turbo = TurboModeManager.Instance;
-        bool active = (turbo != null && turbo.IsActive);
-        // Determine compensation factor. When inactive, comp = 1.
-        float comp = (active && turbo != null) ? turbo.TurboComp : 1f;
+        float comp = (turbo != null && turbo.IsActive) ? turbo.TurboComp : 1f;
 
-        // Fetch the current attack speed buff from the combat controller.
-        // If CombatController is missing (shouldn't happen with RequireComponent), skip.
-        if (_combat != null)
-        {
-            float currentBuff = _combat.AttackSpeedBuff;
-            // Derive the underlying base buff. When Turbo is active the controller's
-            // AttackSpeedBuff has been multiplied by comp. When inactive it is just
-            // the base buff. Divide by comp to recover the base value in both cases.
-            float estimatedBase = currentBuff / comp;
-            if (!Mathf.Approximately(estimatedBase, _baseBuff))
-            {
-                _baseBuff = estimatedBase;
-            }
-
-            // Compute the final buff to apply: base buff times comp if Turbo is active,
-            // otherwise just the base buff. This ensures momentum buffs stack with Turbo
-            // rather than being overwritten.
-            float finalBuff = active ? _baseBuff * comp : _baseBuff;
-            _combat.SetAttackSpeedBuff(finalBuff);
-        }
-
-        // Adjust the animator speed. All animations should be sped up by comp while
-        // Turbo is active and reset to normal otherwise. Note: SetAttackSpeed
-        // multiplies the Animator.speed property on PlayerAnimator; using it here
-        // ensures locomotion/idle/attack states all scale consistently.
+        // Adjust the animator speed only when not currently in a combo.  During combos
+        // the CombatController sets the animator speed per attack step, including
+        // momentum buffs and Turbo compensation.  Overriding it here would
+        // interfere with combo timing.  Outside of combos, we scale the animator
+        // so idle and locomotion animations reflect Turbo slow/fast time.
         if (_playerAnim != null)
         {
-            float animSpeed = active ? comp : 1f;
-            _playerAnim.SetAttackSpeed(animSpeed);
+            bool inCombo = false;
+            if (_combat != null)
+            {
+                try
+                {
+                    inCombo = _combat.IsComboActive; // プロパティとしてアクセス
+                }
+                catch
+                {
+                    inCombo = false;
+                }
+            }
+            if (!inCombo)
+            {
+                _playerAnim.SetAttackSpeed(comp);
+            }
         }
-
-        // Track the previous Turbo state. Currently unused but retained for potential
-        // future logic (e.g., one-shot events on entering/exiting Turbo).
-        _wasTurboActive = active;
     }
 }

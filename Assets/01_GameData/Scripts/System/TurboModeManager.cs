@@ -48,20 +48,18 @@ public class TurboModeManager : MonoBehaviour
     private float _origWallJumpForce;
     private float _origWallJumpHForce;
 
-    // Caches for vertical motion parameters to restore after Turbo.
-    private float _origFallMultiplier;
-    private float _origMaxFallSpeed;
-    private float _origWallSlideSpeed;
 
     // Store the computed compensation factor so it can be reused during Turbo
     private float _comp;
-
 
     /// <summary>
     /// The current Turbo compensation factor (1/slowFactor * playerSpeedMult).
     /// Other systems can use this to scale their own values when Turbo is active.
     /// </summary>
     public float TurboComp => _comp;
+
+    public bool IsActive => _isActive;
+    public bool IsOnCooldown => _onCooldown;
 
     private void Awake()
     {
@@ -79,12 +77,14 @@ public class TurboModeManager : MonoBehaviour
         }
 
         // If Turbo Mode is active, continually reapply the compensated movement values.
-        // This prevents other systems (e.g., MomentumBuffsManager) from overriding
-        // the player's speed, acceleration, rotation, dash, and jump parameters
-        // while Turbo is active. Without this, buffs or debuffs applied elsewhere
-        // could inadvertently cancel out Turbo scaling.
+        // This prevents other systems (e.g., MomentumBuffsManager) from overriding the
+        // player's speed, acceleration, rotation, dash, and jump parameters while Turbo
+        // is active.  Vertical fall parameters are no longer scaled here; vertical
+        // motion uses unscaled delta time in PlayerController to maintain consistent
+        // falling speed during Turbo.
         if (_isActive && _player != null)
         {
+            // Reapply horizontal and rotational movement compensation.
             _player.SetMoveSpeed(_originalMoveSpeed * _comp);
             _player.SetAccelDecel(_origAcc * _comp, _origDec * _comp);
             _player.RotateSpeed = _originalRotateSpeed * _comp;
@@ -92,9 +92,6 @@ public class TurboModeManager : MonoBehaviour
             _player.JumpForce = _origJumpForce * _comp;
             _player.WallJumpForce = _origWallJumpForce * _comp;
             _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
-            // Continually reapply fall multiplier to prevent other systems from overwriting it
-            float slowFactor = _slowFactor;
-            _player.FallMultiplier = _origFallMultiplier + (1f - slowFactor);
         }
 
         // Note: TurboModeManager no longer forces animator speed every frame.
@@ -138,10 +135,6 @@ public class TurboModeManager : MonoBehaviour
         _origWallJumpForce = _player.WallJumpForce;
         _origWallJumpHForce = _player.WallJumpHorizontalForce;
 
-        // Cache vertical motion parameters
-        _origFallMultiplier = _player.FallMultiplier;
-        _origMaxFallSpeed = _player.MaxFallSpeed;
-        _origWallSlideSpeed = _player.WallSlideSpeed;
 
         // Apply compensation to player movement/physics. Use SetAccelDecel to set
         // exact compensated values rather than scaling (avoids compounding if other
@@ -154,13 +147,9 @@ public class TurboModeManager : MonoBehaviour
         _player.WallJumpForce = _origWallJumpForce * _comp;
         _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
 
-        // Adjust fall multiplier to maintain falling speed during slow-mo. We add
-        // (1 – slowFactor) so that extra gravity is increased when time is slowed.
-        float slowFactor = _slowFactor;
-        float newFallMult = _origFallMultiplier + (1f - slowFactor);
-        _player.FallMultiplier = newFallMult;
-
-        // Note: combat animation speed buff is now managed by CombatTurboManager.
+        // Note: vertical fall parameters are no longer scaled here.  The PlayerController
+        // uses TurboAwareDeltaTime to maintain consistent falling speed during Turbo.
+        // Combat animation speed buff is now managed by CombatTurboManager.
 
         // If the player was holding a direction, snap to new speed immediately
         if (_player.IsHoldingMove)
@@ -203,9 +192,6 @@ public class TurboModeManager : MonoBehaviour
             _player.JumpForce = _origJumpForce;
             _player.WallJumpForce = _origWallJumpForce;
             _player.WallJumpHorizontalForce = _origWallJumpHForce;
-            // Restore fall multiplier
-            _player.FallMultiplier = _origFallMultiplier;
-            // MaxFallSpeed and WallSlideSpeed remain unchanged during Turbo, so no need to restore.
         }
 
         // Restore animator speed. Combat animation buff is handled by CombatTurboManager.
@@ -225,6 +211,5 @@ public class TurboModeManager : MonoBehaviour
         _anim = null;
     }
 
-    public bool IsActive => _isActive;
-    public bool IsOnCooldown => _onCooldown;
+    
 }
