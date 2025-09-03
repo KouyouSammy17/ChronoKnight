@@ -141,10 +141,14 @@ public class CombatController : MonoBehaviour
                 var turboMgr = TurboModeManager.Instance;
                 if (turboMgr != null && turboMgr.IsActive)
                 {
-                    finalBuff = 1.5f;
+                    // During Turbo, use the Turbo compensation factor for attacks
+                    // so attacks feel just as fast relative to the slowed world.  Do
+                    // not stack with momentum buff; choose Turbo over momentum.
+                    finalBuff = turboMgr.TurboComp;
                 }
                 else
                 {
+                    // When Turbo is inactive, use the momentum attack‑speed buff (if any)
                     finalBuff = _speedBuff;
                 }
                 _playerAnim.SetAttackSpeed(step.speedMultiplier * finalBuff);
