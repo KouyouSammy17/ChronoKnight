@@ -95,19 +95,27 @@ public class TurboModeManager : MonoBehaviour
             _player.RotateSpeed = _originalRotateSpeed * _comp;
             _player.DashForce = _originalDashForce * _comp;
 
-            // Scale vertical movement parameters by the player speed multiplier only.  Unlike
-            // horizontal motion, vertical physics (gravity) is not slowed by timeScale when
-            // we adjust Time.fixedDeltaTime.  Therefore we multiply jump and wall jump forces
-            // by _playerSpeedMult instead of the full horizontal compensation.  We also
-            // continually reapply these values to prevent other systems from overwriting them.
-            float verticalComp = _playerSpeedMult;
+            // Apply vertical movement compensation using the full compensation factor
+            // (1/slowFactor * playerSpeedMult) for jumps and falls.  This ensures that
+            // vertical motion (jumping and falling) remains consistent relative to
+            // the slowed world and feels boosted by playerSpeedMult.  The horizontal
+            // component of wall jumps still uses _comp.
+            float verticalComp = _comp;
             _player.JumpForce = _origJumpForce * verticalComp;
             _player.WallJumpForce = _origWallJumpForce * verticalComp;
             _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
-            _player.MaxHoldJumpHeight = _origMaxHoldJumpHeight * verticalComp;
 
-            // Scale fall multiplier and limits by the vertical compensation.  This keeps
-            // falling and wall sliding feeling consistent and boosted while Turbo is active.
+            // Scale the maximum hold jump height by the player speed multiplier only.
+            // Using the full compensation here can cause jumps to reach undesirably
+            // high heights.  By using only playerSpeedMult, the jump height feels
+            // proportional to the speed boost while remaining controllable.
+            _player.MaxHoldJumpHeight = _origMaxHoldJumpHeight * _playerSpeedMult;
+
+            // Scale the fall multiplier and limits by the full compensation factor.  This
+            // multiplies the entire fallMultiplier, so the combined gravity (base
+            // gravity plus extra) is scaled appropriately.  Using verticalComp for
+            // the entire multiplier ensures that both base gravity and extra gravity
+            // together are boosted correctly relative to the slowed world.
             _player.FallMultiplier = _origFallMultiplier * verticalComp;
             _player.MaxFallSpeed = _origMaxFallSpeed * verticalComp;
             _player.WallSlideSpeed = _origWallSlideSpeed * verticalComp;
@@ -172,17 +180,18 @@ public class TurboModeManager : MonoBehaviour
         _player.RotateSpeed = _originalRotateSpeed * _comp;
         _player.DashForce = _originalDashForce * _comp;
 
-        // Apply vertical compensation using the player speed multiplier only.  Vertical
-        // forces (jump and wall jump) are not slowed by global timeScale when we
-        // reduce Time.fixedDeltaTime.  Therefore we do not multiply by 1/_slowFactor.
-        float verticalCompStart = _playerSpeedMult;
+        // Apply vertical compensation using the full compensation factor for jumps and falls.
+        float verticalCompStart = _comp;
         _player.JumpForce = _origJumpForce * verticalCompStart;
         _player.WallJumpForce = _origWallJumpForce * verticalCompStart;
         _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
-        _player.MaxHoldJumpHeight = _origMaxHoldJumpHeight * verticalCompStart;
 
-        // Apply fall parameters scaled by the vertical compensation.  This ensures
-        // the player falls and wall slides faster relative to the slowed world.
+        // Scale the maximum hold jump height by the player speed multiplier only.  A full
+        // compensation factor here would allow jumps to reach too high.
+        _player.MaxHoldJumpHeight = _origMaxHoldJumpHeight * _playerSpeedMult;
+
+        // Scale fall parameters by the full compensation factor.  This ensures the
+        // combined gravity (base + extra) scales correctly relative to the slowed world.
         _player.FallMultiplier = _origFallMultiplier * verticalCompStart;
         _player.MaxFallSpeed = _origMaxFallSpeed * verticalCompStart;
         _player.WallSlideSpeed = _origWallSlideSpeed * verticalCompStart;
