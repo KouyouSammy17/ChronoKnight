@@ -48,9 +48,13 @@ public class CombatTurboManager : MonoBehaviour
             bool inCombo = false;
             if (_combat != null)
             {
+                // Use the IsComboActive property if available.  Avoid calling an
+                // extension method or reflection to prevent compile errors when
+                // IsComboActive() does not exist.  The property will return
+                // true when a combo is currently playing.
                 try
                 {
-                    inCombo = _combat.IsComboActive; // プロパティとしてアクセス
+                    inCombo = _combat.IsComboActive;
                 }
                 catch
                 {
