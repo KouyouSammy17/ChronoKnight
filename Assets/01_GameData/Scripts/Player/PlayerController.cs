@@ -251,17 +251,30 @@ public class PlayerController : MonoBehaviour
     public Vector2 GetLastMoveInput() => _lastMoveInput;
 
     /// <summary>
-    /// Returns a delta time that ignores global slow‑mo when Turbo Mode is active.
-    /// When Turbo is active, this returns Time.unscaledDeltaTime; otherwise
-    /// Time.deltaTime.  Use this helper to keep vertical motion such as falling
-    /// consistent regardless of the current Time.timeScale.  Without this,
-    /// falls and timers feel sluggish during Turbo Mode when the physics step
-    /// is slowed.
+    /// Returns a delta time for vertical physics calculations.  When Turbo Mode is
+    /// active the global timeScale is lowered and <see cref="Time.fixedDeltaTime"/>
+    /// is scaled accordingly.  Using <see cref="Time.fixedDeltaTime"/> here
+    /// ensures that extra gravity and other vertical forces are applied
+    /// consistently per physics step rather than using <see cref="Time.unscaledDeltaTime"/>,
+    /// which can cause gravity to feel overly slow or fast when the global time
+    /// scale is changed.  When Turbo Mode is inactive this still returns
+    /// <see cref="Time.fixedDeltaTime"/>.  Note: timers (dash, jump buffers, etc.)
+    /// in <see cref="Update()"/> still use real‑time delta so they count down in
+    /// real time during Turbo.
     /// </summary>
-    private float TurboAwareDeltaTime =>
-        (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
-            ? Time.unscaledDeltaTime
-            : Time.deltaTime;
+    private float TurboAwareDeltaTime => Time.fixedDeltaTime;
+
+    /// <summary>
+    /// Maximum height (in world units) allowed when holding jump.  When Turbo Mode
+    /// boosts jump force, this value is scaled so that the player can still
+    /// achieve the intended jump height relative to the boosted force.  When
+    /// Turbo ends, this value is restored to its original setting.
+    /// </summary>
+    public float MaxHoldJumpHeight
+    {
+        get => _maxHoldJumpHeight;
+        set => _maxHoldJumpHeight = value;
+    }
 
     // ───────────────────────────────────────────────────────────────────────────────
     // Public Interface for Locking/Unlocking Input (new)
