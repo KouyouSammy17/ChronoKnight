@@ -42,6 +42,9 @@ public class CombatController : MonoBehaviour
     private float _speedBuff = 1f;
     private CancellationTokenSource _cts;
 
+    // Expose combo state to other scripts (e.g. CombatTurboManager)
+    public bool IsComboActive => _isActive;
+
     private void Awake()
     {
         _playerController = _playerController ?? GetComponent<PlayerController>();
@@ -122,8 +125,11 @@ public class CombatController : MonoBehaviour
                 // Zero out velocity at the start of every combo step to prevent sliding
                 _playerController.GetRigidbody().linearVelocity = Vector3.zero;
 
-                // set anim speed
-                _playerAnim.SetAttackSpeed(step.speedMultiplier * _speedBuff);
+                // Multiply step speed, current attack‑speed buff, and Turbo compensation factor
+                float turboComp = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
+                    ? TurboModeManager.Instance.TurboComp
+                    : 1f;
+                _playerAnim.SetAttackSpeed(step.speedMultiplier * _speedBuff * turboComp);
 
                 // reset buffer flag
                 _bufferedAttack = false;
