@@ -95,30 +95,35 @@ public class TurboModeManager : MonoBehaviour
             _player.RotateSpeed = _originalRotateSpeed * _comp;
             _player.DashForce = _originalDashForce * _comp;
 
-            // Apply vertical movement compensation using the full compensation factor
-            // (1/slowFactor * playerSpeedMult) for jumps and falls.  This ensures that
-            // vertical motion (jumping and falling) remains consistent relative to
-            // the slowed world and feels boosted by playerSpeedMult.  The horizontal
-            // component of wall jumps still uses _comp.
-            float verticalComp = _comp;
-            _player.JumpForce = _origJumpForce * verticalComp;
-            _player.WallJumpForce = _origWallJumpForce * verticalComp;
+            // Compensate vertical motion separately for jump impulses and falling.
+            // We use the full compensation factor (_comp) for jump forces so that
+            // jump takeoff speed matches the boosted horizontal feel.  For falling
+            // (extra gravity and terminal velocity), we use an additional boost
+            // factor (playerSpeedMult) to make descents feel snappier.  This gives
+            // jumps and falls distinct tuning while preserving the slowed world.
+
+            // Jump forces use the full compensation factor (1/slowFactor * playerSpeedMult)
+            float verticalCompJump = _comp;
+            _player.JumpForce = _origJumpForce * verticalCompJump;
+            _player.WallJumpForce = _origWallJumpForce * verticalCompJump;
+            // The horizontal component of a wall jump still uses the horizontal compensation
             _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
 
-            // Scale the maximum hold jump height by the player speed multiplier only.
-            // Using the full compensation here can cause jumps to reach undesirably
-            // high heights.  By using only playerSpeedMult, the jump height feels
-            // proportional to the speed boost while remaining controllable.
+            // Limit the hold jump height by scaling only with playerSpeedMult.  This prevents
+            // jumps from becoming excessively tall while still making them feel boosted.
             _player.MaxHoldJumpHeight = _origMaxHoldJumpHeight * _playerSpeedMult;
 
-            // Scale the fall multiplier and limits by the full compensation factor.  This
-            // multiplies the entire fallMultiplier, so the combined gravity (base
-            // gravity plus extra) is scaled appropriately.  Using verticalComp for
-            // the entire multiplier ensures that both base gravity and extra gravity
-            // together are boosted correctly relative to the slowed world.
-            _player.FallMultiplier = _origFallMultiplier * verticalComp;
-            _player.MaxFallSpeed = _origMaxFallSpeed * verticalComp;
-            _player.WallSlideSpeed = _origWallSlideSpeed * verticalComp;
+            // Falling uses an extra boost: multiply the full compensation by the playerSpeedMult.
+            // This yields a net multiplier of (playerSpeedMult^2 / slowFactor) so descents
+            // accelerate more aggressively than takeoffs.  Without this, falling can still
+            // feel floaty in Turbo mode.
+            float verticalCompFall = _comp * _playerSpeedMult;
+            // Scale the entire fallMultiplier so that both base gravity and extra gravity
+            // contributions are accelerated uniformly.  Terminal velocity and wall slide
+            // speeds also use this stronger multiplier.
+            _player.FallMultiplier = _origFallMultiplier * verticalCompFall;
+            _player.MaxFallSpeed = _origMaxFallSpeed * verticalCompFall;
+            _player.WallSlideSpeed = _origWallSlideSpeed * verticalCompFall;
         }
 
         // Note: TurboModeManager no longer forces animator speed every frame.
@@ -180,21 +185,22 @@ public class TurboModeManager : MonoBehaviour
         _player.RotateSpeed = _originalRotateSpeed * _comp;
         _player.DashForce = _originalDashForce * _comp;
 
-        // Apply vertical compensation using the full compensation factor for jumps and falls.
-        float verticalCompStart = _comp;
-        _player.JumpForce = _origJumpForce * verticalCompStart;
-        _player.WallJumpForce = _origWallJumpForce * verticalCompStart;
+        // Apply vertical compensation with separate tuning for jump forces and falling.
+        // Jumps use the full compensation (_comp) so takeoff speed matches horizontal feel.
+        float verticalCompStartJump = _comp;
+        _player.JumpForce = _origJumpForce * verticalCompStartJump;
+        _player.WallJumpForce = _origWallJumpForce * verticalCompStartJump;
+        // Horizontal component of wall jump still uses horizontal compensation
         _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
 
-        // Scale the maximum hold jump height by the player speed multiplier only.  A full
-        // compensation factor here would allow jumps to reach too high.
+        // Limit hold-jump height using only playerSpeedMult to avoid excessively tall jumps
         _player.MaxHoldJumpHeight = _origMaxHoldJumpHeight * _playerSpeedMult;
 
-        // Scale fall parameters by the full compensation factor.  This ensures the
-        // combined gravity (base + extra) scales correctly relative to the slowed world.
-        _player.FallMultiplier = _origFallMultiplier * verticalCompStart;
-        _player.MaxFallSpeed = _origMaxFallSpeed * verticalCompStart;
-        _player.WallSlideSpeed = _origWallSlideSpeed * verticalCompStart;
+        // Falling uses an extra boost: multiply the full compensation by playerSpeedMult
+        float verticalCompStartFall = _comp * _playerSpeedMult;
+        _player.FallMultiplier = _origFallMultiplier * verticalCompStartFall;
+        _player.MaxFallSpeed = _origMaxFallSpeed * verticalCompStartFall;
+        _player.WallSlideSpeed = _origWallSlideSpeed * verticalCompStartFall;
 
         // Note: Combat animation speed buff is now managed by CombatTurboManager.
 
