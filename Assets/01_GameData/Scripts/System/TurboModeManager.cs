@@ -48,6 +48,9 @@ public class TurboModeManager : MonoBehaviour
     private float _origWallJumpForce;
     private float _origWallJumpHForce;
 
+    // Cache maximum hold jump height so we can scale it during Turbo.
+    private float _origMaxHoldJumpHeight;
+
     // Cache vertical fall parameters so we can compensate for global slow-mo.
     private float _origFallMultiplier;
     private float _origMaxFallSpeed;
@@ -91,21 +94,23 @@ public class TurboModeManager : MonoBehaviour
             _player.SetAccelDecel(_origAcc * _comp, _origDec * _comp);
             _player.RotateSpeed = _originalRotateSpeed * _comp;
             _player.DashForce = _originalDashForce * _comp;
-            _player.JumpForce = _origJumpForce * _comp;
-            _player.WallJumpForce = _origWallJumpForce * _comp;
-            _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
 
-            // Continually reapply compensated fall settings.  The global timeScale
-            // reduces physics integration, which slows falling speed.  To counter
-            // this we increase the fall multiplier, max fall speed, and wall slide
-            // speed by appropriate factors (see TryStartTurbo for details).  During
-            // Turbo this prevents falling from feeling sluggish.
-            float slow = _slowFactor;
-            float newFallMultiplier = 1f + (_origFallMultiplier - slow);
-            float maxFallComp = 1f / slow;
-            _player.FallMultiplier = newFallMultiplier;
-            _player.MaxFallSpeed = _origMaxFallSpeed * maxFallComp;
-            _player.WallSlideSpeed = _origWallSlideSpeed * maxFallComp;
+            // Scale vertical movement parameters by the player speed multiplier only.  Unlike
+            // horizontal motion, vertical physics (gravity) is not slowed by timeScale when
+            // we adjust Time.fixedDeltaTime.  Therefore we multiply jump and wall jump forces
+            // by _playerSpeedMult instead of the full horizontal compensation.  We also
+            // continually reapply these values to prevent other systems from overwriting them.
+            float verticalComp = _playerSpeedMult;
+            _player.JumpForce = _origJumpForce * verticalComp;
+            _player.WallJumpForce = _origWallJumpForce * verticalComp;
+            _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
+            _player.MaxHoldJumpHeight = _origMaxHoldJumpHeight * verticalComp;
+
+            // Scale fall multiplier and limits by the vertical compensation.  This keeps
+            // falling and wall sliding feeling consistent and boosted while Turbo is active.
+            _player.FallMultiplier = _origFallMultiplier * verticalComp;
+            _player.MaxFallSpeed = _origMaxFallSpeed * verticalComp;
+            _player.WallSlideSpeed = _origWallSlideSpeed * verticalComp;
         }
 
         // Note: TurboModeManager no longer forces animator speed every frame.
@@ -156,31 +161,33 @@ public class TurboModeManager : MonoBehaviour
         _origFallMultiplier = _player.FallMultiplier;
         _origMaxFallSpeed = _player.MaxFallSpeed;
         _origWallSlideSpeed = _player.WallSlideSpeed;
+        // Cache hold jump height so we can boost it during Turbo.
+        _origMaxHoldJumpHeight = _player.MaxHoldJumpHeight;
 
 
-        // Apply compensation to player movement/physics. Use SetAccelDecel to set
-        // exact compensated values rather than scaling (avoids compounding if other
-        // systems adjust acceleration or deceleration while Turbo is active).
+        // Apply horizontal compensation.  Use SetAccelDecel so that acceleration and
+        // deceleration are set explicitly rather than compounded by multiple calls.
         _player.SetMoveSpeed(_originalMoveSpeed * _comp);
         _player.SetAccelDecel(_origAcc * _comp, _origDec * _comp);
         _player.RotateSpeed = _originalRotateSpeed * _comp;
         _player.DashForce = _originalDashForce * _comp;
-        _player.JumpForce = _origJumpForce * _comp;
-        _player.WallJumpForce = _origWallJumpForce * _comp;
+
+        // Apply vertical compensation using the player speed multiplier only.  Vertical
+        // forces (jump and wall jump) are not slowed by global timeScale when we
+        // reduce Time.fixedDeltaTime.  Therefore we do not multiply by 1/_slowFactor.
+        float verticalCompStart = _playerSpeedMult;
+        _player.JumpForce = _origJumpForce * verticalCompStart;
+        _player.WallJumpForce = _origWallJumpForce * verticalCompStart;
         _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
+        _player.MaxHoldJumpHeight = _origMaxHoldJumpHeight * verticalCompStart;
 
-        // Apply compensated fall parameters once.  During Update these will
-        // continue to be enforced.  See Update() for details.
-        float slow = _slowFactor;
-        float newFallMultiplier = 1f + (_origFallMultiplier - slow);
-        float maxFallComp = 1f / slow;
-        _player.FallMultiplier = newFallMultiplier;
-        _player.MaxFallSpeed = _origMaxFallSpeed * maxFallComp;
-        _player.WallSlideSpeed = _origWallSlideSpeed * maxFallComp;
+        // Apply fall parameters scaled by the vertical compensation.  This ensures
+        // the player falls and wall slides faster relative to the slowed world.
+        _player.FallMultiplier = _origFallMultiplier * verticalCompStart;
+        _player.MaxFallSpeed = _origMaxFallSpeed * verticalCompStart;
+        _player.WallSlideSpeed = _origWallSlideSpeed * verticalCompStart;
 
-        // Note: vertical fall parameters are no longer scaled here.  The PlayerController
-        // uses TurboAwareDeltaTime to maintain consistent falling speed during Turbo.
-        // Combat animation speed buff is now managed by CombatTurboManager.
+        // Note: Combat animation speed buff is now managed by CombatTurboManager.
 
         // If the player was holding a direction, snap to new speed immediately
         if (_player.IsHoldingMove)
@@ -228,6 +235,9 @@ public class TurboModeManager : MonoBehaviour
             _player.FallMultiplier = _origFallMultiplier;
             _player.MaxFallSpeed = _origMaxFallSpeed;
             _player.WallSlideSpeed = _origWallSlideSpeed;
+
+            // Restore the original hold jump height.
+            _player.MaxHoldJumpHeight = _origMaxHoldJumpHeight;
         }
 
         // Restore animator speed. Combat animation buff is handled by CombatTurboManager.
