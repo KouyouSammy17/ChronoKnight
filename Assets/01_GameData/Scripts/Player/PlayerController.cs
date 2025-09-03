@@ -262,6 +262,15 @@ public class PlayerController : MonoBehaviour
     /// in <see cref="Update()"/> still use real‑time delta so they count down in
     /// real time during Turbo.
     /// </summary>
+    // Returns the physics timestep used for vertical motion.  We use
+    // Time.fixedDeltaTime rather than dividing by timeScale because
+    // FixedUpdate is executed based on fixedDeltaTime (game time), and
+    // forces applied inside FixedUpdate should use the simulation step to
+    // integrate correctly.  Gravity and other vertical forces are applied
+    // per physics step, and scaling these forces in TurboModeManager will
+    // compensate for slow-motion.  When timeScale is changed, fixedDeltaTime
+    // is scaled accordingly, so this value reflects the game time step
+    // used by the physics engine.
     private float TurboAwareDeltaTime => Time.fixedDeltaTime;
 
     /// <summary>
