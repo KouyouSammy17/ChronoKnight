@@ -42,9 +42,6 @@ public class CombatController : MonoBehaviour
     private float _speedBuff = 1f;
     private CancellationTokenSource _cts;
 
-    // Expose combo state to other scripts (e.g. CombatTurboManager)
-    public bool IsComboActive => _isActive;
-
     private void Awake()
     {
         _playerController = _playerController ?? GetComponent<PlayerController>();
@@ -61,6 +58,13 @@ public class CombatController : MonoBehaviour
         else if (_canBuffer)
             _bufferedAttack = true;
     }
+
+    /// <summary>
+    /// True when a combat combo is currently active. Exposed so other systems
+    /// (e.g., CombatTurboManager) can detect whether an attack is playing and
+    /// avoid overriding Animator speed during combos.
+    /// </summary>
+    public bool IsComboActive => _isActive;
 
     /// <summary>
     /// Set a global damage multiplier for all combo steps.
@@ -125,11 +129,25 @@ public class CombatController : MonoBehaviour
                 // Zero out velocity at the start of every combo step to prevent sliding
                 _playerController.GetRigidbody().linearVelocity = Vector3.zero;
 
-                // Multiply step speed, current attack‑speed buff, and Turbo compensation factor
-                float turboComp = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
-                    ? TurboModeManager.Instance.TurboComp
-                    : 1f;
-                _playerAnim.SetAttackSpeed(step.speedMultiplier * _speedBuff * turboComp);
+                // set anim speed
+                // Determine which attack‑speed buff to apply.  We do not stack
+                // momentum and Turbo buffs together; instead we choose the higher
+                // priority buff: Turbo overrides momentum.  When Turbo is active
+                // the attack speed is fixed at 1.5×.  Otherwise we use the current
+                // momentum buff (stored in _speedBuff).  This prevents combining
+                // Turbo and momentum buffs (e.g., 1.2 × 1.5 → 1.8) and instead
+                // applies a single multiplier.
+                float finalBuff;
+                var turboMgr = TurboModeManager.Instance;
+                if (turboMgr != null && turboMgr.IsActive)
+                {
+                    finalBuff = 1.5f;
+                }
+                else
+                {
+                    finalBuff = _speedBuff;
+                }
+                _playerAnim.SetAttackSpeed(step.speedMultiplier * finalBuff);
 
                 // reset buffer flag
                 _bufferedAttack = false;

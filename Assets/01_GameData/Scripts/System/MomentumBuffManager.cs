@@ -87,6 +87,11 @@ public class MomentumBuffsManager : MonoBehaviour
 
             case MomentumState.Max:
                 _combat.SetDamageMultiplier(1.5f);
+                // At maximum momentum, increase attack speed by 20% (1.2×).  When
+                // Turbo Mode is active, the Turbo attack‑speed buff overrides
+                // this momentum buff (see CombatController), so we avoid stacking
+                // the two multipliers.  Previously this used a 1.25× bonus, but
+                // game design now specifies a 1.2× increase at max momentum.
                 _combat.SetAttackSpeedBuff(1.2f);
                 _ctrl.SetMoveSpeed(11f);
                 break;
