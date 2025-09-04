@@ -15,8 +15,14 @@ public class TurboModeManager : MonoBehaviour
     [SerializeField, Tooltip("How much faster the player feels (stacked on top of slow).")]
     private float _playerSpeedMult = 1.5f;
 
+    [SerializeField, Tooltip("Extra multiplier for fall speed during Turbo (1 = normal, <1 = lighter, >1 = heavier)")]
+    private float _fallTurboScale = 0.8f; // try values between 0.7–0.9
+
     [SerializeField, Tooltip("Turbo duration (seconds, in real time).")]
     private float _duration = 10f;
+
+    [SerializeField, Tooltip("Scale applied to JumpCutMultiplier during Turbo (<1 = stronger cut).")]
+    private float _jumpCutTurboScale = 0.75f; // try 0.7–0.9
 
     [SerializeField, Tooltip("Cooldown after Turbo ends (real-time seconds).")]
     private float _cooldown = 6f;
@@ -47,7 +53,7 @@ public class TurboModeManager : MonoBehaviour
     private float _origJumpForce;
     private float _origWallJumpForce;
     private float _origWallJumpHForce;
-
+    private float _origJumpCutMultiplier;
     // Cache maximum hold jump height so we can scale it during Turbo.
     private float _origMaxHoldJumpHeight;
 
@@ -112,12 +118,13 @@ public class TurboModeManager : MonoBehaviour
             // Limit the hold jump height by scaling only with playerSpeedMult.  This prevents
             // jumps from becoming excessively tall while still making them feel boosted.
             _player.MaxHoldJumpHeight = _origMaxHoldJumpHeight * _playerSpeedMult;
+            _player.JumpCutMultiplier = _origJumpCutMultiplier * _jumpCutTurboScale;
 
             // Falling uses an extra boost: multiply the full compensation by the playerSpeedMult.
             // This yields a net multiplier of (playerSpeedMult^2 / slowFactor) so descents
             // accelerate more aggressively than takeoffs.  Without this, falling can still
             // feel floaty in Turbo mode.
-            float verticalCompFall = _comp * _playerSpeedMult;
+            float verticalCompFall = _comp * _fallTurboScale;
             // Scale the entire fallMultiplier so that both base gravity and extra gravity
             // contributions are accelerated uniformly.  Terminal velocity and wall slide
             // speeds also use this stronger multiplier.
@@ -166,6 +173,7 @@ public class TurboModeManager : MonoBehaviour
         _origJumpForce = _player.JumpForce;
         _origWallJumpForce = _player.WallJumpForce;
         _origWallJumpHForce = _player.WallJumpHorizontalForce;
+        _origJumpCutMultiplier = _player.JumpCutMultiplier;
 
         // Cache fall parameters to compensate vertical speed.  Global slow-mo
         // slows falling because physics integration uses Time.deltaTime * timeScale.
@@ -197,7 +205,7 @@ public class TurboModeManager : MonoBehaviour
         _player.MaxHoldJumpHeight = _origMaxHoldJumpHeight * _playerSpeedMult;
 
         // Falling uses an extra boost: multiply the full compensation by playerSpeedMult
-        float verticalCompStartFall = _comp * _playerSpeedMult;
+        float verticalCompStartFall = _comp * _fallTurboScale;
         _player.FallMultiplier = _origFallMultiplier * verticalCompStartFall;
         _player.MaxFallSpeed = _origMaxFallSpeed * verticalCompStartFall;
         _player.WallSlideSpeed = _origWallSlideSpeed * verticalCompStartFall;
@@ -245,7 +253,7 @@ public class TurboModeManager : MonoBehaviour
             _player.JumpForce = _origJumpForce;
             _player.WallJumpForce = _origWallJumpForce;
             _player.WallJumpHorizontalForce = _origWallJumpHForce;
-
+            _player.JumpCutMultiplier = _origJumpCutMultiplier;
             // Restore vertical fall parameters to their original values.
             _player.FallMultiplier = _origFallMultiplier;
             _player.MaxFallSpeed = _origMaxFallSpeed;

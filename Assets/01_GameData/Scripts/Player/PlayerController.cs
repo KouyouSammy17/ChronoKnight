@@ -226,6 +226,15 @@ public class PlayerController : MonoBehaviour
     }
 
     /// <summary>
+    /// Jump cut multiplier (0–1). Lower = stronger cut. Exposed for Turbo.
+    /// </summary>
+    public float JumpCutMultiplier
+    {
+        get => _jumpCutMultiplier;
+        set => _jumpCutMultiplier = Mathf.Clamp01(value);
+    }
+    
+    /// <summary>
     /// Clears the movement buffer and its timer.
     /// </summary>
     public void ClearBufferedMovement()
@@ -250,28 +259,19 @@ public class PlayerController : MonoBehaviour
     public bool IsHoldingMove => _isHoldingMove;
     public Vector2 GetLastMoveInput() => _lastMoveInput;
 
-    /// <summary>
-    /// Returns a delta time for vertical physics calculations.  When Turbo Mode is
-    /// active the global timeScale is lowered and <see cref="Time.fixedDeltaTime"/>
-    /// is scaled accordingly.  Using <see cref="Time.fixedDeltaTime"/> here
-    /// ensures that extra gravity and other vertical forces are applied
-    /// consistently per physics step rather than using <see cref="Time.unscaledDeltaTime"/>,
-    /// which can cause gravity to feel overly slow or fast when the global time
-    /// scale is changed.  When Turbo Mode is inactive this still returns
-    /// <see cref="Time.fixedDeltaTime"/>.  Note: timers (dash, jump buffers, etc.)
-    /// in <see cref="Update()"/> still use real‑time delta so they count down in
-    /// real time during Turbo.
-    /// </summary>
-    // Returns the physics timestep used for vertical motion.  We use
-    // Time.fixedDeltaTime rather than dividing by timeScale because
-    // FixedUpdate is executed based on fixedDeltaTime (game time), and
-    // forces applied inside FixedUpdate should use the simulation step to
-    // integrate correctly.  Gravity and other vertical forces are applied
-    // per physics step, and scaling these forces in TurboModeManager will
-    // compensate for slow-motion.  When timeScale is changed, fixedDeltaTime
-    // is scaled accordingly, so this value reflects the game time step
-    // used by the physics engine.
-    private float TurboAwareDeltaTime => Time.fixedDeltaTime;
+    
+    private float TurboAwareDeltaTime
+    {
+        get
+        {
+            // When Turbo is active, ignore the reduced timeScale so vertical physics use the original step.
+            var turbo = TurboModeManager.Instance;
+            if (turbo != null && turbo.IsActive && Time.timeScale > 0f)
+                return Time.fixedDeltaTime / Time.timeScale;
+
+            return Time.fixedDeltaTime;
+        }
+    }
 
     /// <summary>
     /// Maximum height (in world units) allowed when holding jump.  When Turbo Mode
