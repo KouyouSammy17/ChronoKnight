@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using TGRobotsWheeled;    // make sure this matches the asset's namespace
 
 [RequireComponent(typeof(TGDroidStateManager))]
@@ -51,15 +51,14 @@ public class SciFiRobotAI : MonoBehaviour
 
         float dist = Vector3.Distance(transform.position, _player.position);
 
+        // Hard stop during stagger (no move, no shoot)
         if (_isStaggered)
         {
-            _droid.Shooting = false;              // forcibly stop any firing
+            _droid.Shooting = false;
             _staggerTimer -= Time.deltaTime;
-            if (_staggerTimer <= 0f)
-                _isStaggered = false;            // stagger ends
-            return;                               // skip all other AI logic this frame
+            if (_staggerTimer <= 0f) _isStaggered = false;
+            return; // skips state transitions & any movement this frame
         }
-
 
         // --- STATE TRANSITIONS ---
         switch (_aiState)
@@ -86,7 +85,7 @@ public class SciFiRobotAI : MonoBehaviour
         switch (_aiState)
         {
             case AIState.Patrol:
-                _droid.State = TGDroidStateManager.TDroidState.Idle;      // idle]patrol blend
+                _droid.State = TGDroidStateManager.TDroidState.Idle;      // idleâ€patrol blend
                 Patrol();
                 _droid.Shooting = false;
                 break;
@@ -116,7 +115,7 @@ public class SciFiRobotAI : MonoBehaviour
 
                 Face(dir.x);
 
-                // ƒVƒ…[ƒgŠÔŠu‚ðl—¶
+                // ã‚·ãƒ¥ãƒ¼ãƒˆé–“éš”ã‚’è€ƒæ…®
                 bool canShoot = (combatDist >= minCombatDistance && combatDist <= attackRange)
                     && (Time.time - _lastShootTime >= shootInterval);
                 _droid.Shooting = canShoot;
@@ -125,35 +124,34 @@ public class SciFiRobotAI : MonoBehaviour
         }
     }
 
+    // Centralized movement gate
+    private void MoveIfAllowed(Vector3 dir, float speed)
+    {
+        if (_isStaggered) return; // safetyâ€”though Update() already returns early
+        transform.position += dir * speed * Time.deltaTime;
+    }
+
     void Patrol()
     {
         Vector3 groundTarget = _currentPatrolTarget;
         groundTarget.y = transform.position.y;
 
         Vector3 dir = (groundTarget - transform.position).normalized;
-        transform.position += dir * patrolSpeed * Time.deltaTime;
+        MoveIfAllowed(dir, patrolSpeed);
 
         if (Vector3.Distance(transform.position, groundTarget) < 0.2f)
-            _currentPatrolTarget =
-                _currentPatrolTarget == pointA.position
-                ? pointB.position
-                : pointA.position;
+            _currentPatrolTarget = (_currentPatrolTarget == pointA.position) ? pointB.position : pointA.position;
 
         Face(dir.x);
     }
 
     void Chase()
     {
-        // Build a target thatfs on the same Y level as the droid
         Vector3 target = _player.position;
         target.y = transform.position.y;
-
-        // Get horizontal direction only
         Vector3 dir = (target - transform.position).normalized;
 
-        // Move along ground only
-        transform.position += dir * chaseSpeed * Time.deltaTime;
-
+        MoveIfAllowed(dir, chaseSpeed);
         Face(dir.x);
     }
 
