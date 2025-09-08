@@ -22,7 +22,8 @@ public class PlayerAnimator : MonoBehaviour
     private int _hashWallHangIn;    // Trigger for “hang-in” clip
     private int _hashWallHangLoop;  // Bool for staying in WallHangLoop
     private int[] _attackHashes;
-
+    private int _hashDamage;
+    private int _hashIsHurt; 
     private bool _wasWallSliding = false;
     private bool _justWallJumped = false;
 
@@ -42,6 +43,8 @@ public class PlayerAnimator : MonoBehaviour
         _hashDash = Animator.StringToHash("IsDashing");
         _hashWallHangIn = Animator.StringToHash("WallHangIn");
         _hashWallHangLoop = Animator.StringToHash("IsWallHanging");
+        _hashDamage = Animator.StringToHash("Damage");
+        _hashIsHurt = Animator.StringToHash("IsHurt");
         _attackHashes = new[]
        {
             Animator.StringToHash("Attack1"),
@@ -144,6 +147,11 @@ public class PlayerAnimator : MonoBehaviour
         _anim.SetTrigger(_hashDash);
     }
 
+    public void TriggerDamage()
+    {
+        _anim.SetTrigger(_hashDamage);
+    }
+    public void SetHurt(bool on) => _anim.SetBool(_hashIsHurt, on);
     public void OnOpenComboWindow() => _combat.OnOpenComboWindow();
     public void OnCloseComboWindow() => _combat.OnCloseComboWindow();
     public void TriggerAttack(int idx)

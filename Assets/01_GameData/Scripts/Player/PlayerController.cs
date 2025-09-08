@@ -259,7 +259,9 @@ public class PlayerController : MonoBehaviour
     public bool IsHoldingMove => _isHoldingMove;
     public Vector2 GetLastMoveInput() => _lastMoveInput;
 
-    
+    public bool InputEnabled => _inputEnabled;
+
+
     private float TurboAwareDeltaTime
     {
         get

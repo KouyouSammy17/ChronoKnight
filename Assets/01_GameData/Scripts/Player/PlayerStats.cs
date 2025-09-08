@@ -40,14 +40,20 @@ public class PlayerStats : MonoBehaviour
     public void TakeDamage(int amount)
     {
         if (amount <= 0 || _currentHP <= 0) return;
+
+        var recv = GetComponent<PlayerDamageReceiver>();
+        if (recv != null && recv.IsInvulnerable) return;
+
         _currentHP = Mathf.Max(_currentHP - amount, 0);
         onHealthChanged?.Invoke(_currentHP);
 
-        // Momentum penalty
-        const float momentumLossOnHit = 20f; // Å© adjust this value as needed
-        MomentumManager.Instance?.AddMomentum(-momentumLossOnHit);
-        MomentumManager.Instance?.BreakMaxLock();                            // resume decay
-        GetComponent<MomentumBuffsManager>()?.RemoveMaxBuffIfActive();      // remove 100% buff effects
+        // Momentum penalties you already have stay as-isÅc
+        MomentumManager.Instance?.AddMomentum(-20f);
+        MomentumManager.Instance?.BreakMaxLock();
+        GetComponent<MomentumBuffsManager>()?.RemoveMaxBuffIfActive();
+
+        // Kick the hit reaction (no source position known here)
+        recv?.PlayHitReact(null, 0f).Forget();
 
         if (_currentHP == 0) Die();
     }
