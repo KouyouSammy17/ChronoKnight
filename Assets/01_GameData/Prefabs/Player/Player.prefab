@@ -596,6 +596,7 @@ GameObject:
   - component: {fileID: 4947035130095512096}
   - component: {fileID: 3471398806271338333}
   - component: {fileID: 2298466729405537635}
+  - component: {fileID: 6165824155517872486}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -984,6 +985,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1be0f2792aa48814f94a7799205571a6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatTurboManager
+--- !u!114 &6165824155517872486
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7524616865943299786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 90a86d55adbaa4841b987e1d4e7bbd6a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerDamageReceiver
+  _hitStun: 0.2
+  _knockback: 8
+  _iframes: 0.5
+  _groundMask:
+    serializedVersion: 2
+    m_Bits: 128
 --- !u!1 &8059948321506089467
 GameObject:
   m_ObjectHideFlags: 0

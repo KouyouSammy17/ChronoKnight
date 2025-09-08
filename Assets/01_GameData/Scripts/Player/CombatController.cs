@@ -5,13 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
-/// <summary>
-/// Handles player combat combos. This is a copy of the upstream CombatController
-/// from the ChronoKnight project. It exposes attack speed and damage multipliers
-/// and controls combo timing, buffering, and hitbox activation. Attack speed
-/// can be modified via SetAttackSpeedBuff, which is now driven by
-/// CombatTurboManager when Turbo Mode is active.
-/// </summary>
 [RequireComponent(typeof(Collider))]
 public class CombatController : MonoBehaviour
 {
@@ -42,6 +35,12 @@ public class CombatController : MonoBehaviour
     private float _speedBuff = 1f;
     private CancellationTokenSource _cts;
 
+    // === NEW: attack-start buffer ===
+    [Header("Attack Start Buffer")]
+    [SerializeField] private float _attackStartBufferTime = 0.2f;  // seconds
+    private bool _attackStartBuffered;
+    private CancellationTokenSource _attackStartCts;
+
     private void Awake()
     {
         _playerController = _playerController ?? GetComponent<PlayerController>();
@@ -49,42 +48,19 @@ public class CombatController : MonoBehaviour
         _weaponHitbox = _weaponHitbox ?? GetComponentInChildren<WeaponHitbox>();
     }
 
-    public void OnAttack(InputAction.CallbackContext ctx)
+    private void OnDisable()
     {
-        if (!ctx.started) return;
-
-        if (!_isActive)
-            StartComboAsync().Forget();
-        else if (_canBuffer)
-            _bufferedAttack = true;
+        _attackStartCts?.Cancel();
+        _cts?.Cancel();
     }
 
-    /// <summary>
-    /// True when a combat combo is currently active. Exposed so other systems
-    /// (e.g., CombatTurboManager) can detect whether an attack is playing and
-    /// avoid overriding Animator speed during combos.
-    /// </summary>
+    // Public API
     public bool IsComboActive => _isActive;
-
-    /// <summary>
-    /// Set a global damage multiplier for all combo steps.
-    /// </summary>
     public void SetDamageMultiplier(float m) => _damageMul = m;
-
-    /// <summary>
-    /// Set a speed buff multiplier for attack animations. This is multiplied with
-    /// each ComboStep.speedMultiplier in StartComboAsync. Turbo Mode uses this
-    /// to speed up combos.
-    /// </summary>
     public void SetAttackSpeedBuff(float b) => _speedBuff = b;
-
-    /// <summary>
-    /// Current attack speed buff applied via SetAttackSpeedBuff (e.g. from momentum buffs).
-    /// Turbo buffs should multiply this rather than overwrite it.
-    /// </summary>
     public float AttackSpeedBuff => _speedBuff;
 
-    // called from Animator events:
+    // Animator events
     public void OnOpenComboWindow()
     {
         _canBuffer = true;
@@ -102,6 +78,77 @@ public class CombatController : MonoBehaviour
         _weaponHitbox.DisableHitbox();
     }
 
+    // Input
+    public void OnAttack(InputAction.CallbackContext ctx)
+    {
+        if (!ctx.started) return;
+
+        // If a combo is already playing, allow buffering regardless of movement input lock
+        if (_isActive)
+        {
+            if (_canBuffer) _bufferedAttack = true;
+            return;
+        }
+
+        // Not in a combo:
+        // If input is locked (e.g., hit-stun or attack root-motion), buffer a start-attack
+        if (_playerController != null && !_playerController.InputEnabled)
+        {
+            BufferAttackStart();
+            return;
+        }
+
+        // Normal start
+        StartComboAsync().Forget();
+    }
+
+    // Request an attack programmatically (optional external call)
+    public void RequestAttack()
+    {
+        if (!_isActive) StartComboAsync().Forget();
+        else if (_canBuffer) _bufferedAttack = true;
+    }
+    public void CancelCombo()
+    {
+        _cts?.Cancel();
+    }
+
+    // === NEW: attack-start buffering logic ===
+    private void BufferAttackStart()
+    {
+        _attackStartBuffered = true;
+
+        // restart watcher task
+        _attackStartCts?.Cancel();
+        _attackStartCts = new CancellationTokenSource();
+        WatchAttackStartBuffer(_attackStartCts.Token).Forget();
+    }
+
+    private async UniTaskVoid WatchAttackStartBuffer(CancellationToken token)
+    {
+        float deadline = Time.time + _attackStartBufferTime;
+
+        // Wait until either input is enabled or the timer expires
+        while (Time.time < deadline && !_playerController.InputEnabled)
+        {
+            await UniTask.Yield(PlayerLoopTiming.Update, token);
+        }
+
+        if (token.IsCancellationRequested) return;
+
+        if (_attackStartBuffered && _playerController.InputEnabled)
+        {
+            _attackStartBuffered = false;
+            StartComboAsync().Forget();
+        }
+        else
+        {
+            // expired or still locked beyond buffer window
+            _attackStartBuffered = false;
+        }
+    }
+
+    // Core combo flow
     private async UniTaskVoid StartComboAsync()
     {
         _cts?.Cancel();
@@ -111,12 +158,9 @@ public class CombatController : MonoBehaviour
         _isActive = true;
         _comboIndex = 0;
 
-        // --- 1) at the very start: block movement, but keep buffering ---
+        // --- 1) at the very start: block movement, but keep buffering movement ---
         _playerController.DisableInput();
-        // Zero out velocity to prevent sliding
         _playerController.GetRigidbody().linearVelocity = Vector3.zero;
-        // if we *were* holding a direction when the attack started,
-        // seed the buffer so it never lapses while we're locked out:
         _playerController.PreloadMovementBufferFromHold();
         _playerAnim.SetApplyRootMotion(true);
 
@@ -126,52 +170,32 @@ public class CombatController : MonoBehaviour
             {
                 var step = _comboSteps[_comboIndex];
 
-                // Zero out velocity at the start of every combo step to prevent sliding
+                // Zero horizontal drift each step start
                 _playerController.GetRigidbody().linearVelocity = Vector3.zero;
 
-                // set anim speed
-                // Determine which attack‑speed buff to apply.  We do not stack
-                // momentum and Turbo buffs together; instead we choose the higher
-                // priority buff: Turbo overrides momentum.  When Turbo is active
-                // the attack speed is fixed at 1.5×.  Otherwise we use the current
-                // momentum buff (stored in _speedBuff).  This prevents combining
-                // Turbo and momentum buffs (e.g., 1.2 × 1.5 → 1.8) and instead
-                // applies a single multiplier.
-                float finalBuff;
+                // Decide final attack speed (Turbo overrides other buffs if you do that)
+                float finalBuff = _speedBuff;
                 var turboMgr = TurboModeManager.Instance;
                 if (turboMgr != null && turboMgr.IsActive)
-                {
-                    // During Turbo, use the Turbo compensation factor for attacks
-                    // so attacks feel just as fast relative to the slowed world.  Do
-                    // not stack with momentum buff; choose Turbo over momentum.
                     finalBuff = turboMgr.TurboComp;
-                }
-                else
-                {
-                    // When Turbo is inactive, use the momentum attack‑speed buff (if any)
-                    finalBuff = _speedBuff;
-                }
+
                 _playerAnim.SetAttackSpeed(step.speedMultiplier * finalBuff);
 
-                // reset buffer flag
                 _bufferedAttack = false;
-
-                // fire the attack
                 _playerAnim.TriggerAttack(_comboIndex);
 
-                // wait for the “open combo window” → “close combo window” events
+                // Wait for animator events opening/closing the hit window
                 await UniTask.WaitUntil(() => _canBuffer, cancellationToken: token);
                 await UniTask.WaitUntil(() => !_canBuffer, cancellationToken: token);
 
-                // restore from root-motion mode back to player-driven movement
+                // Restore control between swings
                 _playerAnim.SetApplyRootMotion(false);
                 _playerController.EnableInput();
 
-
-                // wait one frame so any “hold/release” events actually hit the buffer
+                // Let input system tick one frame so holds/releases hit our buffer
                 await UniTask.Yield();
 
-                // —– NOW flush only *actually buffered* movement —–
+                // Flush truly buffered movement
                 Vector2 moveBuf = _playerController.GetBufferedMovement();
                 if (moveBuf.sqrMagnitude > 0.01f)
                     _playerController.ApplyBufferedMovement(moveBuf);
@@ -179,43 +203,32 @@ public class CombatController : MonoBehaviour
 
                 if (_bufferedAttack)
                 {
-                    // before next swing: lock out jump/dash again
+                    // Next swing: lock movement again & continue
                     _playerController.DisableInput();
                     _playerAnim.SetApplyRootMotion(true);
-
                     _comboIndex++;
                     continue;
                 }
-                else
-                {
-                    break;
-                }
+                else break;
             }
         }
         catch (OperationCanceledException) { }
         finally
         {
-            // 3) all done: reset animator & input
+            // Reset animator & input
             _playerAnim.SetApplyRootMotion(false);
             _playerAnim.SetAttackSpeed(1f);
-
-            // re-enable input so normal movement can resume
             _playerController.EnableInput();
 
-            // wait one frame so any release of the stick/button clears the buffer
             await UniTask.Yield();
 
-            // —– FINAL FLUSH: only what’s truly buffered —–
             Vector2 finalMove = _playerController.GetBufferedMovement();
             if (finalMove.sqrMagnitude > 0.01f)
                 _playerController.ApplyBufferedMovement(finalMove);
             _playerController.ClearBufferedMovement();
 
-            // If the player is holding a direction, immediately apply it for smooth movement resumption
             if (_playerController.IsHoldingMove && _playerController.GetLastMoveInput().sqrMagnitude > 0.01f)
                 _playerController.ApplyBufferedMovement(_playerController.GetLastMoveInput());
-
-            // stop buffering now that we’re back to idle
 
             _isActive = false;
             _comboIndex = 0;
