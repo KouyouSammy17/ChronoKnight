@@ -893,11 +893,20 @@ public class PlayerController : MonoBehaviour
 
     public float GetCurrentMovementSpeedNormalized()
     {
-        // current horizontal velocity magnitude
-        float currentSpeed = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z).magnitude;
+        Vector3 vel = _rb.linearVelocity;
 
-        // normalize based on your defined move speed
-        return Mathf.Clamp01(currentSpeed / _moveSpeed);
+        // subtract platform contribution so Animator sees *player-driven* speed
+        var rider = GetComponent<PlatformRider>();
+        if (_isGrounded && rider != null && rider.HasPlatform)
+        {
+            vel.x -= rider.CurrentPlatformVelocity.x;
+            vel.z -= rider.CurrentPlatformVelocity.z;
+            // if you also add vertical pv.y, subtract it here too
+            // vel.y -= rider.CurrentPlatformVelocity.y;
+        }
+
+        float groundRelSpeed = new Vector3(vel.x, 0f, vel.z).magnitude;
+        return Mathf.Clamp01(groundRelSpeed / _moveSpeed);
     }
     public void SetMoveSpeed(float newSpeed)
     {
