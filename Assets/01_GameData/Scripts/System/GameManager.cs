@@ -1,27 +1,49 @@
-using System.Collections;
+﻿using System.Collections;
+using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using MoreMountains.Tools; // ← MMSceneLoading / MMAdditiveSceneLoading
 
+public enum GameState { Title, Playing, Clear, GameOver }
+
+/// <summary>
+/// One-file manager: scene flow + player spawn + UI hooks
+/// Uses Feel's MMSceneLoading for transitions.
+/// </summary>
 public class GameManager : MonoBehaviour
 {
-    public static GameManager Instance;
+    public static GameManager Instance { get; private set; }
 
-    [Header("Respawn Settings")]
-    [SerializeField] private string _respawnPointTagOrName = "RespawnPoint";
+    [Header("Scene Names")]
+    [SerializeField] private string _titleScene = "Title";
+    [SerializeField] private string _firstLevel = "Level_01";
 
-    [Header("Entry Animation Lock")]
-    [SerializeField] private float _entryLockDuration = 1.5f;
+    [Header("Feel MMSceneLoading")]
+    [Tooltip("OFF = MMSceneLoadingManager (non-additive). ON = MMAdditiveSceneLoadingManager.")]
+    [SerializeField] private bool _useAdditive = false;
+    [Tooltip("Non-additive loading scene name (must be in Build Settings).")]
+    [SerializeField] private string _feelLoadingScene = "LoadingScreen";
+    [Tooltip("Additive loading scene name (must be in Build Settings).")]
+    [SerializeField] private string _feelAdditiveLoadingScene = "MMAdditiveLoadingScreen";
+    [SerializeField, Range(0f, 1f)] private float _entryFade = 0.35f;
+    [SerializeField, Range(0f, 1f)] private float _exitFade = 0.35f;
+    [SerializeField] private bool _interpolateProgress = true;
 
-    [Header("Fall Death Threshold")]
-    [SerializeField] private float _fallDeathY = -30f;
+    [Header("Player Spawn")]
+    [SerializeField] private PlayerController _playerPrefab; // optional: spawn if none present
 
-    private Transform _respawnPoint;
+    [Header("Debug")]
+    [SerializeField] private bool _allowStartFromAnyScene = true;
+
+    public GameState State { get; private set; } = GameState.Title;
+
+    // runtime refs
     private PlayerController _player;
-    private bool _hasWon;
-    private bool _isGameOver;
+    private Transform _spawnPoint; // Tag: Respawn
 
-    public PlayerController GetPlayer() => _player;
-
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Lifecycle
+    // ───────────────────────────────────────────────────────────────────────────────
     private void Awake()
     {
         if (Instance == null)
@@ -33,6 +55,16 @@ public class GameManager : MonoBehaviour
         else
         {
             Destroy(gameObject);
+            return;
+        }
+    }
+
+    private void Start()
+    {
+        if (_allowStartFromAnyScene)
+        {
+            State = SceneManager.GetActiveScene().name == _titleScene ? GameState.Title : GameState.Playing;
+            BindSpawnAndPlayer();
         }
     }
 
@@ -42,131 +74,140 @@ public class GameManager : MonoBehaviour
             SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
-    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Public API (called from UI or gameplay)
+    // ───────────────────────────────────────────────────────────────────────────────
+    public void LoadTitle() => LoadWithFeel(_titleScene, GameState.Title);
+    public void StartNewGame() => LoadWithFeel(_firstLevel, GameState.Playing);
+
+    public void RestartLevel()
     {
-        _hasWon = false;
-        _isGameOver = false;
-
-        CacheRespawnPoint();
-        CachePlayer();
-
-        if (_player == null) return;
-
-        ResetPlayerState();
-        UIManager.Instance?.ResetAllUI();
-        StartCoroutine(ReEnableInputAfterDelay(_entryLockDuration));
+        string current = SceneManager.GetActiveScene().name;
+        LoadWithFeel(current, GameState.Playing);
     }
 
-    private void Update()
+    public void LoadNextLevel()
     {
-        if (_player == null || _hasWon || _isGameOver) return;
-
-        if (_player.transform.position.y < _fallDeathY)
+        int next = SceneManager.GetActiveScene().buildIndex + 1;
+        if (next < SceneManager.sceneCountInBuildSettings)
         {
-            var stats = _player.GetComponent<PlayerStats>();
-            if (stats != null)
-            {
-                stats.TakeDamage(20);
-                if (stats.CurrentHP > 0)
-                    RespawnPlayer(_player);
-            }
-            else
-            {
-                RespawnPlayer(_player);
-            }
+            string path = SceneUtility.GetScenePathByBuildIndex(next);
+            string name = Path.GetFileNameWithoutExtension(path);
+            LoadWithFeel(name, GameState.Playing);
         }
-    }
-
-    private void CacheRespawnPoint()
-    {
-        var rpGO = GameObject.FindWithTag(_respawnPointTagOrName) ?? GameObject.Find(_respawnPointTagOrName);
-        _respawnPoint = rpGO?.transform;
-
-        if (_respawnPoint == null)
-            Debug.LogWarning($"GameManager: No '{_respawnPointTagOrName}' found in scene.");
-    }
-
-    private void CachePlayer()
-    {
-        var playerGO = GameObject.FindWithTag("Player");
-        if (playerGO == null)
+        else
         {
-            Debug.LogWarning("GameManager: No GameObject tagged 'Player' in scene.");
-            return;
+            LoadTitle();
         }
-
-        _player = playerGO.GetComponent<PlayerController>();
-        if (_player == null)
-        {
-            Debug.LogWarning("GameManager: Player GameObject is missing PlayerController.");
-            return;
-        }
-
-        Debug.Log($"GameManager: Found PlayerController on '{playerGO.name}'.");
-    }
-
-    private void ResetPlayerState()
-    {
-        _player.DisableInput();
-
-        var stats = _player.GetComponent<PlayerStats>();
-        stats?.ResetStats();
-
-        MomentumManager.Instance?.ResetAll();
-    }
-
-    private IEnumerator ReEnableInputAfterDelay(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        if (_player != null && !_hasWon && !_isGameOver)
-            _player.EnableInput();
     }
 
     public void WinLevel()
     {
-        if (_hasWon || _isGameOver) return;
-        _hasWon = true;
-
-        _player?.DisableInput();
+        if (State != GameState.Playing) return;
+        State = GameState.Clear;
+        UIManager.Instance?.ResetAllUI();
         UIManager.Instance?.ShowGameClearUI();
     }
 
     public void GameOver()
     {
-        if (_hasWon || _isGameOver) return;
-        _isGameOver = true;
-
-        _player?.DisableInput();
+        if (State == GameState.GameOver) return;
+        State = GameState.GameOver;
+        UIManager.Instance?.ResetAllUI();
         UIManager.Instance?.ShowGameOverUI();
     }
 
-    public void RestartLevel()
-    {
-        _hasWon = false;
-        _isGameOver = false;
+    public PlayerController GetPlayer() => _player;
 
+    public void RespawnPlayer()
+    {
+        if (_player == null) return;
+        if (_spawnPoint != null)
+            _player.transform.position = _spawnPoint.position;
+
+        var rb = _player.GetRigidbody();
+        rb.linearVelocity = Vector3.zero;                  // Unity 6 PhysX property
+        _player.ResetPlayerState();
+        _player.GetComponent<PlayerStats>()?.ResetStats();
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────────
+    // MMSceneLoading wrapper
+    // ───────────────────────────────────────────────────────────────────────────────
+
+    private bool IsLoadingScene(string sceneName)
+    {
+        if (_useAdditive)
+            return !string.IsNullOrEmpty(_feelAdditiveLoadingScene) && sceneName == _feelAdditiveLoadingScene;
+        else
+            return !string.IsNullOrEmpty(_feelLoadingScene) && sceneName == _feelLoadingScene;
+    }
+    private void LoadWithFeel(string sceneName, GameState targetState)
+    {
         UIManager.Instance?.ResetAllUI();
         MomentumManager.Instance?.ResetAll();
 
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        if (_useAdditive)
+        {
+            var settings = new MMAdditiveSceneLoadingManagerSettings
+            {
+                LoadingSceneName = _feelAdditiveLoadingScene,
+                InterpolateProgress = _interpolateProgress,
+                EntryFadeDuration = _entryFade,
+                ExitFadeDuration = _exitFade
+            };
+            MMAdditiveSceneLoadingManager.LoadScene(sceneName, settings);
+        }
+        else
+        {
+            MMSceneLoadingManager.LoadScene(sceneName, _feelLoadingScene);
+        }
+
+        // You can keep this, it won't hurt—OnSceneLoaded re-evaluates by actual scene name
+        State = targetState;
     }
 
-    public void RespawnPlayer(PlayerController player)
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Scene hooks
+    // ───────────────────────────────────────────────────────────────────────────────
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (_respawnPoint == null)
+        // If we just entered the MM loading scene, hide everything gameplay-related and bail out
+        if (IsLoadingScene(scene.name))
         {
-            Debug.LogWarning("GameManager: No respawn point assigned.");
-            return;
+            UIManager.Instance?.ShowPlayerUI(false);
+            UIManager.Instance?.ShowTitleUI(false);
+            return; // wait for the real destination scene to load next
         }
 
-        player.transform.position = _respawnPoint.position;
+        // Title or Gameplay?
+        State = scene.name == _titleScene ? GameState.Title : GameState.Playing;
 
-        if (player.TryGetComponent(out Rigidbody rb))
+        BindSpawnAndPlayer();
+
+        if (State == GameState.Playing)
         {
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
+            UIManager.Instance?.ShowTitleUI(false);
+            UIManager.Instance?.ShowPlayerUI(true);
+            _player?.GetComponent<PlayerStats>()?.ResetStats();
         }
+        else // Title
+        {
+            UIManager.Instance?.ShowPlayerUI(false);
+            UIManager.Instance?.ShowTitleUI(true);
+        }
+    }
 
-        player.ResetPlayerState();
+    private void BindSpawnAndPlayer()
+    {
+        var spawnGo = GameObject.FindGameObjectWithTag("Respawn");
+        _spawnPoint = spawnGo ? spawnGo.transform : null;
+
+        _player = Object.FindFirstObjectByType<PlayerController>();
+        if (_player == null && _playerPrefab != null && State == GameState.Playing)
+        {
+            Vector3 pos = _spawnPoint ? _spawnPoint.position : Vector3.zero;
+            _player = Instantiate(_playerPrefab, pos, Quaternion.identity);
+        }
     }
 }

@@ -1,56 +1,72 @@
 using UnityEngine;
-using UnityEngine.UI;
 
 /// <summary>
-/// A simple singleton UI manager that persists across scene loads.
-/// Attach this to a GameObject named “UIManager” in your first-loaded scene,
-/// with a Canvas (and all relevant UI children) under it.
+/// Global UI Manager singleton, persists across scenes.
+/// Controls result UIs, player HUD, and title menu.
 /// </summary>
 public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
 
-    [Header("UI Elements")]
-    [SerializeField, Tooltip("Game Clear UI")] private GameObject _gameClearUI;
-    [SerializeField, Tooltip("Game Over UI")] private GameObject _gameOverUI;
+    [Header("Result UIs")]
+    [SerializeField] private GameObject _gameClearUI;
+    [SerializeField] private GameObject _gameOverUI;
 
+    [Header("Player UI / HUD")]
+    [SerializeField, Tooltip("HPバー、燃料、モメンタム等の親オブジェクト（HUD全体）")]
+    private GameObject _playerUIRoot;
+
+    [Header("Title UI")]
+    [SerializeField, Tooltip("タイトルメニュー全体(Canvasなど)")]
+    private GameObject _titleUIRoot;
 
     private void Awake()
     {
-        // 1) Enforce singleton pattern
         if (Instance == null)
         {
             Instance = this;
-            // 2) Prevent this object (and all its children) from being destroyed on scene load
             DontDestroyOnLoad(this.gameObject);
         }
         else
         {
-            // If another UIManager already exists, destroy this one
             Destroy(gameObject);
             return;
         }
 
-        if (_gameClearUI != null)
-            _gameClearUI.SetActive(false);
-
-        if (_gameOverUI != null)
-            _gameOverUI.SetActive(false);
+        // 初期状態
+        if (_gameClearUI != null) _gameClearUI.SetActive(false);
+        if (_gameOverUI != null) _gameOverUI.SetActive(false);
+        if (_playerUIRoot != null) _playerUIRoot.SetActive(false);
+        if (_titleUIRoot != null) _titleUIRoot.SetActive(false); // 最初は Titleシーンで GameManager が true にする
     }
 
+    // ─── Result UI ───────────────────────────────
     public void ShowGameClearUI()
     {
-        _gameClearUI.SetActive(true);
+        if (_gameClearUI != null) _gameClearUI.SetActive(true);
     }
 
     public void ShowGameOverUI()
     {
-        _gameOverUI.SetActive(true);
+        if (_gameOverUI != null) _gameOverUI.SetActive(true);
     }
 
     public void ResetAllUI()
     {
-        _gameClearUI.SetActive(false);
-        _gameOverUI.SetActive(false);
+        if (_gameClearUI != null) _gameClearUI.SetActive(false);
+        if (_gameOverUI != null) _gameOverUI.SetActive(false);
+        // HUDとタイトルUIはシーンごとの状態で制御する
+    }
+
+    // ─── Player HUD ─────────────────────────────
+    public void ShowPlayerUI(bool active)
+    {
+        if (_playerUIRoot != null) _playerUIRoot.SetActive(active);
+    }
+
+    // ─── Title UI ───────────────────────────────
+    public void ShowTitleUI(bool active)
+    {
+        if (_titleUIRoot != null) _titleUIRoot.SetActive(active);
     }
 }
