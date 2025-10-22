@@ -1,9 +1,14 @@
+using Cysharp.Threading.Tasks;
+using System;
+using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 
 /// <summary>
 /// Global UI Manager singleton, persists across scenes.
 /// Controls result UIs, player HUD, and title menu.
 /// </summary>
+public enum TutorialKey { Move, Jump, Dash, Attack, Turbo }
 public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
@@ -20,12 +25,30 @@ public class UIManager : MonoBehaviour
     [SerializeField, Tooltip("タイトルメニュー全体(Canvasなど)")]
     private GameObject _titleUIRoot;
 
+    [Header("Tutorials (assign under UIManager in the Title/Bootstrap scene)")]
+    [SerializeField] private List<TutorialEntry> _tutorials;
+
+    private readonly Dictionary<TutorialKey, TutorialUIAnimator> _map = new();
+
+    [Serializable]
+    public struct TutorialEntry
+    {
+        public TutorialKey key;
+        public TutorialUIAnimator ui;
+    }
+
     private void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
             DontDestroyOnLoad(this.gameObject);
+            _map.Clear();
+            foreach (var t in _tutorials)
+            {
+                if (t.ui != null && !_map.ContainsKey(t.key))
+                    _map.Add(t.key, t.ui);
+            }
         }
         else
         {
@@ -69,4 +92,39 @@ public class UIManager : MonoBehaviour
     {
         if (_titleUIRoot != null) _titleUIRoot.SetActive(active);
     }
+
+    // ─── Tutorial UI ───────────────────────────────
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
+    public async UniTask ShowTutorialAsync(TutorialKey key)
+    {
+        if (_map.TryGetValue(key, out var ui) && ui != null)
+            await ui.ShowAsync();
+    }
+
+    public async UniTask HideTutorialAsync(TutorialKey key)
+    {
+        if (_map.TryGetValue(key, out var ui) && ui != null)
+            await ui.HideAsync();
+    }
+
+    public async UniTask TutorialSuccessAsync(TutorialKey key)
+    {
+        if (_map.TryGetValue(key, out var ui) && ui != null)
+            await ui.MarkSuccessAndAutoHideAsync();
+    }
+
+    // Fire-and-forget convenience
+    public void ShowTutorial(TutorialKey key) => ShowTutorialAsync(key).Forget();
+    public void HideTutorial(TutorialKey key) => HideTutorialAsync(key).Forget();
+    public void TutorialSuccess(TutorialKey key) => TutorialSuccessAsync(key).Forget();
+
+    public void HideAllTutorials()
+    {
+        foreach (var kv in _map) kv.Value?.HideAsync().Forget();
+    }
+
 }
