@@ -100,6 +100,12 @@ public class CombatController : MonoBehaviour
 
         // Normal start
         StartComboAsync().Forget();
+
+        if (!TutorialProgress.IsLearned(TutorialKey.Attack))
+        {
+            UIManager.Instance?.TutorialSuccess(TutorialKey.Attack);
+            TutorialProgress.SetLearned(TutorialKey.Attack);
+        }
     }
 
     // Request an attack programmatically (optional external call)
