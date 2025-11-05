@@ -171,6 +171,17 @@ public class PlayerAnimator : MonoBehaviour
         _anim.applyRootMotion = on;
     }
 
+    public void PauseAnimator()
+    {
+        if (_anim) _anim.speed = 0f;
+    }
+
+    public void ResumeAnimator()
+    {
+        if (_anim) _anim.speed = 1f;
+    }
+
+
     public UniTask WaitForCurrentAnimationEnd(CancellationToken ct = default)
     {
         return UniTask.WaitUntil(

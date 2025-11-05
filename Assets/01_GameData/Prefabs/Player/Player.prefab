@@ -528,6 +528,7 @@ GameObject:
   - component: {fileID: 3471398806271338333}
   - component: {fileID: 2298466729405537635}
   - component: {fileID: 6165824155517872486}
+  - component: {fileID: 6452052586895441888}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -656,7 +657,19 @@ MonoBehaviour:
     m_ActionId: 641cd816-40e6-41b4-8c3d-04687c349290
     m_ActionName: 'Player/Sprint[/Keyboard/leftShift]'
   - m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 0}
+        m_TargetAssemblyTypeName: 
+        m_MethodName: 
+        m_Mode: 1
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: 
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
     m_ActionId: c95b2375-e6d9-4b88-9c4c-c5e76515df4b
     m_ActionName: 'UI/Navigate[/Keyboard/w,/Keyboard/upArrow,/Keyboard/s,/Keyboard/downArrow,/Keyboard/a,/Keyboard/leftArrow,/Keyboard/d,/Keyboard/rightArrow]'
   - m_PersistentCalls:
@@ -715,6 +728,22 @@ MonoBehaviour:
         m_CallState: 2
     m_ActionId: d1b32718-aa9b-41bb-9be0-69219696b788
     m_ActionName: 'Player/Activate Turbo Mode[/Keyboard/e]'
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 3114968349170267880, guid: 953944bb0b0a95844a56850e5c9c8ccd, type: 3}
+        m_TargetAssemblyTypeName: PauseMenu, Assembly-CSharp
+        m_MethodName: OnPause
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: bbf7c560-322e-47d7-b4f9-9593bc33f951
+    m_ActionName: 'Player/Pause[/Keyboard/escape]'
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: Keyboard&Mouse
   m_DefaultActionMap: Player
@@ -769,7 +798,7 @@ Rigidbody:
   m_IsKinematic: 0
   m_Interpolate: 1
   m_Constraints: 88
-  m_CollisionDetection: 1
+  m_CollisionDetection: 2
 --- !u!114 &4028094239222328936
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -935,6 +964,20 @@ MonoBehaviour:
   _groundMask:
     serializedVersion: 2
     m_Bits: 128
+--- !u!114 &6452052586895441888
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7524616865943299786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9da751704378af46a6db283fc4f3694, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlatformRider
+  topContactDot: 0.75
+  velocityBlend: 1
 --- !u!1 &8059948321506089467
 GameObject:
   m_ObjectHideFlags: 0
