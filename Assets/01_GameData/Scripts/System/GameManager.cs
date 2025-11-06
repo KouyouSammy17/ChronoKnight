@@ -104,6 +104,12 @@ public class GameManager : MonoBehaviour
     {
         string current = SceneManager.GetActiveScene().name;
         LoadWithFeel(current, GameState.Playing);
+        _player?.EnableInput();
+        _isPaused = false;
+
+        ResolvePauseMenu();
+        _pauseMenu?.HideMenu();  // <-- direct call
+        UpdateCursorState();
     }
 
     public void LoadNextLevel()
@@ -234,6 +240,7 @@ public class GameManager : MonoBehaviour
         UIManager.Instance?.ShowTutorial(TutorialKey.Move);
 
         _ = ResetTutorialUnfreezeAsync(anim, cachedSpeed, this.GetCancellationTokenOnDestroy());
+       RestartLevel();
     }
 
     private async UniTaskVoid ResetTutorialUnfreezeAsync(Animator anim, float cachedSpeed, CancellationToken ct)
@@ -405,5 +412,9 @@ public class GameManager : MonoBehaviour
 
         Cursor.visible = shouldShow;
         Cursor.lockState = shouldShow ? CursorLockMode.None : CursorLockMode.Locked;
+    }
+    public bool IsFirstLevelActive()
+    {
+        return SceneManager.GetActiveScene().name == _firstLevel;
     }
 }
