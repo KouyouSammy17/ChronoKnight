@@ -26,8 +26,21 @@ public class GameManager : MonoBehaviour
     [SerializeField, Range(0f, 1f)] private float _exitFade = 0.35f;
     [SerializeField] private bool _interpolateProgress = true;
 
+    [Header("Fall Respawn")]
+    [SerializeField] private bool _enableFallCheck = true;
+    [SerializeField] private float _fallKillY = -20f;   // when player.y < this → respawn
+    [SerializeField] private int _fallDamage = 20;      // HP lost on fall
+    [SerializeField] private float _respawnFreeze = 0.1f; // short freeze before snap (sec, realtime)
+    [SerializeField] private float _respawnIFrames = 1.0f; // optional: post-respawn grace (sec)
+   
     [Header("Player Spawn")]
     [SerializeField] private PlayerController _playerPrefab;
+    // NEW: reference to PauseMenu (assign in Inspector or auto-resolve)
+   
+    [SerializeField] private PauseMenu _pauseMenu;
+    [SerializeField] private float _pauseInputBuffer = 0.35f;
+
+
 
     [Header("Debug")]
     [SerializeField] private bool _allowStartFromAnyScene = true;
@@ -39,15 +52,12 @@ public class GameManager : MonoBehaviour
     private PlayerInput _playerInput;
     private InputAction _pauseAction;   // from Player map
     private InputAction _cancelAction;  // from UI map
+    private bool _isRespawningFromFall = false;
     private Transform _spawnPoint;      // Tag: Respawn
 
-    // NEW: reference to PauseMenu (assign in Inspector or auto-resolve)
-    [SerializeField] private PauseMenu _pauseMenu;
-
+   
     private bool _pauseBlocked = false;
     private bool _isPaused = false;
-    [SerializeField] private float _pauseInputBuffer = 0.35f;
-
     public bool IsPaused => _isPaused;
     public PlayerController Player => _player;
     public PlayerInput PlayerInput => _playerInput;
@@ -82,6 +92,19 @@ public class GameManager : MonoBehaviour
             SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
+    private void Update()
+    {
+        // …your existing Update logic…
+
+        if (_enableFallCheck && State == GameState.Playing && _player != null && !_isRespawningFromFall)
+        {
+            if (_player.transform.position.y < _fallKillY)
+            {
+                FallRespawnAndDamageAsync().Forget();
+            }
+        }
+    }
+
     // ───────────────────────────────────────────────────────────────────────────────
     // Input callbacks (wired from WireInput)
     public void OnPauseStarted(InputAction.CallbackContext ctx)
@@ -97,7 +120,28 @@ public class GameManager : MonoBehaviour
 
     // ───────────────────────────────────────────────────────────────────────────────
     // Public API
-    public void LoadTitle() => LoadWithFeel(_titleScene, GameState.Title);
+    public void LoadTitle()
+    {
+        // Ensure we are not paused anymore
+        Time.timeScale = 1f;
+        _isPaused = false;
+
+        // Make sure pause UI is hidden
+        ResolvePauseMenu();
+        _pauseMenu?.HideMenuInstant();   // instant, no tween
+        // Reset / hide gameplay-related UI (including tutorials)
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.ResetAllUI();      // your existing global clean
+        }
+
+        // Do the actual scene transition (Feel loader etc.)
+        LoadWithFeel(_titleScene, GameState.Title);
+
+        // Cursor should be visible on title
+        UpdateCursorState();
+    }
+
     public void StartNewGame() => LoadWithFeel(_firstLevel, GameState.Playing);
 
     public void RestartLevel()
@@ -147,16 +191,20 @@ public class GameManager : MonoBehaviour
 
     public PlayerController GetPlayer() => _player;
 
-    public void RespawnPlayer()
+    public void RespawnPlayer(bool resetStats = true)
     {
         if (_player == null) return;
+
         if (_spawnPoint != null)
             _player.transform.position = _spawnPoint.position;
 
         var rb = _player.GetRigidbody();
         rb.linearVelocity = Vector3.zero;
+
         _player.ResetPlayerState();
-        _player.GetComponent<PlayerStats>()?.ResetStats();
+
+        if (resetStats)
+            _player.GetComponent<PlayerStats>()?.ResetStats(); 
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
@@ -389,32 +437,44 @@ public class GameManager : MonoBehaviour
     }
     private void UpdateCursorState()
     {
-        bool shouldShow = false;
+        // Visible on Title/Clear/GameOver OR while paused. Hidden during active gameplay.
+        bool show = _isPaused || State != GameState.Playing;
 
-        if (_isPaused)
-        {
-            shouldShow = true; // pause menu open
-        }
-        else
-        {
-            switch (State)
-            {
-                case GameState.Title:
-                case GameState.Clear:
-                case GameState.GameOver:
-                    shouldShow = true;
-                    break;
-                case GameState.Playing:
-                    shouldShow = false;
-                    break;
-            }
-        }
-
-        Cursor.visible = shouldShow;
-        Cursor.lockState = shouldShow ? CursorLockMode.None : CursorLockMode.Locked;
+        Cursor.visible = show;
+        Cursor.lockState = show ? CursorLockMode.None : CursorLockMode.Locked;
     }
     public bool IsFirstLevelActive()
     {
         return SceneManager.GetActiveScene().name == _firstLevel;
+    }
+
+    private async UniTaskVoid FallRespawnAndDamageAsync()
+    {
+        _isRespawningFromFall = true;
+
+        // tiny freeze for feedback / safety
+        await UniTask.Delay(TimeSpan.FromSeconds(_respawnFreeze), DelayType.Realtime);
+
+        // 1) move to spawn but DON'T refill HP
+        RespawnPlayer(resetStats: false);
+
+        // 2) apply fall damage
+        var stats = _player.GetComponent<PlayerStats>();
+        if (stats != null && _fallDamage > 0)
+        {
+            stats.TakeDamage(_fallDamage);
+        }
+
+        // 3) optional: brief invulnerability window (grace)
+        if (_respawnIFrames > 0f)
+        {
+            // If you have a damage gate / hurtbox toggler, do it here.
+            // Example (pseudo):
+            // _player.SetInvulnerable(true);
+            await UniTask.Delay(TimeSpan.FromSeconds(_respawnIFrames), DelayType.Realtime);
+            // _player.SetInvulnerable(false);
+        }
+
+        _isRespawningFromFall = false;
     }
 }

@@ -26,11 +26,7 @@ public class SelectSwap : MonoBehaviour, ISelectHandler, IDeselectHandler, IPoin
     {
         _sel = GetComponent<Selectable>();
         if (!tweenTarget) tweenTarget = transform;
-
-        // initial state: not selected
-        SetVisual(false);
-        SafeKill();
-        tweenTarget.localScale = Vector3.one;
+        ForceUnselectImmediate(); // use the same logic
     }
 
     private void OnDisable() => SafeKill();
@@ -46,6 +42,17 @@ public class SelectSwap : MonoBehaviour, ISelectHandler, IDeselectHandler, IPoin
     {
         SetVisual(false);
         TweenTo(1f, deselectDur, deselectEase);
+    }
+
+    public void ForceUnselectImmediate()
+    {
+        SafeKill();
+
+        if (inactiveRoot) inactiveRoot.SetActive(true);
+        if (activeRoot) activeRoot.SetActive(false);
+
+        if (tweenTarget)
+            tweenTarget.localScale = Vector3.one;
     }
 
     // Hovering with mouse should also move selection (so visuals match keyboard/gamepad)

@@ -86,11 +86,34 @@ public class PauseMenu : MonoBehaviour
             .Join(_panelRect.DOScale(0f, _scaleTime).SetEase(Ease.InBack))
             .OnComplete(() =>
             {
+                ResetSelectionState();
                 if (_contentRoot) _contentRoot.SetActive(false);
             });
-
         _hideSeq.Play();
     }
+
+    // NEW: instant hard hide for scene changes / title
+    public void HideMenuInstant()
+    {
+        _showSeq?.Kill();
+        _hideSeq?.Kill();
+
+        if (_panelGroup)
+        { 
+            _panelGroup.alpha = 0f;
+            _panelGroup.interactable = false;
+            _panelGroup.blocksRaycasts = false;
+        }
+
+        if (_panelRect)
+            _panelRect.localScale = Vector3.zero;
+
+        ResetSelectionState();
+
+        if (_contentRoot)
+            _contentRoot.SetActive(false);
+    }
+
 
     // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
     // Helpers
@@ -104,10 +127,33 @@ public class PauseMenu : MonoBehaviour
         }
     }
 
+
+    private void ResetSelectionState()
+    {
+        // Clear selected object so we don't reopen focused on wrong button
+        if (EventSystem.current != null &&
+            EventSystem.current.currentSelectedGameObject != null)
+        {
+            EventSystem.current.SetSelectedGameObject(null);
+        }
+
+        if (_contentRoot == null) return;
+
+        // Reset all SelectSwap under this menu
+        var swaps = _contentRoot.GetComponentsInChildren<SelectSwap>(true);
+        foreach (var s in swaps)
+        {
+            s.ForceUnselectImmediate();
+        }
+    }
+
     // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
     // Buttons
     public void OnClick_Resume() => GameManager.Instance?.ResumeGame();
     public void OnClick_RestartLevel() { GameManager.Instance?.ResumeGame(); GameManager.Instance?.RestartLevel(); }
-    public void OnClick_QuitToTitle() { GameManager.Instance?.ResumeGame(); GameManager.Instance?.LoadTitle(); }
+    public void OnClick_QuitToTitle()
+    {
+        GameManager.Instance?.LoadTitle();
+    }
     public void OnClick_ResetTutorial() { GameManager.Instance?.ResetTutorial(); }
 }
