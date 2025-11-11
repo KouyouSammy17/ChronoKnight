@@ -149,6 +149,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2024616274984463055, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
+      propertyPath: m_Name
+      value: Button_Title
+      objectReference: {fileID: 0}
     - target: {fileID: 2024616274984463057, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
@@ -296,6 +300,14 @@ PrefabInstance:
       propertyPath: _pauseMenu
       value: 
       objectReference: {fileID: 991380026}
+    - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
+      propertyPath: _titleFirstSelected
+      value: 
+      objectReference: {fileID: 1936087848}
+    - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
+      propertyPath: _titleFirstSelectedName
+      value: Button_Title
+      objectReference: {fileID: 0}
     - target: {fileID: 3140687796065368608, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
       propertyPath: m_Name
       value: GameManager

@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
@@ -17,6 +18,12 @@ public class GameManager : MonoBehaviour
     [Header("Scene Names")]
     [SerializeField] private string _titleScene = "Title";
     [SerializeField] private string _firstLevel = "Level_01";
+
+    [Header("Title UI")]
+    [SerializeField] private GameObject _titleFirstSelected;         // assign your Title button root
+    [SerializeField] private string _titleFirstSelectedTag = "FirstSelected"; // optional fallback
+    [SerializeField] private string _titleFirstSelectedName = "Btn_Title";    // optional fallback
+
 
     [Header("Feel MMSceneLoading")]
     [SerializeField] private bool _useAdditive = false;
@@ -39,7 +46,7 @@ public class GameManager : MonoBehaviour
    
     [SerializeField] private PauseMenu _pauseMenu;
     [SerializeField] private float _pauseInputBuffer = 0.35f;
-
+    [SerializeField] private bool _freezeTimeOnResults = true;
 
 
     [Header("Debug")]
@@ -146,6 +153,7 @@ public class GameManager : MonoBehaviour
 
     public void RestartLevel()
     {
+        TurboModeManager.Instance?.ForceReset(clearCooldown: true);
         string current = SceneManager.GetActiveScene().name;
         LoadWithFeel(current, GameState.Playing);
         _player?.EnableInput();
@@ -174,19 +182,21 @@ public class GameManager : MonoBehaviour
     public void WinLevel()
     {
         if (State != GameState.Playing) return;
-        State = GameState.Clear;
-        UIManager.Instance?.ResetAllUI();
-        UIManager.Instance?.ShowGameClearUI();
-        UpdateCursorState();
+        TurboModeManager.Instance?.ForceReset(clearCooldown: true);
+        EnterResultMode(GameState.Clear, () =>
+        {
+            UIManager.Instance?.ShowGameClearUI();
+        });
     }
 
     public void GameOver()
     {
         if (State == GameState.GameOver) return;
-        State = GameState.GameOver;
-        UIManager.Instance?.ResetAllUI();
-        UIManager.Instance?.ShowGameOverUI();
-        UpdateCursorState();
+        TurboModeManager.Instance?.ForceReset(clearCooldown: true);
+        EnterResultMode(GameState.GameOver, () =>
+        {
+            UIManager.Instance?.ShowGameOverUI();
+        });
     }
 
     public PlayerController GetPlayer() => _player;
@@ -204,7 +214,8 @@ public class GameManager : MonoBehaviour
         _player.ResetPlayerState();
 
         if (resetStats)
-            _player.GetComponent<PlayerStats>()?.ResetStats(); 
+            _player.GetComponent<PlayerStats>()?.ResetStats();
+        TurboModeManager.Instance?.ForceReset(clearCooldown: true);
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
@@ -357,16 +368,16 @@ public class GameManager : MonoBehaviour
             UIManager.Instance?.ShowPlayerUI(true);
             _player?.GetComponent<PlayerStats>()?.ResetStats();
         }
-        else
+        else // Title
         {
             UIManager.Instance?.ShowPlayerUI(false);
             UIManager.Instance?.ShowTitleUI(true);
+            FocusTitleFirstSelectedNextFrame().Forget();   // << set first selected here
         }
 
         ResolvePauseMenu();
         UpdateCursorState();
     }
-
     private void BindSpawnAndPlayer()
     {
         var spawnGo = GameObject.FindGameObjectWithTag("Respawn");
@@ -476,5 +487,65 @@ public class GameManager : MonoBehaviour
         }
 
         _isRespawningFromFall = false;
+    }
+    private void EnterResultMode(GameState newState, System.Action showUI)
+    {
+        // state
+        State = newState;
+
+        // make sure we are not considered paused (and hide the pause menu instantly)
+        _isPaused = false;
+        ResolvePauseMenu();
+        _pauseMenu?.HideMenuInstant();
+        
+        TurboModeManager.Instance?.ForceReset(clearCooldown: true);
+        // lock gameplay
+        _player?.DisableInput();
+
+        // put PlayerInput on UI map so Submit/Cancel/Navigate work on result screen
+        if (_playerInput != null && _playerInput.actions != null)
+        {
+            if (!_playerInput.enabled) _playerInput.enabled = true;
+            if (!_playerInput.actions.enabled) _playerInput.actions.Enable();
+
+            var uiMap = _playerInput.actions.FindActionMap("UI", throwIfNotFound: false);
+            if (uiMap != null)
+            {
+                _playerInput.defaultActionMap = "UI";
+                _playerInput.SwitchCurrentActionMap("UI");
+            }
+        }
+
+        // optionally freeze gameplay world (UI tweens should use SetUpdate(true))
+        if (_freezeTimeOnResults) Time.timeScale = 0f;
+
+        // clear any leftover gameplay UI (tutorials, etc.)
+        UIManager.Instance?.ResetAllUI();
+
+        // show the specific result UI
+        showUI?.Invoke();
+
+        // show/unlock cursor for results
+        UpdateCursorState();
+    }
+
+
+    private async UniTaskVoid FocusTitleFirstSelectedNextFrame()
+    {
+        await UniTask.NextFrame(); // wait until Title UI is enabled
+
+        var target = _titleFirstSelected;
+
+        // optional fallbacks
+        if (target == null && !string.IsNullOrEmpty(_titleFirstSelectedTag))
+            target = GameObject.FindGameObjectWithTag(_titleFirstSelectedTag);
+        if (target == null && !string.IsNullOrEmpty(_titleFirstSelectedName))
+            target = GameObject.Find(_titleFirstSelectedName);
+
+        if (EventSystem.current != null && target != null && target.activeInHierarchy)
+        {
+            EventSystem.current.SetSelectedGameObject(null);
+            EventSystem.current.SetSelectedGameObject(target);
+        }
     }
 }
