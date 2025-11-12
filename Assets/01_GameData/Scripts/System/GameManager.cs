@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using UnityEngine.Timeline;
 
 public enum GameState { Title, Playing, Clear, GameOver }
 
@@ -48,6 +49,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float _pauseInputBuffer = 0.35f;
     [SerializeField] private bool _freezeTimeOnResults = true;
 
+    // ── HUD delayed reveal ───────────────────────────────────────────────────────────
+    [SerializeField] private float _hudRevealDelay = 5f;   // tweak as needed
+    private CancellationTokenSource _hudRevealCts;
 
     [Header("Debug")]
     [SerializeField] private bool _allowStartFromAnyScene = true;
@@ -62,7 +66,7 @@ public class GameManager : MonoBehaviour
     private bool _isRespawningFromFall = false;
     private Transform _spawnPoint;      // Tag: Respawn
 
-   
+
     private bool _pauseBlocked = false;
     private bool _isPaused = false;
     public bool IsPaused => _isPaused;
@@ -97,7 +101,12 @@ public class GameManager : MonoBehaviour
     {
         if (Instance == this)
             SceneManager.sceneLoaded -= OnSceneLoaded;
+
+        _hudRevealCts?.Cancel();
+        _hudRevealCts?.Dispose();
+        _hudRevealCts = null;
     }
+
 
     private void Update()
     {
@@ -361,18 +370,24 @@ public class GameManager : MonoBehaviour
         State = scene.name == _titleScene ? GameState.Title : GameState.Playing;
 
         BindSpawnAndPlayer();
-
         if (State == GameState.Playing)
         {
             UIManager.Instance?.ShowTitleUI(false);
-            UIManager.Instance?.ShowPlayerUI(true);
+
+            // Hide first to avoid flicker
+            UIManager.Instance?.ShowPlayerUI(false);
+            UIManager.Instance?.HideAllTutorials();
             _player?.GetComponent<PlayerStats>()?.ResetStats();
+          
+
+            // Schedule delayed reveal
+            RevealHUDDelayedAsync(this.GetCancellationTokenOnDestroy()).Forget();
         }
         else // Title
         {
             UIManager.Instance?.ShowPlayerUI(false);
             UIManager.Instance?.ShowTitleUI(true);
-            FocusTitleFirstSelectedNextFrame().Forget();   // << set first selected here
+            FocusTitleFirstSelectedNextFrame().Forget();
         }
 
         ResolvePauseMenu();
@@ -548,4 +563,25 @@ public class GameManager : MonoBehaviour
             EventSystem.current.SetSelectedGameObject(target);
         }
     }
+    private async UniTaskVoid RevealHUDDelayedAsync(CancellationToken ctOuter)
+    {
+        // cancel any previous schedule
+        _hudRevealCts?.Cancel();
+        _hudRevealCts?.Dispose();
+        _hudRevealCts = new CancellationTokenSource();
+
+        using (var linked = CancellationTokenSource.CreateLinkedTokenSource(ctOuter, _hudRevealCts.Token))
+        {
+            var ct = linked.Token;
+
+            // wait a bit so scene init settles (uses game time)
+            await UniTask.Delay(TimeSpan.FromSeconds(_hudRevealDelay), DelayType.DeltaTime, PlayerLoopTiming.Update, ct);
+            if (ct.IsCancellationRequested || State != GameState.Playing) return;
+
+            UIManager.Instance?.ShowPlayerUI(true);
+            //If you want a specific tutorial to appear after the delay, uncomment:
+            UIManager.Instance?.ShowTutorial(TutorialKey.Move);
+        }
+    }
+
 }

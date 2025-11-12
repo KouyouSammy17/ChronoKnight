@@ -13,6 +13,11 @@ public class MomentumGaugeUI : MonoBehaviour
     [SerializeField] private Ease _ease = Ease.OutQuad;
     [SerializeField] private bool _animateWhilePaused = true;
 
+    // Å• add this
+    [Header("Visibility (optional)")]
+    [SerializeField] private CanvasGroup _group;
+    [SerializeField] private bool _startHiddenUntilTimeline = true;
+
     private Tween _valueTween;
     private float _lastValue = -999f;
     private bool _isBound = false;
@@ -21,6 +26,11 @@ public class MomentumGaugeUI : MonoBehaviour
     private void Awake()
     {
         if (_momentumSlider == null) _momentumSlider = GetComponent<Slider>();
+        if (_group == null) _group = GetComponent<CanvasGroup>();
+        if (_group == null) { _group = gameObject.AddComponent<CanvasGroup>(); } // safe default
+
+        if (_startHiddenUntilTimeline)
+            SetVisible(false, instant: true);
     }
 
     private void OnEnable()
@@ -46,7 +56,6 @@ public class MomentumGaugeUI : MonoBehaviour
 
     private void OnSceneLoaded(Scene s, LoadSceneMode m)
     {
-        // Scene changes can recreate managers; rebind.
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
         BindWhenReadyAsync(_cts.Token).Forget();
@@ -54,18 +63,14 @@ public class MomentumGaugeUI : MonoBehaviour
 
     private async UniTaskVoid BindWhenReadyAsync(CancellationToken token)
     {
-        // Wait until both UI and manager exist
         await UniTask.WaitUntil(() => MomentumManager.Instance != null && _momentumSlider != null, cancellationToken: token);
-
-        // Small extra delay to avoid race during scene activation
         await UniTask.Yield(PlayerLoopTiming.Update, token);
-
         if (token.IsCancellationRequested) return;
 
         var mm = MomentumManager.Instance;
         if (mm == null) return;
 
-        Unbind(); // clean previous
+        Unbind();
         _momentumSlider.wholeNumbers = false;
         _momentumSlider.minValue = 0f;
         _momentumSlider.maxValue = mm.MaxMomentum;
@@ -73,7 +78,6 @@ public class MomentumGaugeUI : MonoBehaviour
         mm.onMomentumChanged.AddListener(OnMomentumChanged);
         _isBound = true;
 
-        // Force initial update
         _lastValue = -999f;
         OnMomentumChanged(mm.CurrentMomentum);
     }
@@ -90,8 +94,6 @@ public class MomentumGaugeUI : MonoBehaviour
         if (_momentumSlider == null) return;
 
         float target = Mathf.Clamp(m, 0f, _momentumSlider.maxValue);
-
-        // Avoid spam
         if (Mathf.Approximately(_lastValue, target)) return;
         _lastValue = target;
 
@@ -99,7 +101,31 @@ public class MomentumGaugeUI : MonoBehaviour
         _valueTween = _momentumSlider
             .DOValue(target, _tweenDuration)
             .SetEase(_ease)
-            .SetUpdate(_animateWhilePaused)   // works while paused
+            .SetUpdate(_animateWhilePaused)
             .SetLink(_momentumSlider.gameObject, LinkBehaviour.KillOnDestroy);
     }
+
+    // ÑüÑü Timeline-callable helpers ÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑüÑü
+    public void TL_HideGauge() => SetVisible(false, instant: false);
+    public void TL_ShowGauge() => SetVisible(true, instant: false);
+
+    private void SetVisible(bool visible, bool instant)
+    {
+        if (_group == null) return;
+
+        float target = visible ? 1f : 0f;
+        _group.interactable = visible;
+        _group.blocksRaycasts = visible;
+
+        if (instant)
+        {
+            _group.alpha = target;
+        }
+        else
+        {
+            // short UI fade (or set duration to 0 for hard cut)
+            _group.DOFade(target, 0.15f).SetUpdate(true);
+        }
+    }
 }
+    
