@@ -557,6 +557,40 @@ public class PlayerController : MonoBehaviour
         // (e.g. if you had a “lock input” for death animation).
     }
 
+    // PlayerController.cs
+    public void OnRespawnSnap()
+    {
+        // Clear motion/lock states but DO NOT wipe the player's jump buffer:
+        _isWallJumping = false;
+        _isWallJumpLerping = false;
+        _wallJumpTimer = 0f;
+        _postWallJumpTimer = 0f;
+        _isWallSliding = false;
+
+        _isDashing = false;
+        _isDashJump = false;
+        _dashTimer = 0f;
+        _dashCooldownTimer = 0f;
+
+        // Make sure vertical speed is neutral
+        if (_rb != null)
+        {
+            _rb.linearVelocity = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
+        }
+
+        // After SNAP + Physics.SyncTransforms(), trust we’re on the ground now.
+        // We also *seed* coyote so a jump pressed right away will work.
+        _isGrounded = IsGroundedCheck();
+        if (!_isGrounded) _isGrounded = true;     // defensive: kill tiny air gaps
+        _coyoteTimeCounter = _coyoteTime;
+        _hasUsedCoyoteJump = false;
+
+        // Do NOT clear _jumpBufferCounter here – allow buffered jump to fire.
+        // Also don’t force _isJumpHeld = false: if player kept holding jump,
+        // let your normal “short hop cut” logic handle it.
+    }
+
+
     private void HandleMovement()
     {
         if (_isDashing || !_inputEnabled)

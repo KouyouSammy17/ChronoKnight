@@ -56,7 +56,7 @@ MonoBehaviour:
   _exitFade: 0.35
   _interpolateProgress: 1
   _enableFallCheck: 1
-  _fallKillY: -20
+  _fallKillY: -10
   _fallDamage: 20
   _respawnFreeze: 0.1
   _respawnIFrames: 1
@@ -64,4 +64,5 @@ MonoBehaviour:
   _pauseMenu: {fileID: 0}
   _pauseInputBuffer: 0.35
   _freezeTimeOnResults: 1
+  _hudRevealDelay: 6
   _allowStartFromAnyScene: 1

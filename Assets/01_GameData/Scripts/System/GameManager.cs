@@ -116,13 +116,11 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        // …your existing Update logic…
-
         if (_enableFallCheck && State == GameState.Playing && _player != null && !_isRespawningFromFall)
         {
-            if (_player.transform.position.y < _fallKillY)
+            if (_player.transform.position.y <= _fallKillY)
             {
-                FallRespawnAndDamageAsync().Forget();
+                TriggerFallRespawn();
             }
         }
     }
@@ -216,20 +214,27 @@ public class GameManager : MonoBehaviour
 
     public PlayerController GetPlayer() => _player;
 
+    // GameManager.cs
     public void RespawnPlayer(bool resetStats = true)
     {
         if (_player == null) return;
 
+        // 1) snap & stop
         if (_spawnPoint != null)
             _player.transform.position = _spawnPoint.position;
 
         var rb = _player.GetRigidbody();
-        rb.linearVelocity = Vector3.zero;
+        if (rb != null) rb.linearVelocity = Vector3.zero;
 
-        _player.ResetPlayerState();
+        // 2) make the new transform "real" for raycasts this frame
+        Physics.SyncTransforms();
+
+        // 3) use a respawn-aware reset (does not kill jump buffer, seeds coyote)
+        _player.OnRespawnSnap();
 
         if (resetStats)
             _player.GetComponent<PlayerStats>()?.ResetStats();
+
         TurboModeManager.Instance?.ForceReset(clearCooldown: true);
     }
 
@@ -492,61 +497,54 @@ public class GameManager : MonoBehaviour
         return SceneManager.GetActiveScene().name == _firstLevel;
     }
 
-    private async UniTaskVoid FallRespawnAndDamageAsync()
+    private async Cysharp.Threading.Tasks.UniTaskVoid FallRespawnAndDamageAsync()
     {
-        if (_isRespawningFromFall) return; // double-call safety
+        if (_isRespawningFromFall) return;
         _isRespawningFromFall = true;
 
         var stats = _player ? _player.GetComponent<PlayerStats>() : null;
         var recv = _player ? _player.GetComponent<PlayerDamageReceiver>() : null;
         var rb = _player ? _player.GetRigidbody() : null;
 
-        // 0) INVULN ON NOW (prevents stray hits during freeze/teleport/landing)
+        // 0) Hard-gate damage during the whole sequence
         if (recv != null) recv.SetInvulnerable(true);
-        // If your PlayerStats has a “recent damage gate”, arm it as a belt-and-suspenders:
-        // (use Time.unscaledTime under the hood so it also works during freezes)
-        stats?.ArmNoDamageFor(_respawnFreeze + _respawnIFrames + 0.05f);
+        stats?.ArmNoDamageFor(_respawnIFrames + 0.05f); // make sure gates ignore TimeScale
+                                                        // (Uses Time.unscaledTime inside PlayerStats.) :contentReference[oaicite:3]{index=3}
 
-        // 1) tiny freeze for feedback (realtime)
-        await UniTask.Delay(TimeSpan.FromSeconds(_respawnFreeze), DelayType.Realtime);
-
-        // 2) TELEPORT (don’t refill HP)
-        //    – ensure we have a valid spawn first
-        if (_spawnPoint == null)
-        {
-            var spawnGo = GameObject.FindGameObjectWithTag("Respawn");
-            _spawnPoint = spawnGo ? spawnGo.transform : null;
-            if (_spawnPoint == null)
-            {
-                Debug.LogWarning("[Fall] No Respawn point found. Using Vector3.zero.");
-                _player.transform.position = Vector3.zero + Vector3.up * 2f; // simple safe fallback
-            }
-        }
-
-        // zero velocity BEFORE and AFTER snapping to avoid instant re-falls
+        // 1) Kill all velocity and SNAP immediately to spawn
         if (rb != null) rb.linearVelocity = Vector3.zero;
-
-        RespawnPlayer(resetStats: false); // your method: moves to spawn + reset player state (no HP refill)
-
+        RespawnPlayer(resetStats: false); // moves to spawn and clears motion flags
         if (rb != null) rb.linearVelocity = Vector3.zero;
+        Physics.SyncTransforms(); // ensure colliders update this frame
 
-        // 3) APPLY FALL DAMAGE exactly once
+        // 2) (optional micro-freeze ONLY for feel; set to 0 to remove)
+        if (_respawnFreeze > 0f)
+            await Cysharp.Threading.Tasks.UniTask.Delay(
+                System.TimeSpan.FromSeconds(_respawnFreeze),
+                DelayType.Realtime
+            );
+
+        // 3) Apply fall damage exactly once, no hit-react
         if (stats != null && _fallDamage > 0)
         {
-            // If you added an override, prefer this:
-            // stats.TakeDamage(_fallDamage, ignoreGates: true);
-            // Otherwise, normal call is fine because invuln is ours; we WANT this one to land:
-            stats.TakeDamage(_fallDamage);
-        }
+            // uses the overload that bypasses gates and skips hit reaction
+            stats.TakeDamage(_fallDamage, ignoreGates: true, triggerHitReact: false);
+        } // :contentReference[oaicite:4]{index=4}
 
-        // 4) GRACE WINDOW (still invulnerable)
+        // 4) Short grace window to prevent immediate re-hits on landing
         if (_respawnIFrames > 0f)
-            await UniTask.Delay(TimeSpan.FromSeconds(_respawnIFrames), DelayType.Realtime);
+            await Cysharp.Threading.Tasks.UniTask.Delay(
+                System.TimeSpan.FromSeconds(_respawnIFrames),
+                DelayType.Realtime
+            );
 
-        // 5) INVULN OFF
         if (recv != null) recv.SetInvulnerable(false);
-
         _isRespawningFromFall = false;
+    }
+    public void TriggerFallRespawn()
+    {
+        if (!_enableFallCheck || _player == null || _isRespawningFromFall) return;
+        FallRespawnAndDamageAsync().Forget();
     }
 
 
