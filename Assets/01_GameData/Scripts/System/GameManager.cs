@@ -72,6 +72,7 @@ public class GameManager : MonoBehaviour
     private Transform _spawnPoint;      // Tag: Respawn
     private MomentumGaugeUI _gauge; // auto-fetched from the Player
 
+    private bool _hasShownMoveTutorial = false; // shows Move tutorial once per session
 
     private bool _pauseBlocked = false;
     private bool _isPaused = false;
@@ -314,6 +315,7 @@ public class GameManager : MonoBehaviour
 
         _ = ResetTutorialUnfreezeAsync(anim, cachedSpeed, this.GetCancellationTokenOnDestroy());
         RestartLevel();
+        _hasShownMoveTutorial = false;   // allow Move tutorial again after full reset
     }
 
     private async UniTaskVoid ResetTutorialUnfreezeAsync(Animator anim, float cachedSpeed, CancellationToken ct)
@@ -630,8 +632,12 @@ public class GameManager : MonoBehaviour
 
         // Reveal & unlock
         SetGameplayUIVisible(true);
-        // ▼ Show MOVE tutorial after the delay
-        UIManager.Instance?.ShowTutorial(TutorialKey.Move);
+       
+        if (!_hasShownMoveTutorial)
+        {
+            UIManager.Instance?.ShowTutorial(TutorialKey.Move);
+            _hasShownMoveTutorial = true;
+        }
 
         SwitchActionMap(MAP_PLAYER);
         SetInputEnabled(true);
