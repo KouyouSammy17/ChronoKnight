@@ -364,12 +364,6 @@ public class PlayerController : MonoBehaviour
         {
             _jumpBufferCounter = _jumpBufferTime;
             _isJumpHeld = true;
-
-            if (!TutorialProgress.IsLearned(TutorialKey.Jump))
-            {
-                UIManager.Instance?.TutorialSuccess(TutorialKey.Jump);
-                TutorialProgress.SetLearned(TutorialKey.Jump);
-            }
         }
         else if (context.canceled)
         {
@@ -399,12 +393,6 @@ public class PlayerController : MonoBehaviour
 
             _playerAnim.TriggerDash();
             MomentumManager.Instance.AddMomentum(20);
-
-            if (!TutorialProgress.IsLearned(TutorialKey.Dash))
-            {
-                UIManager.Instance?.TutorialSuccess(TutorialKey.Dash);
-                TutorialProgress.SetLearned(TutorialKey.Dash);
-            }
         }
     }
 
@@ -569,6 +557,40 @@ public class PlayerController : MonoBehaviour
         // (e.g. if you had a “lock input” for death animation).
     }
 
+    // PlayerController.cs
+    public void OnRespawnSnap()
+    {
+        // Clear motion/lock states but DO NOT wipe the player's jump buffer:
+        _isWallJumping = false;
+        _isWallJumpLerping = false;
+        _wallJumpTimer = 0f;
+        _postWallJumpTimer = 0f;
+        _isWallSliding = false;
+
+        _isDashing = false;
+        _isDashJump = false;
+        _dashTimer = 0f;
+        _dashCooldownTimer = 0f;
+
+        // Make sure vertical speed is neutral
+        if (_rb != null)
+        {
+            _rb.linearVelocity = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
+        }
+
+        // After SNAP + Physics.SyncTransforms(), trust we’re on the ground now.
+        // We also *seed* coyote so a jump pressed right away will work.
+        _isGrounded = IsGroundedCheck();
+        if (!_isGrounded) _isGrounded = true;     // defensive: kill tiny air gaps
+        _coyoteTimeCounter = _coyoteTime;
+        _hasUsedCoyoteJump = false;
+
+        // Do NOT clear _jumpBufferCounter here – allow buffered jump to fire.
+        // Also don’t force _isJumpHeld = false: if player kept holding jump,
+        // let your normal “short hop cut” logic handle it.
+    }
+
+
     private void HandleMovement()
     {
         if (_isDashing || !_inputEnabled)
@@ -583,17 +605,6 @@ public class PlayerController : MonoBehaviour
         // 1) Build desired horizontal move
         Vector3 moveDir = new Vector3(_moveInput.x, 0, _moveInput.y);
         float sign = Mathf.Sign(_moveInput.x);
-
-        // IMPORTANT: only mark "Move" tutorial learned when the player actually provides movement input
-        if (_moveInput.sqrMagnitude > 0.01f)
-        {
-            if (!TutorialProgress.IsLearned(TutorialKey.Move))
-            {
-                UIManager.Instance?.TutorialSuccess(TutorialKey.Move);
-                TutorialProgress.SetLearned(TutorialKey.Move);
-            }
-        }
-
         // 2) Check if we should block movement because of a wall
         bool shouldBlock = _isTouchingWall && _moveInput.x != 0f && _isGrounded;
 

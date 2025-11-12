@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 // Include CombatController for setting attack speed buff during Turbo Mode
 // This script assumes the CombatController is on the same GameObject as the PlayerController or PlayerAnimator.
 
@@ -77,6 +78,35 @@ public class TurboModeManager : MonoBehaviour
         if (Instance == null) { Instance = this; DontDestroyOnLoad(gameObject); }
         else { Destroy(gameObject); return; }
         _originalFixedDelta = Time.fixedDeltaTime;
+    }
+
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded_ResetTurbo;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded_ResetTurbo;
+    }
+
+    private void OnSceneLoaded_ResetTurbo(Scene s, LoadSceneMode mode)
+    {
+        // When a new scene loads (including Restart), fully reset Turbo.
+        // Pass true to also clear cooldown so a fresh run can Turbo immediately.
+        ForceReset(clearCooldown: true);
+    }
+
+    // Safety net: if this object ever gets destroyed, normalize time.
+    private void OnDestroy()
+    {
+        // If playmode stops or object is replaced, make sure slow-mo is off.
+        if (Time.timeScale != 1f)
+        {
+            Time.timeScale = 1f;
+            Time.fixedDeltaTime = _originalFixedDelta;
+        }
+        MomentumManager.Instance?.SetGainPaused(false);
     }
 
     private void Update()
@@ -282,4 +312,53 @@ public class TurboModeManager : MonoBehaviour
 
     public bool IsActive => _isActive;
     public bool IsOnCooldown => _onCooldown;
+
+    /// <summary>
+    /// Forcefully restore time, player params, and (optionally) clear cooldown.
+    /// Safe to call on scene load, game over, or before restart.
+    /// </summary>
+    public void ForceReset(bool clearCooldown = true)
+    {
+        // Always normalize time
+        Time.timeScale = 1f;
+        Time.fixedDeltaTime = _originalFixedDelta;
+
+        // Unpause momentum gain if it was paused
+        MomentumManager.Instance?.SetGainPaused(false);
+
+        // Restore player movement/physics settings if we had cached them
+        if (_player != null)
+        {
+            _player.SetMoveSpeed(_originalMoveSpeed);
+            _player.SetAccelDecel(_origAcc, _origDec);
+            _player.RotateSpeed = _originalRotateSpeed;
+            _player.DashForce = _originalDashForce;
+
+            _player.JumpForce = _origJumpForce;
+            _player.WallJumpForce = _origWallJumpForce;
+            _player.WallJumpHorizontalForce = _origWallJumpHForce;
+            _player.JumpCutMultiplier = _origJumpCutMultiplier;
+
+            _player.FallMultiplier = _origFallMultiplier;
+            _player.MaxFallSpeed = _origMaxFallSpeed;
+            _player.WallSlideSpeed = _origWallSlideSpeed;
+
+            _player.MaxHoldJumpHeight = _origMaxHoldJumpHeight;
+        }
+
+        // Animator back to normal speed
+        if (_anim != null)
+            _anim.SetAttackSpeed(_originalAnimSpeed);
+
+        // Clear runtime state
+        _isActive = false;
+        if (clearCooldown)
+        {
+            _onCooldown = false;
+            _cooldownTimer = 0f;
+        }
+
+        _player = null;
+        _anim = null;
+    }
 }

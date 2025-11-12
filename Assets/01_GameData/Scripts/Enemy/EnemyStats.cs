@@ -1,3 +1,4 @@
+using UnityEngine.Events;
 using UnityEngine;
 using TGRobotsWheeled;    // for TGDroidStateManager
                           // (if your AI lives in another namespace, import that too)
@@ -8,7 +9,8 @@ public class EnemyStats : MonoBehaviour
 {
     [SerializeField] private int _maxHP = 50;
     [SerializeField] private float _deathDelay = 1.5f;     // seconds to linger
-    private int _currentHP;
+    public UnityEvent OnDied; // ← add
+    private int _currentHP; 
     private Rigidbody _rb;
 
     private void Awake()
@@ -36,7 +38,9 @@ public class EnemyStats : MonoBehaviour
 
     private void Die()
     {
-        // 1) Switch the asset�fs state machine into �gSleep�h
+        OnDied?.Invoke(); // ← fire BEFORE Destroy
+
+        // 1) Switch the asset's state machine into "Sleep"
         var droidSM = GetComponent<TGDroidStateManager>();
         if (droidSM != null)
             droidSM.State = TGDroidStateManager.TDroidState.Sleep;

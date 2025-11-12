@@ -44,6 +44,25 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bcdca3545e5784f40ad7419b4922e449, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _respawnPointTagOrName: Respawn
-  _entryLockDuration: 1.5
-  _fallDeathY: -30
+  _titleScene: Title
+  _firstLevel: Level_01
+  _titleFirstSelected: {fileID: 0}
+  _titleFirstSelectedTag: FirstSelected
+  _titleFirstSelectedName: Button_Title
+  _useAdditive: 0
+  _feelLoadingScene: LoadingScreen
+  _feelAdditiveLoadingScene: MMAdditiveLoadingScreen
+  _entryFade: 0.35
+  _exitFade: 0.35
+  _interpolateProgress: 1
+  _enableFallCheck: 1
+  _fallKillY: -10
+  _fallDamage: 20
+  _respawnFreeze: 0.1
+  _respawnIFrames: 1
+  _playerPrefab: {fileID: 0}
+  _pauseMenu: {fileID: 0}
+  _pauseInputBuffer: 0.35
+  _freezeTimeOnResults: 1
+  _hudRevealDelay: 6
+  _allowStartFromAnyScene: 1

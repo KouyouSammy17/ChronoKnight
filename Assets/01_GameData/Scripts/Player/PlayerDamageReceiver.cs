@@ -14,10 +14,9 @@ public class PlayerDamageReceiver : MonoBehaviour
     PlayerAnimator _anim;
     PlayerStats _stats;
     Rigidbody _rb;
-    bool _invuln;
 
-    // š NEW: attack input buffer during stun
-    bool _attackBuffered;
+    bool _invuln;                 // global damage gate (set by hit-react OR externally)
+    bool _attackBuffered;         // NEW: attack input buffer during stun
 
     public bool IsInvulnerable => _invuln;
 
@@ -29,8 +28,20 @@ public class PlayerDamageReceiver : MonoBehaviour
         _rb = _ctrl.GetRigidbody();
     }
 
-    // š NEW: called by CombatController when attack is pressed while input is locked
+    // Called by CombatController when attack is pressed while input is locked
     public void BufferAttack() => _attackBuffered = true;
+
+    // NEW: allow GameManager (or others) to gate damage explicitly (e.g., during fall respawn)
+    public void SetInvulnerable(bool v) => _invuln = v;
+
+    // NEW: timed i-frames helper (uses realtime so it also works while paused)
+    public async UniTaskVoid SetInvulnerableFor(float seconds)
+    {
+        if (seconds <= 0f) { _invuln = false; return; }
+        _invuln = true;
+        await UniTask.Delay((int)(seconds * 1000f), ignoreTimeScale: true);
+        _invuln = false;
+    }
 
     public async UniTaskVoid PlayHitReact(Vector3? sourceWorldPos = null, float extraForce = 0f)
     {
@@ -62,7 +73,6 @@ public class PlayerDamageReceiver : MonoBehaviour
         _anim?.SetAttackSpeed(1f);   // ensure no speed leak
         _anim?.SetHurt(true);
         _anim?.TriggerDamage();
-
 
         // 5) wait real-time hit-stun
         await UniTask.Delay((int)(_hitStun * 1000f), ignoreTimeScale: true);

@@ -124,6 +124,7 @@ GameObject:
   - component: {fileID: 1930619966368644061}
   - component: {fileID: 2243039379770787826}
   - component: {fileID: 5004028763009620421}
+  - component: {fileID: 6394119979970133079}
   m_Layer: 9
   m_Name: Canvas
   m_TagString: Untagged
@@ -229,6 +230,49 @@ MonoBehaviour:
   _target: {fileID: 478360944662821497}
   _offset: {x: 0, y: 4, z: 0}
   _smoothSpeed: 10
+--- !u!225 &6394119979970133079
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2491485958184236743}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!1 &2749352428806314448
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1913302305654544141}
+  m_Layer: 0
+  m_Name: CamFollow
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1913302305654544141
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2749352428806314448}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 478360944662821497}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &3704848796925413335
 GameObject:
   m_ObjectHideFlags: 0
@@ -510,6 +554,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _momentumSlider: {fileID: 3142084005558756694}
   _tweenDuration: 0.3
+  _ease: 6
+  _animateWhilePaused: 0
+  _group: {fileID: 6394119979970133079}
+  _startHiddenUntilTimeline: 1
 --- !u!1 &7524616865943299786
 GameObject:
   m_ObjectHideFlags: 0
@@ -528,6 +576,7 @@ GameObject:
   - component: {fileID: 3471398806271338333}
   - component: {fileID: 2298466729405537635}
   - component: {fileID: 6165824155517872486}
+  - component: {fileID: 6452052586895441888}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -552,6 +601,7 @@ Transform:
   - {fileID: 392702929261903955}
   - {fileID: 1823645916013826935}
   - {fileID: 2298779752139834939}
+  - {fileID: 1913302305654544141}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &3141142386819147541
@@ -664,7 +714,19 @@ MonoBehaviour:
     m_ActionId: 7607c7b6-cd76-4816-beef-bd0341cfe950
     m_ActionName: 'UI/Submit[/Keyboard/enter]'
   - m_PersistentCalls:
-      m_Calls: []
+      m_Calls:
+      - m_Target: {fileID: 0}
+        m_TargetAssemblyTypeName: GameManager, Assembly-CSharp
+        m_MethodName: OnCancelStarted
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
     m_ActionId: 15cef263-9014-4fd5-94d9-4e4a6234a6ef
     m_ActionName: 'UI/Cancel[/Keyboard/escape]'
   - m_PersistentCalls:
@@ -715,6 +777,22 @@ MonoBehaviour:
         m_CallState: 2
     m_ActionId: d1b32718-aa9b-41bb-9be0-69219696b788
     m_ActionName: 'Player/Activate Turbo Mode[/Keyboard/e]'
+  - m_PersistentCalls:
+      m_Calls:
+      - m_Target: {fileID: 0}
+        m_TargetAssemblyTypeName: GameManager, Assembly-CSharp
+        m_MethodName: OnPauseStarted
+        m_Mode: 0
+        m_Arguments:
+          m_ObjectArgument: {fileID: 0}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_IntArgument: 0
+          m_FloatArgument: 0
+          m_StringArgument: 
+          m_BoolArgument: 0
+        m_CallState: 2
+    m_ActionId: bbf7c560-322e-47d7-b4f9-9593bc33f951
+    m_ActionName: 'Player/Pause[/Keyboard/escape]'
   m_NeverAutoSwitchControlSchemes: 0
   m_DefaultControlScheme: Keyboard&Mouse
   m_DefaultActionMap: Player
@@ -769,7 +847,7 @@ Rigidbody:
   m_IsKinematic: 0
   m_Interpolate: 1
   m_Constraints: 88
-  m_CollisionDetection: 1
+  m_CollisionDetection: 2
 --- !u!114 &4028094239222328936
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -935,6 +1013,20 @@ MonoBehaviour:
   _groundMask:
     serializedVersion: 2
     m_Bits: 128
+--- !u!114 &6452052586895441888
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7524616865943299786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9da751704378af46a6db283fc4f3694, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlatformRider
+  topContactDot: 0.75
+  velocityBlend: 1
 --- !u!1 &8059948321506089467
 GameObject:
   m_ObjectHideFlags: 0

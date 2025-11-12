@@ -8,7 +8,7 @@ using UnityEngine;
 /// Global UI Manager singleton, persists across scenes.
 /// Controls result UIs, player HUD, and title menu.
 /// </summary>
-public enum TutorialKey { Move, Jump, Dash, Attack, Turbo }
+public enum TutorialKey { Move, Jump, Dash, DashJump, WallJump, Attack, Turbo }
 public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
@@ -76,9 +76,17 @@ public class UIManager : MonoBehaviour
 
     public void ResetAllUI()
     {
+        // Result overlays
         if (_gameClearUI != null) _gameClearUI.SetActive(false);
         if (_gameOverUI != null) _gameOverUI.SetActive(false);
-        // HUDとタイトルUIはシーンごとの状態で制御する
+
+        // Tutorials (hide all panels)
+        HideAllTutorials();
+
+        // NOTE: HUD / Title visibility are still controlled per-scene by GameManager.
+
+        if (_playerUIRoot != null) _playerUIRoot.SetActive(false);
+        if (_titleUIRoot != null) _titleUIRoot.SetActive(false);
     }
 
     // ─── Player HUD ─────────────────────────────
