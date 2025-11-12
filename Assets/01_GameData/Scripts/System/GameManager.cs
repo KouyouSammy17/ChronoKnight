@@ -1,5 +1,6 @@
 ﻿using Cysharp.Threading.Tasks;
 using DG.Tweening;
+using MoreMountains.Feedbacks;
 using MoreMountains.Tools;
 using System;
 using System.IO;
@@ -7,14 +8,20 @@ using System.Threading;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.Playables;
 using UnityEngine.SceneManagement;
-using UnityEngine.Timeline;
+// using UnityEngine.Timeline; // not needed here
 
 public enum GameState { Title, Playing, Clear, GameOver }
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
+
+    // ───────────────────────────────────────────────────────────────────────────────
+    // ACTION MAP CONSTANTS (avoid string typos)
+    const string MAP_PLAYER = "Player";
+    const string MAP_UI = "UI";
 
     [Header("Scene Names")]
     [SerializeField] private string _titleScene = "Title";
@@ -24,7 +31,6 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject _titleFirstSelected;         // assign your Title button root
     [SerializeField] private string _titleFirstSelectedTag = "FirstSelected"; // optional fallback
     [SerializeField] private string _titleFirstSelectedName = "Btn_Title";    // optional fallback
-
 
     [Header("Feel MMSceneLoading")]
     [SerializeField] private bool _useAdditive = false;
@@ -40,17 +46,16 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int _fallDamage = 20;      // HP lost on fall
     [SerializeField] private float _respawnFreeze = 0.1f; // short freeze before snap (sec, realtime)
     [SerializeField] private float _respawnIFrames = 1.0f; // optional: post-respawn grace (sec)
-   
+
     [Header("Player Spawn")]
     [SerializeField] private PlayerController _playerPrefab;
     // NEW: reference to PauseMenu (assign in Inspector or auto-resolve)
-   
     [SerializeField] private PauseMenu _pauseMenu;
     [SerializeField] private float _pauseInputBuffer = 0.35f;
     [SerializeField] private bool _freezeTimeOnResults = true;
 
     // ── HUD delayed reveal ───────────────────────────────────────────────────────────
-    [SerializeField] private float _hudRevealDelay = 5f;   // tweak as needed
+    [SerializeField] private float _hudRevealDelay = 5f;              // tweak as needed
     private CancellationTokenSource _hudRevealCts;
 
     [Header("Debug")]
@@ -65,6 +70,7 @@ public class GameManager : MonoBehaviour
     private InputAction _cancelAction;  // from UI map
     private bool _isRespawningFromFall = false;
     private Transform _spawnPoint;      // Tag: Respawn
+    private MomentumGaugeUI _gauge; // auto-fetched from the Player
 
 
     private bool _pauseBlocked = false;
@@ -106,7 +112,6 @@ public class GameManager : MonoBehaviour
         _hudRevealCts?.Dispose();
         _hudRevealCts = null;
     }
-
 
     private void Update()
     {
@@ -252,10 +257,10 @@ public class GameManager : MonoBehaviour
         {
             if (!_playerInput.enabled) _playerInput.enabled = true;
             if (!_playerInput.actions.enabled) _playerInput.actions.Enable();
-            if (_playerInput.actions.FindActionMap("UI", false) != null)
+            if (_playerInput.actions.FindActionMap(MAP_UI, false) != null)
             {
-                _playerInput.defaultActionMap = "UI";
-                _playerInput.SwitchCurrentActionMap("UI");
+                _playerInput.defaultActionMap = MAP_UI;
+                _playerInput.SwitchCurrentActionMap(MAP_UI);
             }
         }
 
@@ -278,10 +283,10 @@ public class GameManager : MonoBehaviour
         {
             if (!_playerInput.enabled) _playerInput.enabled = true;
             if (!_playerInput.actions.enabled) _playerInput.actions.Enable();
-            if (_playerInput.actions.FindActionMap("Player", false) != null)
+            if (_playerInput.actions.FindActionMap(MAP_PLAYER, false) != null)
             {
-                _playerInput.defaultActionMap = "Player";
-                _playerInput.SwitchCurrentActionMap("Player");
+                _playerInput.defaultActionMap = MAP_PLAYER;
+                _playerInput.SwitchCurrentActionMap(MAP_PLAYER);
             }
         }
 
@@ -290,7 +295,7 @@ public class GameManager : MonoBehaviour
 
         ResolvePauseMenu();
         _pauseMenu?.HideMenu();  // <-- direct call
-        UpdateCursorState();    
+        UpdateCursorState();
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
@@ -308,7 +313,7 @@ public class GameManager : MonoBehaviour
         UIManager.Instance?.ShowTutorial(TutorialKey.Move);
 
         _ = ResetTutorialUnfreezeAsync(anim, cachedSpeed, this.GetCancellationTokenOnDestroy());
-       RestartLevel();
+        RestartLevel();
     }
 
     private async UniTaskVoid ResetTutorialUnfreezeAsync(Animator anim, float cachedSpeed, CancellationToken ct)
@@ -370,18 +375,19 @@ public class GameManager : MonoBehaviour
         State = scene.name == _titleScene ? GameState.Title : GameState.Playing;
 
         BindSpawnAndPlayer();
+
         if (State == GameState.Playing)
         {
             UIManager.Instance?.ShowTitleUI(false);
 
-            // Hide first to avoid flicker
+            // Hide first to avoid flicker (BeginGameplayAfterIntroAsync also hides, but this guarantees immediate off)
             UIManager.Instance?.ShowPlayerUI(false);
             UIManager.Instance?.HideAllTutorials();
-            _player?.GetComponent<PlayerStats>()?.ResetStats();
-          
 
-            // Schedule delayed reveal
-            RevealHUDDelayedAsync(this.GetCancellationTokenOnDestroy()).Forget();
+            _player?.GetComponent<PlayerStats>()?.ResetStats();
+
+            // kick the unified flow (no signals needed)
+            BeginGameplayAfterIntroAsync(this.GetCancellationTokenOnDestroy()).Forget();
         }
         else // Title
         {
@@ -393,6 +399,7 @@ public class GameManager : MonoBehaviour
         ResolvePauseMenu();
         UpdateCursorState();
     }
+
     private void BindSpawnAndPlayer()
     {
         var spawnGo = GameObject.FindGameObjectWithTag("Respawn");
@@ -413,6 +420,7 @@ public class GameManager : MonoBehaviour
         _playerInput = _player
             ? (_player.GetComponent<PlayerInput>() ?? _player.GetComponentInChildren<PlayerInput>())
             : null;
+        ResolveGauge();
 
         WireInput();
 
@@ -422,13 +430,19 @@ public class GameManager : MonoBehaviour
             if (!_playerInput.enabled) _playerInput.enabled = true;
             if (!_playerInput.actions.enabled) _playerInput.actions.Enable();
 
-            var defaultMap = (State == GameState.Playing) ? "Player" : "UI";
+            var defaultMap = (State == GameState.Playing) ? MAP_PLAYER : MAP_UI;
             if (_playerInput.actions.FindActionMap(defaultMap, false) != null)
             {
                 _playerInput.defaultActionMap = defaultMap;
                 _playerInput.SwitchCurrentActionMap(defaultMap);
             }
         }
+    }
+
+    private void ResolveGauge()
+    {
+        if (_gauge == null && _player != null)
+            _gauge = _player.GetComponentInChildren<MomentumGaugeUI>(true);
     }
 
     // find PauseMenu singleton (inspector or auto)
@@ -461,6 +475,7 @@ public class GameManager : MonoBehaviour
         if (_pauseAction != null) _pauseAction.started += OnPauseStarted;
         if (_cancelAction != null) _cancelAction.started += OnCancelStarted;
     }
+
     private void UpdateCursorState()
     {
         // Visible on Title/Clear/GameOver OR while paused. Hidden during active gameplay.
@@ -469,6 +484,7 @@ public class GameManager : MonoBehaviour
         Cursor.visible = show;
         Cursor.lockState = show ? CursorLockMode.None : CursorLockMode.Locked;
     }
+
     public bool IsFirstLevelActive()
     {
         return SceneManager.GetActiveScene().name == _firstLevel;
@@ -476,33 +492,62 @@ public class GameManager : MonoBehaviour
 
     private async UniTaskVoid FallRespawnAndDamageAsync()
     {
+        if (_isRespawningFromFall) return; // double-call safety
         _isRespawningFromFall = true;
 
-        // tiny freeze for feedback / safety
+        var stats = _player ? _player.GetComponent<PlayerStats>() : null;
+        var recv = _player ? _player.GetComponent<PlayerDamageReceiver>() : null;
+        var rb = _player ? _player.GetRigidbody() : null;
+
+        // 0) INVULN ON NOW (prevents stray hits during freeze/teleport/landing)
+        if (recv != null) recv.SetInvulnerable(true);
+        // If your PlayerStats has a “recent damage gate”, arm it as a belt-and-suspenders:
+        // (use Time.unscaledTime under the hood so it also works during freezes)
+        stats?.ArmNoDamageFor(_respawnFreeze + _respawnIFrames + 0.05f);
+
+        // 1) tiny freeze for feedback (realtime)
         await UniTask.Delay(TimeSpan.FromSeconds(_respawnFreeze), DelayType.Realtime);
 
-        // 1) move to spawn but DON'T refill HP
-        RespawnPlayer(resetStats: false);
+        // 2) TELEPORT (don’t refill HP)
+        //    – ensure we have a valid spawn first
+        if (_spawnPoint == null)
+        {
+            var spawnGo = GameObject.FindGameObjectWithTag("Respawn");
+            _spawnPoint = spawnGo ? spawnGo.transform : null;
+            if (_spawnPoint == null)
+            {
+                Debug.LogWarning("[Fall] No Respawn point found. Using Vector3.zero.");
+                _player.transform.position = Vector3.zero + Vector3.up * 2f; // simple safe fallback
+            }
+        }
 
-        // 2) apply fall damage
-        var stats = _player.GetComponent<PlayerStats>();
+        // zero velocity BEFORE and AFTER snapping to avoid instant re-falls
+        if (rb != null) rb.linearVelocity = Vector3.zero;
+
+        RespawnPlayer(resetStats: false); // your method: moves to spawn + reset player state (no HP refill)
+
+        if (rb != null) rb.linearVelocity = Vector3.zero;
+
+        // 3) APPLY FALL DAMAGE exactly once
         if (stats != null && _fallDamage > 0)
         {
+            // If you added an override, prefer this:
+            // stats.TakeDamage(_fallDamage, ignoreGates: true);
+            // Otherwise, normal call is fine because invuln is ours; we WANT this one to land:
             stats.TakeDamage(_fallDamage);
         }
 
-        // 3) optional: brief invulnerability window (grace)
+        // 4) GRACE WINDOW (still invulnerable)
         if (_respawnIFrames > 0f)
-        {
-            // If you have a damage gate / hurtbox toggler, do it here.
-            // Example (pseudo):
-            // _player.SetInvulnerable(true);
             await UniTask.Delay(TimeSpan.FromSeconds(_respawnIFrames), DelayType.Realtime);
-            // _player.SetInvulnerable(false);
-        }
+
+        // 5) INVULN OFF
+        if (recv != null) recv.SetInvulnerable(false);
 
         _isRespawningFromFall = false;
     }
+
+
     private void EnterResultMode(GameState newState, System.Action showUI)
     {
         // state
@@ -512,7 +557,7 @@ public class GameManager : MonoBehaviour
         _isPaused = false;
         ResolvePauseMenu();
         _pauseMenu?.HideMenuInstant();
-        
+
         TurboModeManager.Instance?.ForceReset(clearCooldown: true);
         // lock gameplay
         _player?.DisableInput();
@@ -523,11 +568,11 @@ public class GameManager : MonoBehaviour
             if (!_playerInput.enabled) _playerInput.enabled = true;
             if (!_playerInput.actions.enabled) _playerInput.actions.Enable();
 
-            var uiMap = _playerInput.actions.FindActionMap("UI", throwIfNotFound: false);
+            var uiMap = _playerInput.actions.FindActionMap(MAP_UI, throwIfNotFound: false);
             if (uiMap != null)
             {
-                _playerInput.defaultActionMap = "UI";
-                _playerInput.SwitchCurrentActionMap("UI");
+                _playerInput.defaultActionMap = MAP_UI;
+                _playerInput.SwitchCurrentActionMap(MAP_UI);
             }
         }
 
@@ -543,7 +588,6 @@ public class GameManager : MonoBehaviour
         // show/unlock cursor for results
         UpdateCursorState();
     }
-
 
     private async UniTaskVoid FocusTitleFirstSelectedNextFrame()
     {
@@ -563,25 +607,72 @@ public class GameManager : MonoBehaviour
             EventSystem.current.SetSelectedGameObject(target);
         }
     }
-    private async UniTaskVoid RevealHUDDelayedAsync(CancellationToken ctOuter)
+
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Unified flow: hide/lock → wait → show/unlock (no Timeline signals needed)
+    private async UniTaskVoid BeginGameplayAfterIntroAsync(CancellationToken ctOuter)
     {
         // cancel any previous schedule
         _hudRevealCts?.Cancel();
         _hudRevealCts?.Dispose();
         _hudRevealCts = new CancellationTokenSource();
 
-        using (var linked = CancellationTokenSource.CreateLinkedTokenSource(ctOuter, _hudRevealCts.Token))
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ctOuter, _hudRevealCts.Token);
+        var ct = linked.Token;
+
+        // Hide & lock immediately (prevents flicker)
+        SetGameplayUIVisible(false);
+        SwitchActionMap(MAP_UI);      // keep UI map so skip/menu can work
+        SetInputEnabled(false);
+
+        await UniTask.Delay(TimeSpan.FromSeconds(_hudRevealDelay), DelayType.DeltaTime, PlayerLoopTiming.Update, ct);
+        if (ct.IsCancellationRequested || State != GameState.Playing) return;
+
+        // Reveal & unlock
+        SetGameplayUIVisible(true);
+        // ▼ Show MOVE tutorial after the delay
+        UIManager.Instance?.ShowTutorial(TutorialKey.Move);
+
+        SwitchActionMap(MAP_PLAYER);
+        SetInputEnabled(true);
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────────
+    // Helpers used by the unified flow
+    void SetGameplayUIVisible(bool visible)
+    {
+        UIManager.Instance?.ShowPlayerUI(visible);
+        if (!visible) UIManager.Instance?.HideAllTutorials();
+
+        ResolveGauge();
+
+        if (_gauge != null)
         {
-            var ct = linked.Token;
-
-            // wait a bit so scene init settles (uses game time)
-            await UniTask.Delay(TimeSpan.FromSeconds(_hudRevealDelay), DelayType.DeltaTime, PlayerLoopTiming.Update, ct);
-            if (ct.IsCancellationRequested || State != GameState.Playing) return;
-
-            UIManager.Instance?.ShowPlayerUI(true);
-            //If you want a specific tutorial to appear after the delay, uncomment:
-            UIManager.Instance?.ShowTutorial(TutorialKey.Move);
+            if (visible) _gauge.TL_ShowGauge();
+            else _gauge.TL_HideGauge();
         }
     }
 
+    void SetInputEnabled(bool enabled)
+    {
+        if (enabled) _player?.EnableInput();
+        else _player?.DisableInput();
+
+        if (_playerInput != null)
+        {
+            if (!_playerInput.enabled) _playerInput.enabled = true;
+            if (_playerInput.actions != null && !_playerInput.actions.enabled) _playerInput.actions.Enable();
+        }
+    }
+
+    void SwitchActionMap(string map)
+    {
+        if (string.IsNullOrEmpty(map) || _playerInput == null || _playerInput.actions == null) return;
+        var found = _playerInput.actions.FindActionMap(map, false);
+        if (found != null)
+        {
+            _playerInput.defaultActionMap = map;
+            _playerInput.SwitchCurrentActionMap(map);
+        }
+    }
 }
