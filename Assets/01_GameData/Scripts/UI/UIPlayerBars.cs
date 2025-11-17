@@ -2,125 +2,180 @@
 using UnityEngine.UI;
 using DG.Tweening;
 using UnityEngine.SceneManagement;
-using Cysharp.Threading.Tasks;
-using System.Threading;
+using MoreMountains.Tools;   // ← FEEL ProgressBar
 
 public class UIPlayerBars : MonoBehaviour
 {
-    [SerializeField] private Slider _hpSlider;
+    [Header("HP (FEEL MMProgressBar)")]
+    [SerializeField] private MMProgressBar _hpBar;      // real HP bar
+
+    [Header("Intro HP Slider (only for animation)")]
+    [SerializeField] private Slider _hpIntroSlider;     // overlay HP slider just for intro
+    [SerializeField] private float _hpIntroDuration = 0.4f;
+
+    [Header("Stamina (Simple Slider)")]
     [SerializeField] private Slider _staminaSlider;
     [SerializeField] private float _tweenDuration = 0.3f;
-    [SerializeField] private Ease _ease = Ease.OutQuad;
-    [SerializeField] private bool _animateWhilePaused = true; // run even when Time.timeScale==0
+
+    [Header("Intro Fill")]
+    [SerializeField, Tooltip("If true, stamina starts at 0 and waits for PlayIntroAnimation()")]
+    private bool _useIntroFill = true;
+
+    [SerializeField, Tooltip("How long the stamina intro tween takes")]
+    private float _introFillDuration = 0.7f;
 
     private PlayerStats _stats;
-    private CancellationTokenSource _cts;
+    private bool _introPlayed = false;
 
-    private Tween _hpTween;
-    private Tween _staminaTween;
+    private Tween _hpIntroTween;
+    private Tween _staminaIntroTween;
 
+    // ─────────────────────────────────────────────────────────────────────
     private void OnEnable()
     {
         SceneManager.sceneLoaded += OnSceneLoaded;
-        _cts = new CancellationTokenSource();
-        BindWhenReadyAsync(_cts.Token).Forget();
+        BindToStats();
     }
 
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
-        _cts?.Cancel(); _cts?.Dispose(); _cts = null;
         Unsubscribe();
-        KillTweens();
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // Scene changed: rebind because player/stats may be a new instance
-        _cts?.Cancel();
-        _cts = new CancellationTokenSource();
-        BindWhenReadyAsync(_cts.Token).Forget();
+        // When scene is reloaded / changed, player instance may change → rebind
+        BindToStats();
     }
 
-    private void KillTweens()
-    {
-        _hpTween?.Kill(); _hpTween = null;
-        _staminaTween?.Kill(); _staminaTween = null;
-    }
-
-    private void Unsubscribe()
-    {
-        if (_stats != null)
-        {
-            _stats.onHealthChanged.RemoveListener(UpdateHP);
-            _stats.onStaminaChanged.RemoveListener(UpdateStamina);
-            _stats = null;
-        }
-    }
-
-    private async UniTaskVoid BindWhenReadyAsync(CancellationToken token)
+    // ─────────────────────────────────────────────────────────────────────
+    private void BindToStats()
     {
         Unsubscribe();
-        KillTweens();
 
-        // Wait until PlayerStats exists (spawned & active)
-        PlayerStats stats = null;
+        // find current PlayerStats in the scene
+        _stats = Object.FindFirstObjectByType<PlayerStats>();
+        if (_stats == null) return;
 
-        // First try GameManager -> Player
-        for (int i = 0; i < 60 && !token.IsCancellationRequested; i++) // ~1 sec at 60fps
-        {
-            var gm = GameManager.Instance;
-            var player = gm != null ? gm.GetPlayer() : null;
-            if (player != null)
-            {
-                stats = player.GetComponent<PlayerStats>();
-                if (stats != null) break;
-            }
-            await UniTask.NextFrame(token);
-        }
+        // initialize UI to current values (or 0 if using intro)
+        InitBars();
 
-        // Fallback: scene scan (handles cases without GameManager or different order)
-#if UNITY_6000_0_OR_NEWER
-        stats ??= Object.FindFirstObjectByType<PlayerStats>();
-#else
-        stats ??= Object.FindObjectOfType<PlayerStats>();
-#endif
-        if (token.IsCancellationRequested || stats == null) return;
-
-        _stats = stats;
-
-        // Match slider ranges (null-checks just in case)
-        if (_hpSlider) _hpSlider.maxValue = _stats.MaxHP;
-        if (_staminaSlider) _staminaSlider.maxValue = _stats.MaxStamina;
-
-        // Snap to current values before subscribing
-        UpdateHP(_stats.CurrentHP);
-        UpdateStamina(_stats.CurrentStamina);
-
-        // Subscribe to changes
+        // subscribe to events
         _stats.onHealthChanged.AddListener(UpdateHP);
         _stats.onStaminaChanged.AddListener(UpdateStamina);
     }
 
+    private void Unsubscribe()
+    {
+        if (_stats == null) return;
+
+        _stats.onHealthChanged.RemoveListener(UpdateHP);
+        _stats.onStaminaChanged.RemoveListener(UpdateStamina);
+        _stats = null;
+    }
+
+    private void InitBars()
+    {
+        if (_stats == null) return;
+
+        // ── HP (real MMProgressBar) ───────────────────────────────────
+        if (_hpBar != null)
+        {
+            // Always show real HP bar at current value
+            _hpBar.SetBar(_stats.CurrentHP, 0f, _stats.MaxHP);
+        }
+
+        // ── Intro HP Slider (overlay) ────────────────────────────────
+        if (_hpIntroSlider != null)
+        {
+            _hpIntroSlider.maxValue = _stats.MaxHP;
+
+            if (_useIntroFill && !_introPlayed)
+            {
+                // start empty, will animate 0 → full in PlayIntroAnimation()
+                _hpIntroSlider.value = 0f;
+                _hpIntroSlider.gameObject.SetActive(true);   // visible during intro
+            }
+            else
+            {
+                // after intro played, keep it hidden
+                _hpIntroSlider.gameObject.SetActive(false);
+            }
+        }
+
+        // ── Stamina ──────────────────────────────
+        if (_staminaSlider != null)
+        {
+            _staminaSlider.maxValue = _stats.MaxStamina;
+
+            if (_useIntroFill && !_introPlayed)
+            {
+                _staminaSlider.value = 0f;
+            }
+            else
+            {
+                _staminaSlider.value = _stats.CurrentStamina;
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Called from PlayerStats events (gameplay)
     private void UpdateHP(int hp)
     {
-        if (!_hpSlider) return;
-        _hpTween?.Kill();
-        _hpTween = _hpSlider
-            .DOValue(hp, _tweenDuration)
-            .SetEase(_ease)
-            .SetUpdate(_animateWhilePaused) // animate during pause
-            .SetLink(_hpSlider.gameObject, LinkBehaviour.KillOnDestroy);
+        if (_stats == null || _hpBar == null) return;
+
+        // FEEL handles delayed bar / bump / easing.
+        _hpBar.UpdateBar(hp, 0f, _stats.MaxHP);
     }
 
     private void UpdateStamina(int sta)
     {
-        if (!_staminaSlider) return;
-        _staminaTween?.Kill();
-        _staminaTween = _staminaSlider
-            .DOValue(sta, _tweenDuration)
-            .SetEase(_ease)
-            .SetUpdate(_animateWhilePaused) // animate during pause
-            .SetLink(_staminaSlider.gameObject, LinkBehaviour.KillOnDestroy);
+        if (_staminaSlider == null) return;
+
+        // Simple DOTween for stamina, no delayed bar
+        _staminaSlider.DOValue(sta, _tweenDuration).SetEase(Ease.OutQuad);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Call this when the camera work / intro is finished.
+    // Example: from your camera script, timeline signal, or GameManager.
+    public void PlayIntroAnimation()
+    {
+        if (_stats == null) return;
+
+        _introPlayed = true;
+
+        // ── HP intro overlay: 0 → full HP, then disable ──────────────
+        if (_hpIntroSlider != null)
+        {
+            _hpIntroSlider.gameObject.SetActive(true);
+            _hpIntroSlider.maxValue = _stats.MaxHP;
+            _hpIntroSlider.value = 0f;
+
+            _hpIntroTween?.Kill();
+            _hpIntroTween = _hpIntroSlider
+                .DOValue(_stats.CurrentHP, _hpIntroDuration)
+                .SetEase(Ease.OutQuad)
+                .OnComplete(() =>
+                {
+                    // hide the intro slider after it finishes
+                    _hpIntroSlider.gameObject.SetActive(false);
+                });
+        }
+
+        // ── Stamina intro: 0 → current ───────────────────────────────
+        if (_staminaSlider != null)
+        {
+            _staminaSlider.maxValue = _stats.MaxStamina;
+            _staminaSlider.DOKill();
+            _staminaSlider.value = 0f;
+
+            _staminaIntroTween?.Kill();
+            _staminaIntroTween = _staminaSlider
+                .DOValue(_stats.CurrentStamina, _introFillDuration)
+                .SetEase(Ease.OutQuad);
+        }
     }
 }

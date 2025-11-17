@@ -15,20 +15,53 @@ public class TurboCooldownUI : MonoBehaviour
 
     private Tween _cooldownTween;
     private Tween _rotateTween;
+
     private void Awake()
     {
         if (_cooldownFill != null)
             _cooldownFill.fillAmount = 0f; // start empty (ready)
     }
 
+    private void OnEnable()
+    {
+        // Subscribe to TurboManager events (no Inspector needed)
+        if (TurboModeManager.Instance != null)
+        {
+            TurboModeManager.Instance.onTurboStart.AddListener(OnTurboStart);
+            TurboModeManager.Instance.onTurboEnd.AddListener(OnTurboEnd);
+        }
+    }
+
+    private void OnDisable()
+    {
+        // Unsubscribe to avoid leaks / errors on scene changes
+        if (TurboModeManager.Instance != null)
+        {
+            TurboModeManager.Instance.onTurboStart.RemoveListener(OnTurboStart);
+            TurboModeManager.Instance.onTurboEnd.RemoveListener(OnTurboEnd);
+        }
+    }
+
+    private void OnTurboStart()
+    {
+        // Turbo pressed: start spinning icon
+        PlayRotation();
+    }
+
+    private void OnTurboEnd()
+    {
+        // Turbo ended: stop spin and start cooldown fill animation
+        StopRotation();
+        PlayCooldown();
+    }
+
     /// <summary>
-    /// Call this when Turbo is triggered (ex: TurboModeManager event).
+    /// Call this when Turbo is on cooldown (here: from OnTurboEnd).
     /// </summary>
     public void PlayCooldown()
     {
         if (_cooldownFill == null) return;
 
-        // Reset any existing tween
         _cooldownTween?.Kill();
 
         // Instantly set to full
@@ -38,6 +71,7 @@ public class TurboCooldownUI : MonoBehaviour
         _cooldownTween = _cooldownFill
             .DOFillAmount(0f, _cooldownDuration)
             .SetEase(Ease.Linear)
+            .SetUpdate(_useUnscaledTime)
             .SetLink(gameObject);
     }
 
@@ -62,7 +96,6 @@ public class TurboCooldownUI : MonoBehaviour
 
     /// <summary>
     /// Stops the rotation and resets the icon.
-    /// Call this when cooldown ends.
     /// </summary>
     public void StopRotation()
     {
