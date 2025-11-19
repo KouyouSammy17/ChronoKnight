@@ -4,6 +4,8 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
+    public static event System.Action<float> OnDashStarted; // cooldownSeconds
+
     [Header("Movement Settings")]
     [SerializeField] private float _moveSpeed = 5f;
     [SerializeField] private float _acceleration = 10f;
@@ -386,6 +388,8 @@ public class PlayerController : MonoBehaviour
             _isDashing = true;
             _dashTimer = _dashDuration;
             _dashCooldownTimer = _dashCooldown;
+
+            OnDashStarted?.Invoke(_dashCooldown);
 
             // Use last non-zero input as direction
             Vector2 dashInput = (_moveInput.sqrMagnitude > 0.01f) ? _moveInput : _lastMoveInput;
