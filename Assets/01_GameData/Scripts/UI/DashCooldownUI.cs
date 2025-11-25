@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
 
@@ -10,10 +10,10 @@ public class DashCooldownUI : MonoBehaviour
 
     [Header("Scales")]
     [SerializeField] private float _readyScale = 1.5f;      // big when ready
-    [SerializeField] private float _cooldownScale = 1f;   // small while cooling
+    [SerializeField] private float _cooldownScale = 1f;     // small while cooling
     [SerializeField] private float _punchScale = 0.3f;      // punch amount
     [SerializeField] private float _punchDuration = 0.2f;   // punch time
-    [SerializeField] private float _delayBeforeFill = 0.5f;   // wait after punch before fill starts
+    [SerializeField] private float _delayBeforeFill = 0.4f; // wait after punch before fill starts
 
     [Header("Settings")]
     [SerializeField] private bool _useUnscaledTime = true;  // UI runs even in slow/paused
@@ -82,13 +82,18 @@ public class DashCooldownUI : MonoBehaviour
 
     private void StartCooldown(float duration)
     {
-        // fill 1 ¨ 0 = cooldown timer
+        // We already waited _delayBeforeFill, so make the UI fill finish
+        // at the same time as the real cooldown:
+        // delay + uiDuration â‰ˆ duration  => uiDuration = duration - delay
+        float uiDuration = Mathf.Max(0.01f, duration - _delayBeforeFill);
+
+        // fill 1 â†’ 0 = cooldown timer
         if (_cooldownFill != null)
         {
             _cooldownFill.fillAmount = 1f;
 
             _cooldownTween = _cooldownFill
-                .DOFillAmount(0f, duration)
+                .DOFillAmount(0f, uiDuration)
                 .SetEase(Ease.Linear)
                 .SetUpdate(_useUnscaledTime)
                 .SetLink(gameObject)

@@ -1592,6 +1592,18 @@ PrefabInstance:
       value: 122
       objectReference: {fileID: 0}
     - target: {fileID: 2333647379044318909, guid: 736d525191a7dc540adafa7d883a53dd, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 1.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2333647379044318909, guid: 736d525191a7dc540adafa7d883a53dd, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 1.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2333647379044318909, guid: 736d525191a7dc540adafa7d883a53dd, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 1.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2333647379044318909, guid: 736d525191a7dc540adafa7d883a53dd, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
@@ -1638,6 +1650,14 @@ PrefabInstance:
     - target: {fileID: 2333647379044318909, guid: 736d525191a7dc540adafa7d883a53dd, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4773012085264904926, guid: 736d525191a7dc540adafa7d883a53dd, type: 3}
+      propertyPath: _readyScale
+      value: 1.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4773012085264904926, guid: 736d525191a7dc540adafa7d883a53dd, type: 3}
+      propertyPath: _cooldownScale
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

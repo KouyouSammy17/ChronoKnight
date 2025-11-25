@@ -234,8 +234,18 @@ public class GameManager : MonoBehaviour
 
         if (resetStats)
             _player.GetComponent<PlayerStats>()?.ResetStats();
+        
+        // NEW: if Turbo is active when we fall, stop it and start cooldown
+        var turbo = TurboModeManager.Instance;
+        if (turbo != null && turbo.IsActive)
+        {
+            turbo.StopTurbo();   // this will:
+                                 // - restore timeScale
+                                 // - set _onCooldown = true
+                                 // - start the cooldown timer
+                                 // - invoke onTurboEnd => TurboCooldownUI starts cooldown anim
+        }
 
-        TurboModeManager.Instance?.ForceReset(clearCooldown: true);
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
