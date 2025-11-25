@@ -93,6 +93,7 @@ public class UIManager : MonoBehaviour
     public void ShowPlayerUI(bool active)
     {
         if (_playerUIRoot != null) _playerUIRoot.SetActive(active);
+        _playerUIRoot.GetComponent<UIPlayerBars>()?.PlayIntroAnimation();
     }
 
     // „Ÿ„Ÿ„Ÿ Title UI „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
