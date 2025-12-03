@@ -326,7 +326,7 @@ public class GameManager : MonoBehaviour
         if (anim) anim.speed = 0f;
 
         TutorialProgress.ResetAll();
-        UIManager.Instance?.ShowTutorial(TutorialKey.Move);
+        UIManager.Instance?.ShowTutorial(TutorialKey.Momentum);
 
         _ = ResetTutorialUnfreezeAsync(anim, cachedSpeed, this.GetCancellationTokenOnDestroy());
         RestartLevel();
@@ -643,7 +643,7 @@ public class GameManager : MonoBehaviour
        
         if (!_hasShownMoveTutorial)
         {
-            UIManager.Instance?.ShowTutorial(TutorialKey.Move);
+            UIManager.Instance?.ShowTutorial(TutorialKey.Momentum);
             _hasShownMoveTutorial = true;
         }
 

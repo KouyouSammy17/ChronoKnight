@@ -8,7 +8,7 @@ using UnityEngine;
 /// Global UI Manager singleton, persists across scenes.
 /// Controls result UIs, player HUD, and title menu.
 /// </summary>
-public enum TutorialKey { Move, Jump, Dash, DashJump, WallJump, Attack, Turbo }
+public enum TutorialKey { Momentum,Move, Jump, Dash, DashJump, WallJump, Attack, Turbo }
 public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
