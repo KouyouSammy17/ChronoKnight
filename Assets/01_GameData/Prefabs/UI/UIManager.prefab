@@ -51,19 +51,19 @@ MonoBehaviour:
   _titleUIRoot: {fileID: 4214777949199610718}
   _tutorials:
   - key: 0
-    ui: {fileID: 1059279760375517877}
-  - key: 1
     ui: {fileID: 4047630839539998443}
-  - key: 2
+  - key: 1
     ui: {fileID: 5858497608467824985}
-  - key: 3
+  - key: 2
     ui: {fileID: 4494159306510471812}
-  - key: 4
+  - key: 3
     ui: {fileID: 5375783646070518824}
-  - key: 5
+  - key: 4
     ui: {fileID: 4709906889354742391}
-  - key: 6
+  - key: 5
     ui: {fileID: 1482616413825873315}
+  - key: 6
+    ui: {fileID: 1059279760375517877}
   - key: 7
     ui: {fileID: 4029563244886018952}
 --- !u!1 &3242150536017143399
@@ -1551,7 +1551,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5501330107895283389, guid: 7d317ddfaa57dc34984385ae12f06b83, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

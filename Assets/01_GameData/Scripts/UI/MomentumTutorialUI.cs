@@ -363,4 +363,21 @@ public class MomentumTutorialUI : MonoBehaviour
             _tier100GaugeFx?.PlayFeedbacks();
         }
     }
+    // ───────────────────────────── UI Button hook
+
+    public void OnClickContinue()
+    {
+        // Mark this tutorial as completed & hide it
+        UIManager.Instance?.TutorialSuccess(TutorialKey.Momentum);
+        TutorialProgress.SetLearned(TutorialKey.Momentum);
+
+        // Immediately show the next tutorial (Move)
+        UIManager.Instance?.ShowTutorial(TutorialKey.Move);
+
+        // Resume gameplay (timeScale + inputs + cursor lock)
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.ResumeGame();
+        }
+    }
 }
