@@ -32,6 +32,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private string _titleFirstSelectedTag = "FirstSelected"; // optional fallback
     [SerializeField] private string _titleFirstSelectedName = "Btn_Title";    // optional fallback
 
+    [Header("Tutorial UI")]
+    [SerializeField] private GameObject _firstTutorialFirstSelected; // ← NEW: Momentum tutorial "Continue" button
+
     [Header("Feel MMSceneLoading")]
     [SerializeField] private bool _useAdditive = false;
     [SerializeField] private string _feelLoadingScene = "LoadingScreen";
@@ -72,7 +75,7 @@ public class GameManager : MonoBehaviour
     private Transform _spawnPoint;      // Tag: Respawn
     private MomentumGaugeUI _gauge; // auto-fetched from the Player
 
-    private bool _hasShownMoveTutorial = false; // shows Move tutorial once per session
+    private bool _hasShownFirstTutorial = false; // shows Move tutorial once per session
 
     private bool _pauseBlocked = false;
     private bool _isPaused = false;
@@ -263,7 +266,41 @@ public class GameManager : MonoBehaviour
         await UniTask.Delay(TimeSpan.FromSeconds(_pauseInputBuffer), DelayType.Realtime, PlayerLoopTiming.Update, ct);
         _pauseBlocked = false;
     }
+    //public void ShowFirstTutorial()
+    //{
+    //    // Only once per session
+    //    if (_hasShownFirstTutorial) return;
+    //    _hasShownFirstTutorial = true;
 
+    //    // Switch to UI action map (same idea as PauseGame, but without pause menu)
+    //    if (_playerInput != null && _playerInput.actions != null)
+    //    {
+    //        if (!_playerInput.enabled) _playerInput.enabled = true;
+    //        if (!_playerInput.actions.enabled) _playerInput.actions.Enable();
+
+    //        if (_playerInput.actions.FindActionMap(MAP_UI, false) != null)
+    //        {
+    //            _playerInput.defaultActionMap = MAP_UI;
+    //            _playerInput.SwitchCurrentActionMap(MAP_UI);
+    //        }
+    //    }
+
+    //    // Disable direct player control (even though timeScale = 0, just to be safe)
+    //    _player?.DisableInput();
+
+    //    // Pause world & mark as paused so cursor shows
+    //    Time.timeScale = 0f;
+    //    _isPaused = true;
+
+    //    // Show the Momentum Gauge tutorial panel
+    //    UIManager.Instance?.ShowTutorial(TutorialKey.Momentum);
+
+    //    // Make sure cursor matches paused state
+    //    UpdateCursorState();
+
+    //    // 🔹 NEW: focus the Continue button on the tutorial UI
+    //    FocusFirstTutorialFirstSelectedNextFrame().Forget();
+    //}
     public void PauseGame()
     {
         if (_isPaused) return;
@@ -326,11 +363,11 @@ public class GameManager : MonoBehaviour
         if (anim) anim.speed = 0f;
 
         TutorialProgress.ResetAll();
-        UIManager.Instance?.ShowTutorial(TutorialKey.Move);
+        UIManager.Instance?.ShowTutorial(TutorialKey.Momentum);
 
         _ = ResetTutorialUnfreezeAsync(anim, cachedSpeed, this.GetCancellationTokenOnDestroy());
         RestartLevel();
-        _hasShownMoveTutorial = false;   // allow Move tutorial again after full reset
+        _hasShownFirstTutorial = false;   // allow Momentum tutorial again after full reset
     }
 
     private async UniTaskVoid ResetTutorialUnfreezeAsync(Animator anim, float cachedSpeed, CancellationToken ct)
@@ -618,6 +655,19 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private async UniTaskVoid FocusFirstTutorialFirstSelectedNextFrame()
+    {
+        // wait one frame so the tutorial UI is fully active
+        await UniTask.NextFrame();
+
+        if (EventSystem.current == null) return;
+        if (_firstTutorialFirstSelected == null) return;
+        if (!_firstTutorialFirstSelected.activeInHierarchy) return;
+
+        EventSystem.current.SetSelectedGameObject(null);
+        EventSystem.current.SetSelectedGameObject(_firstTutorialFirstSelected);
+    }
+
     // ───────────────────────────────────────────────────────────────────────────────
     // Unified flow: hide/lock → wait → show/unlock (no Timeline signals needed)
     private async UniTaskVoid BeginGameplayAfterIntroAsync(CancellationToken ctOuter)
@@ -630,25 +680,36 @@ public class GameManager : MonoBehaviour
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ctOuter, _hudRevealCts.Token);
         var ct = linked.Token;
 
-        // Hide & lock immediately (prevents flicker)
+        // 0) Hide HUD & lock gameplay during intro
         SetGameplayUIVisible(false);
         SwitchActionMap(MAP_UI);      // keep UI map so skip/menu can work
-        SetInputEnabled(false);
+        SetInputEnabled(false);       // player controller off
 
-        await UniTask.Delay(TimeSpan.FromSeconds(_hudRevealDelay), DelayType.DeltaTime, PlayerLoopTiming.Update, ct);
-        if (ct.IsCancellationRequested || State != GameState.Playing) return;
+        // 1) Wait for HP / SP intro animation time
+        await UniTask.Delay(TimeSpan.FromSeconds(_hudRevealDelay),
+                            DelayType.DeltaTime,
+                            PlayerLoopTiming.Update,
+                            ct);
 
-        // Reveal & unlock
+        if (ct.IsCancellationRequested || State != GameState.Playing)
+            return;
+
+        // 2) Reveal HUD (HP/SP bars, gauge, etc.)
         SetGameplayUIVisible(true);
-       
-        if (!_hasShownMoveTutorial)
-        {
-            UIManager.Instance?.ShowTutorial(TutorialKey.Move);
-            _hasShownMoveTutorial = true;
-        }
 
+        // 3) Start gameplay normally (Player map + input ON)
         SwitchActionMap(MAP_PLAYER);
         SetInputEnabled(true);
+
+        // 4) First time only: show Move tutorial overlay (no pause, no input change)
+        if (!_hasShownFirstTutorial && IsFirstLevelActive())
+        {
+            _hasShownFirstTutorial = true;
+            UIManager.Instance?.ShowTutorial(TutorialKey.Move);
+        }
+
+        // cursor should be hidden during gameplay
+        UpdateCursorState();
     }
 
     // ───────────────────────────────────────────────────────────────────────────────

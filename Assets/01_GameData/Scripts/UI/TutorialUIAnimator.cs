@@ -37,6 +37,9 @@ public class TutorialUIAnimator : MonoBehaviour
     [SerializeField] private float successShrinkTime = 0.20f;  // big -> small
     [SerializeField] private float successFadeTime = 0.20f;  // alpha to 0
 
+    [Header("Success Burst")]
+    [SerializeField] private float burstStartScale = 0.2f;   // ⬅ start size of burst
+    [SerializeField] private float burstPeakScale = 1.2f;   // ⬅ peak size of burst
 
     [Header("Hide timings")]
     [SerializeField] private float contentFadeOut = 0.18f;
@@ -124,7 +127,7 @@ public class TutorialUIAnimator : MonoBehaviour
         {
             burst.gameObject.SetActive(true);
             burst.color = new Color(1, 1, 1, 0f);
-            burst.rectTransform.localScale = Vector3.one * 0.2f;
+            burst.rectTransform.localScale = Vector3.one * burstStartScale;
         }
 
         // SUCCESS: small -> big -> (hold) -> small & fade
@@ -138,7 +141,7 @@ public class TutorialUIAnimator : MonoBehaviour
         if (burst)
         {
             seq.Join(burst.DOFade(0.8f, successGrowTime * 0.33f));
-            seq.Join(burst.rectTransform.DOScale(1.2f, successGrowTime * 0.66f));
+            seq.Join(burst.rectTransform.DOScale(burstPeakScale, successGrowTime * 0.66f));
         }
 
         // ⬅️ Hold at hero size longer here
