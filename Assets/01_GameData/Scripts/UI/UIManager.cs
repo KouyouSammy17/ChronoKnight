@@ -30,6 +30,8 @@ public class UIManager : MonoBehaviour
 
     private readonly Dictionary<TutorialKey, TutorialUIAnimator> _map = new();
 
+    [SerializeField] private Canvas[] _rootCanvases;
+
     [Serializable]
     public struct TutorialEntry
     {
@@ -61,6 +63,18 @@ public class UIManager : MonoBehaviour
         if (_gameOverUI != null) _gameOverUI.SetActive(false);
         if (_playerUIRoot != null) _playerUIRoot.SetActive(false);
         if (_titleUIRoot != null) _titleUIRoot.SetActive(false); // Å‰‚Í TitleƒV[ƒ“‚Å GameManager ‚ª true ‚É‚·‚é
+    }
+    public void SetUICamera(Camera cam)
+    {
+        if (cam == null || _rootCanvases == null) return;
+
+        foreach (var canvas in _rootCanvases)
+        {
+            if (canvas == null) continue;
+
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = cam;
+        }
     }
 
     // „Ÿ„Ÿ„Ÿ Result UI „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ

@@ -16,7 +16,13 @@ public class MomentumGaugeUI : MonoBehaviour
     // Бе add this
     [Header("Visibility (optional)")]
     [SerializeField] private CanvasGroup _group;
-    [SerializeField] private bool _startHiddenUntilTimeline = true;
+    [SerializeField] private bool _startHidden = false;
+    [SerializeField] private float _showHideDuration = 0.25f;
+
+
+    [Header("Tutorial Highlight")]
+    [SerializeField] private GameObject _highlightRoot;      // the highlight Image object
+    [SerializeField] private UIHighlightPulse _highlightPulse;
 
     private Tween _valueTween;
     private float _lastValue = -999f;
@@ -29,8 +35,12 @@ public class MomentumGaugeUI : MonoBehaviour
         if (_group == null) _group = GetComponent<CanvasGroup>();
         if (_group == null) { _group = gameObject.AddComponent<CanvasGroup>(); } // safe default
 
-        if (_startHiddenUntilTimeline)
+        if (_startHidden)
             SetVisible(false, instant: true);
+
+        // make sure highlight starts off
+        if (_highlightRoot != null)
+            _highlightRoot.SetActive(false);
     }
 
     private void OnEnable()
@@ -111,20 +121,37 @@ public class MomentumGaugeUI : MonoBehaviour
 
     private void SetVisible(bool visible, bool instant)
     {
-        if (_group == null) return;
-
-        float target = visible ? 1f : 0f;
-        _group.interactable = visible;
-        _group.blocksRaycasts = visible;
-
-        if (instant)
+        if (_group == null)
         {
-            _group.alpha = target;
+            gameObject.SetActive(visible);
+            return;
+        }
+
+        if (instant || !Application.isPlaying)
+        {
+            _group.alpha = visible ? 1f : 0f;
+            _group.interactable = visible;
+            _group.blocksRaycasts = visible;
         }
         else
         {
-            // short UI fade (or set duration to 0 for hard cut)
-            _group.DOFade(target, 0.15f).SetUpdate(true);
+            _group
+                .DOFade(visible ? 1f : 0f, _showHideDuration)
+                .SetUpdate(true); // works even when Time.timeScale = 0
+            _group.interactable = visible;
+            _group.blocksRaycasts = visible;
+        }
+    }
+
+    public void ShowTutorialHighlight(bool show)
+    {
+        if (_highlightRoot == null) return;
+
+        _highlightRoot.SetActive(show);
+
+        if (!show && _highlightPulse != null)
+        {
+            _highlightPulse.StopPulse();
         }
     }
 }
