@@ -27,7 +27,8 @@ public class TutorialStepTrigger : MonoBehaviour
             return GameManager.Instance.IsFirstLevelActive();
 
         // Fallback to name check
-        return UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Level_01";
+        return UnityEngine.SceneManagement.SceneManager
+            .GetActiveScene().name == "Level_01";
     }
 
     private void OnTriggerEnter(Collider other)
@@ -44,7 +45,26 @@ public class TutorialStepTrigger : MonoBehaviour
 
         if (action == TriggerAction.Show)
         {
-            UIManager.Instance?.ShowTutorial(key);
+            // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+            // SPECIAL CASE: Momentum tutorial
+            // Use GameManager so it can:
+            //  - Zoom camera
+            //  - Show gauge + black mask
+            //  - Then show the Momentum UI
+            // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+            if (key == TutorialKey.Momentum)
+            {
+                GameManager.Instance?.ShowMomentumTutorial();
+            }
+            else if (key == TutorialKey.Turbo)
+            {
+                GameManager.Instance?.ShowTurboTutorial();
+            }
+            else
+            {
+                // Default behavior for Move / Jump / Dash / Attack
+                UIManager.Instance?.ShowTutorial(key);
+            }
         }
         else // Complete
         {

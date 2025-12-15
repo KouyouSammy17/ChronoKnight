@@ -64,6 +64,15 @@ public class MomentumManager : MonoBehaviour
         UpdateMomentumEvents();
     }
 
+    // NEW: directly set momentum to a percent of max (ignores _pauseGain)
+    public void SetMomentumPercent(float percent)
+    {
+        // clamp 0–100 just to be safe
+        float clamped = Mathf.Clamp(percent, 0f, 100f);
+        _currentMomentum = _maxMomentum * (clamped / 100f);
+        UpdateMomentumEvents();
+    }
+
     public void ResetAll()
     {
         _currentMomentum = 0f;

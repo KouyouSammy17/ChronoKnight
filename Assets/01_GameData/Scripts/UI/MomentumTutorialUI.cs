@@ -371,13 +371,10 @@ public class MomentumTutorialUI : MonoBehaviour
         UIManager.Instance?.TutorialSuccess(TutorialKey.Momentum);
         TutorialProgress.SetLearned(TutorialKey.Momentum);
 
-        // Immediately show the next tutorial (Move)
-        UIManager.Instance?.ShowTutorial(TutorialKey.Move);
-
         // Resume gameplay (timeScale + inputs + cursor lock)
         if (GameManager.Instance != null)
         {
-            GameManager.Instance.ResumeGame();
+            GameManager.Instance.OnMomentumTutorialCompleted();
         }
     }
 }

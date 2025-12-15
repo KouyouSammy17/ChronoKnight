@@ -301,6 +301,13 @@ public class PlayerController : MonoBehaviour
         _inputEnabled = false;
         _moveInput = Vector2.zero;    // stop any current movement
         _jumpBufferCounter = 0f;         // clear any buffered jump
+                                         // NEW: kill motion so the character actually stops
+        if (_rb != null)
+        {
+            // If you want *completely* frozen:
+            _rb.linearVelocity = Vector3.zero;
+            _currentVelocity = Vector3.zero;
+        }
     }
 
     /// <summary>

@@ -119,17 +119,11 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!114 &32323715 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
-  m_PrefabInstance: {fileID: 553070625}
+--- !u!225 &199186551 stripped
+CanvasGroup:
+  m_CorrespondingSourceObject: {fileID: 4466339166781448026, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
+  m_PrefabInstance: {fileID: 467014162}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: bcdca3545e5784f40ad7419b4922e449, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &314557664 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1335185594102846886, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
@@ -146,11 +140,11 @@ PrefabInstance:
     - target: {fileID: 2024616274984463057, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
-      objectReference: {fileID: 32323715}
+      objectReference: {fileID: 2068396671}
     - target: {fileID: 2355175546396597631, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
-      objectReference: {fileID: 32323715}
+      objectReference: {fileID: 2068396671}
     - target: {fileID: 2645903843804382029, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
       propertyPath: m_Name
       value: UIManager
@@ -198,7 +192,7 @@ PrefabInstance:
     - target: {fileID: 6553864055051988729, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
-      objectReference: {fileID: 32323715}
+      objectReference: {fileID: 2068396671}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -257,9 +251,29 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 991380026}
     - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
+      propertyPath: _turboFocusMask
+      value: 
+      objectReference: {fileID: 199186551}
+    - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
+      propertyPath: _momentumFocusMask
+      value: 
+      objectReference: {fileID: 2038987145}
+    - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
+      propertyPath: _turboTrapHoldTime
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
       propertyPath: _titleFirstSelected
       value: 
       objectReference: {fileID: 1936087848}
+    - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
+      propertyPath: _turboBackBlendTime
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
+      propertyPath: _turboFocusFadeDuration
+      value: 0.5
+      objectReference: {fileID: 0}
     - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
       propertyPath: _firstTutorialFirstSelected
       value: 
@@ -557,6 +571,22 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 2024616274984463055, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
   m_PrefabInstance: {fileID: 467014162}
   m_PrefabAsset: {fileID: 0}
+--- !u!225 &2038987145 stripped
+CanvasGroup:
+  m_CorrespondingSourceObject: {fileID: 3851020329014560738, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
+  m_PrefabInstance: {fileID: 467014162}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &2068396671 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
+  m_PrefabInstance: {fileID: 553070625}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bcdca3545e5784f40ad7419b4922e449, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

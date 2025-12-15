@@ -60,7 +60,7 @@ public class TimelineCameraCleanup : MonoBehaviour
     public void TL_SwitchToMainCamera()
     {
 #if CINEMACHINE
-        if (_main25D) _main25D.Priority = 100;
+        if (_main25D) _main25D.Priority = 1;
 #endif
     }
 
@@ -76,7 +76,7 @@ public class TimelineCameraCleanup : MonoBehaviour
     void DoCameraCleanup()
     {
 #if CINEMACHINE
-        if (_main25D) _main25D.Priority = 100;
+        if (_main25D) _main25D.Priority = 1;
 
         if (_animatedCams != null)
         {

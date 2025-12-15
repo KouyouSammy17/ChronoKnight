@@ -5,10 +5,10 @@ using MoreMountains.Tools;
 using System;
 using System.IO;
 using System.Threading;
+using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
-using UnityEngine.Playables;
 using UnityEngine.SceneManagement;
 // using UnityEngine.Timeline; // not needed here
 
@@ -34,6 +34,33 @@ public class GameManager : MonoBehaviour
 
     [Header("Tutorial UI")]
     [SerializeField] private GameObject _firstTutorialFirstSelected; // ← NEW: Momentum tutorial "Continue" button
+
+    [Header("Momentum Tutorial Reveal")]
+    [SerializeField] private CanvasGroup _momentumFocusMask;   // black fullscreen panel with hole around gauge
+    [SerializeField] private float _momentumFocusFadeDuration = 0.35f;
+    [SerializeField] private float _momentumPreTutorialDelay = 0.5f;
+    [SerializeField] private MMF_Player _momentumIntroFeedbacks;
+    [SerializeField] private string _momentumIntroTag = "MomentumIntro";
+
+    // NEW: Turbo tutorial reveal
+#if CINEMACHINE
+    [Header("Turbo Tutorial Cameras (Manual)")]
+    [SerializeField] private CinemachineCamera _turboPlayerCam;   // usually your main gameplay cam
+    [SerializeField] private CinemachineCamera _turboTrapCam;     // camera that frames the trap/gimmick
+    [SerializeField] private float _turboToTrapBlendTime = 0.8f;
+    [SerializeField] private float _turboTrapHoldTime = 1.0f;
+    [SerializeField] private float _turboBackBlendTime = 0.8f;
+
+    [Header("Turbo Tutorial Camera Auto-Fetch")]
+    [SerializeField] private string _turboPlayerCamTag = "TurboPlayerCam";
+    [SerializeField] private string _turboTrapCamTag = "TurboTrapCam";
+#endif
+
+    [Header("Turbo Tutorial Reveal")]
+    // can reuse the same panel as momentum if you want
+    [SerializeField] private CanvasGroup _turboFocusMask;
+    [SerializeField] private float _turboFocusFadeDuration = 0.35f;
+    [SerializeField] private float _turboPreTutorialDelay = 0.5f;
 
     [Header("Feel MMSceneLoading")]
     [SerializeField] private bool _useAdditive = false;
@@ -76,6 +103,8 @@ public class GameManager : MonoBehaviour
     private MomentumGaugeUI _gauge; // auto-fetched from the Player
 
     private bool _hasShownFirstTutorial = false; // shows Move tutorial once per session
+    private bool _hasShownMomentumTutorial = false; // shows Momentum tutorial once per session
+    private bool _hasShownTurboTutorial = false;
 
     private bool _pauseBlocked = false;
     private bool _isPaused = false;
@@ -266,41 +295,326 @@ public class GameManager : MonoBehaviour
         await UniTask.Delay(TimeSpan.FromSeconds(_pauseInputBuffer), DelayType.Realtime, PlayerLoopTiming.Update, ct);
         _pauseBlocked = false;
     }
-    //public void ShowFirstTutorial()
-    //{
-    //    // Only once per session
-    //    if (_hasShownFirstTutorial) return;
-    //    _hasShownFirstTutorial = true;
+    public void ShowMomentumTutorial()
+    {
+        // Only once per session
+        if (_hasShownMomentumTutorial) return;
+        _hasShownMomentumTutorial = true;
+       
+        var mm = MomentumManager.Instance;
+        if (mm != null)
+        {
+            mm.SetMomentumPercent(50f);
+        }
 
-    //    // Switch to UI action map (same idea as PauseGame, but without pause menu)
-    //    if (_playerInput != null && _playerInput.actions != null)
-    //    {
-    //        if (!_playerInput.enabled) _playerInput.enabled = true;
-    //        if (!_playerInput.actions.enabled) _playerInput.actions.Enable();
+        // Switch to UI action map (same idea as PauseGame, but without pause menu)
+        if (_playerInput != null && _playerInput.actions != null)
+        {
+            if (!_playerInput.enabled) _playerInput.enabled = true;
+            if (!_playerInput.actions.enabled) _playerInput.actions.Enable();
 
-    //        if (_playerInput.actions.FindActionMap(MAP_UI, false) != null)
-    //        {
-    //            _playerInput.defaultActionMap = MAP_UI;
-    //            _playerInput.SwitchCurrentActionMap(MAP_UI);
-    //        }
-    //    }
+            if (_playerInput.actions.FindActionMap(MAP_UI, false) != null)
+            {
+                _playerInput.defaultActionMap = MAP_UI;
+                _playerInput.SwitchCurrentActionMap(MAP_UI);
+            }
+        }
 
-    //    // Disable direct player control (even though timeScale = 0, just to be safe)
-    //    _player?.DisableInput();
+        // Disable direct player control (even though timeScale = 0, just to be safe)
+        _player?.DisableInput();
 
-    //    // Pause world & mark as paused so cursor shows
-    //    Time.timeScale = 0f;
-    //    _isPaused = true;
+        // Pause world & mark as paused so cursor shows
+        Time.timeScale = 0f;
+        _isPaused = true;
 
-    //    // Show the Momentum Gauge tutorial panel
-    //    UIManager.Instance?.ShowTutorial(TutorialKey.Momentum);
+        // Make sure cursor matches paused state
+        UpdateCursorState();
 
-    //    // Make sure cursor matches paused state
-    //    UpdateCursorState();
+        // 🔹 NEW: focus the Continue button on the tutorial UI
+        FocusFirstTutorialFirstSelectedNextFrame().Forget();
 
-    //    // 🔹 NEW: focus the Continue button on the tutorial UI
-    //    FocusFirstTutorialFirstSelectedNextFrame().Forget();
-    //}
+        // Run the special reveal sequence
+        RunMomentumTutorialSequence().Forget();
+    }
+
+    private async Cysharp.Threading.Tasks.UniTaskVoid RunMomentumTutorialSequence()
+    {
+        var ct = this.GetCancellationTokenOnDestroy();
+
+        // 1) Ensure gauge reference and make it visible
+        ResolveGauge();
+        _gauge?.ShowTutorialHighlight(true);
+        _gauge?.TL_ShowGauge();
+
+        // 2) Optional camera zoom / effects
+        if (_momentumIntroFeedbacks != null)
+        {
+            _momentumIntroFeedbacks.PlayFeedbacks();
+        }
+
+        // 3) Optional black panel that darkens everything except gauge
+        if (_momentumFocusMask != null)
+        {
+            _momentumFocusMask.gameObject.SetActive(true);
+            _momentumFocusMask.alpha = 0f;
+            _momentumFocusMask
+                .DOFade(1f, _momentumFocusFadeDuration)
+                .SetUpdate(true); // ignore timeScale
+        }
+
+        // 4) wait a bit so player can see gauge highlighted before text appears
+        await Cysharp.Threading.Tasks.UniTask.Delay(
+            System.TimeSpan.FromSeconds(_momentumPreTutorialDelay),
+            Cysharp.Threading.Tasks.DelayType.Realtime,
+            Cysharp.Threading.Tasks.PlayerLoopTiming.Update,
+            ct);
+
+        // 5) Show the actual Momentum tutorial UI
+        UIManager.Instance?.ShowTutorial(TutorialKey.Momentum);
+        
+        FocusFirstTutorialFirstSelectedNextFrame().Forget();
+    }
+
+    private void ResolveMomentumIntroFeedbacks()
+    {
+        _momentumIntroFeedbacks = null;
+
+        if (!IsFirstLevelActive()) return;   // only needed on Level_01 (optional)
+
+        var obj = GameObject.FindWithTag(_momentumIntroTag);
+        if (obj != null)
+        {
+            _momentumIntroFeedbacks = obj.GetComponent<MMF_Player>();
+        }
+    }
+
+    public void OnMomentumTutorialCompleted()
+    {
+        // Unlock momentum gain / buffs
+        MomentumManager.Instance?.SetGainPaused(false);
+        
+        ResolveGauge();
+        _gauge?.ShowTutorialHighlight(false);
+
+        // Hide black mask if we used it
+        if (_momentumFocusMask != null)
+        {
+            _momentumFocusMask
+                .DOFade(0f, _momentumFocusFadeDuration)
+                .SetUpdate(true)
+                .OnComplete(() => _momentumFocusMask.gameObject.SetActive(false));
+        }
+
+        // Resume normal gameplay (unpause + input + player action map)
+        ResumeGame();
+    }
+
+    public void ShowTurboTutorial()
+    {
+        if (_hasShownTurboTutorial) return;
+        _hasShownTurboTutorial = true;
+
+        #if CINEMACHINE
+        ResolveTurboCameras();
+        #endif
+
+        // Switch to UI action map so buttons work
+        if (_playerInput != null && _playerInput.actions != null)
+        {
+            if (!_playerInput.enabled) _playerInput.enabled = true;
+            if (!_playerInput.actions.enabled) _playerInput.actions.Enable();
+
+            if (_playerInput.actions.FindActionMap(MAP_UI, false) != null)
+            {
+                _playerInput.defaultActionMap = MAP_UI;
+                _playerInput.SwitchCurrentActionMap(MAP_UI);
+            }
+        }
+
+        // Disable player control so he doesn't move during camera tour
+        _player?.DisableInput();
+
+        // IMPORTANT: don't pause yet, keep timeScale = 1 so Cinemachine blends work
+        RunTurboTutorialSequence().Forget();
+    }
+
+    private async Cysharp.Threading.Tasks.UniTaskVoid RunTurboTutorialSequence()
+    {
+        var ct = this.GetCancellationTokenOnDestroy();
+
+        // Make sure world is running while cameras blend
+        if (Mathf.Approximately(Time.timeScale, 0f))
+        {
+            Time.timeScale = 1f;
+            _isPaused = false;
+            UpdateCursorState();
+        }
+
+#if CINEMACHINE
+        // ─────────────────────────────────────────────────────
+        // 1) Camera tour: Player → Trap → Player
+        // ─────────────────────────────────────────────────────
+        if (_turboPlayerCam != null && _turboTrapCam != null)
+        {
+            _turboPlayerCam.gameObject.SetActive(true);
+            _turboTrapCam.gameObject.SetActive(true);
+
+            // Baseline priorities (you can tweak if you already use others)
+            int basePriority = 10;
+            _turboPlayerCam.Priority = basePriority;
+            _turboTrapCam.Priority = basePriority - 1;
+
+            // a) Blend to trap
+            _turboTrapCam.Priority = basePriority + 1;
+            await Cysharp.Threading.Tasks.UniTask.Delay(
+                System.TimeSpan.FromSeconds(_turboToTrapBlendTime),
+                Cysharp.Threading.Tasks.DelayType.DeltaTime,
+                Cysharp.Threading.Tasks.PlayerLoopTiming.Update,
+                ct);
+
+            // b) Hold on trap
+            await Cysharp.Threading.Tasks.UniTask.Delay(
+                System.TimeSpan.FromSeconds(_turboTrapHoldTime),
+                Cysharp.Threading.Tasks.DelayType.DeltaTime,
+                Cysharp.Threading.Tasks.PlayerLoopTiming.Update,
+                ct);
+
+            // c) Blend back to player
+            _turboPlayerCam.Priority = basePriority + 2;
+            _turboTrapCam.Priority = basePriority - 1;
+            await Cysharp.Threading.Tasks.UniTask.Delay(
+                System.TimeSpan.FromSeconds(_turboBackBlendTime),
+                Cysharp.Threading.Tasks.DelayType.DeltaTime,
+                Cysharp.Threading.Tasks.PlayerLoopTiming.Update,
+                ct);
+
+            // d) Final: keep gameplay cam as main
+            _turboPlayerCam.Priority = basePriority;
+            _turboTrapCam.Priority = basePriority - 1;
+        }
+#endif
+
+        // ─────────────────────────────────────────────────────
+        // 2) Pause the game and show black panel + Turbo UI
+        // ─────────────────────────────────────────────────────
+        Time.timeScale = 0f;
+        _isPaused = true;
+        UpdateCursorState();
+
+        if (_turboFocusMask != null)
+        {
+            _turboFocusMask.gameObject.SetActive(true);
+            _turboFocusMask.alpha = 0f;
+            _turboFocusMask
+                .DOFade(1f, _turboFocusFadeDuration)
+                .SetUpdate(true); // unscaled
+        }
+
+        await Cysharp.Threading.Tasks.UniTask.Delay(
+            System.TimeSpan.FromSeconds(_turboPreTutorialDelay),
+            Cysharp.Threading.Tasks.DelayType.Realtime,
+            Cysharp.Threading.Tasks.PlayerLoopTiming.Update,
+            ct);
+
+        // show Turbo tutorial panel
+        UIManager.Instance?.ShowTutorial(TutorialKey.Turbo);
+        FocusFirstTutorialFirstSelectedNextFrame().Forget();
+    }
+
+    // Called by the Turbo tutorial "Continue" button
+    public void OnTurboTutorialCompleted()
+    {   
+
+        if (_turboFocusMask != null)
+        {
+            _turboFocusMask
+                .DOFade(0f, _turboFocusFadeDuration)
+                .SetUpdate(true)
+                .OnComplete(() => _turboFocusMask.gameObject.SetActive(false));
+        }
+
+        // Resume game like normal
+        ResumeGame();
+    }
+
+#if CINEMACHINE
+    private void ResolveTurboCameras()
+    {
+        if (State != GameState.Playing) return;
+
+        // ─ Player cam ─────────────────────────────────────
+        if (_turboPlayerCam == null || !_turboPlayerCam.gameObject.scene.IsValid())
+        {
+            // 1) Try by tag
+            if (!string.IsNullOrEmpty(_turboPlayerCamTag))
+            {
+                var go = GameObject.FindGameObjectWithTag(_turboPlayerCamTag);
+                if (go != null)
+                    _turboPlayerCam = go.GetComponent<CinemachineCamera>();
+            }
+
+            // 2) Fallback: any CinemachineCamera that follows / looks at the player
+            if (_turboPlayerCam == null && _player != null)
+            {
+#if UNITY_6000_0_OR_NEWER
+                var cams = UnityEngine.Object.FindObjectsByType<CinemachineCamera>(FindObjectsSortMode.None);
+#else
+                var cams = UnityEngine.Object.FindObjectsOfType<CinemachineCamera>();
+#endif
+                foreach (var cam in cams)
+                {
+                    if (cam == null) continue;
+                    if (cam.Follow == _player.transform || cam.LookAt == _player.transform)
+                    {
+                        _turboPlayerCam = cam;
+                        break;
+                    }
+                }
+            }
+
+            if (_turboPlayerCam == null)
+            {
+                Debug.LogWarning("[GameManager] Turbo player cam not found. " +
+                                 "Assign in inspector or tag a CinemachineCamera as '" + _turboPlayerCamTag + "'.");
+            }
+        }
+
+        // ─ Trap cam ───────────────────────────────────────
+        if (_turboTrapCam == null || !_turboTrapCam.gameObject.scene.IsValid())
+        {
+            // 1) Try by tag
+            if (!string.IsNullOrEmpty(_turboTrapCamTag))
+            {
+                var go = GameObject.FindGameObjectWithTag(_turboTrapCamTag);
+                if (go != null)
+                    _turboTrapCam = go.GetComponent<CinemachineCamera>();
+            }
+
+            // 2) Fallback: any CinemachineCamera that is NOT the player cam
+            if (_turboTrapCam == null)
+            {
+#if UNITY_6000_0_OR_NEWER
+                var cams = UnityEngine.Object.FindObjectsByType<CinemachineCamera>(FindObjectsSortMode.None);
+#else
+                var cams = UnityEngine.Object.FindObjectsOfType<CinemachineCamera>();
+#endif
+                foreach (var cam in cams)
+                {
+                    if (cam == null || cam == _turboPlayerCam) continue;
+                    _turboTrapCam = cam;
+                    break;
+                }
+            }
+
+            if (_turboTrapCam == null)
+            {
+                Debug.LogWarning("[GameManager] Turbo trap cam not found. " +
+                                 "Assign in inspector or tag a CinemachineCamera as '" + _turboTrapCamTag + "'.");
+            }
+        }
+    }
+#endif
+
     public void PauseGame()
     {
         if (_isPaused) return;
@@ -367,7 +681,9 @@ public class GameManager : MonoBehaviour
 
         _ = ResetTutorialUnfreezeAsync(anim, cachedSpeed, this.GetCancellationTokenOnDestroy());
         RestartLevel();
-        _hasShownFirstTutorial = false;   // allow Momentum tutorial again after full reset
+        _hasShownFirstTutorial = false;   // allow Move tutorial again after full reset
+        _hasShownMomentumTutorial = false;
+        _hasShownTurboTutorial = false;
     }
 
     private async UniTaskVoid ResetTutorialUnfreezeAsync(Animator anim, float cachedSpeed, CancellationToken ct)
@@ -434,11 +750,24 @@ public class GameManager : MonoBehaviour
         {
             UIManager.Instance?.ShowTitleUI(false);
 
+            var uiCamObj = GameObject.FindWithTag("UICamera");
+            if (uiCamObj != null)
+            {
+                var cam = uiCamObj.GetComponent<Camera>();
+                UIManager.Instance?.SetUICamera(cam);
+            }
             // Hide first to avoid flicker (BeginGameplayAfterIntroAsync also hides, but this guarantees immediate off)
             UIManager.Instance?.ShowPlayerUI(false);
             UIManager.Instance?.HideAllTutorials();
 
             _player?.GetComponent<PlayerStats>()?.ResetStats();
+           
+            // NEW: grab the MMF_Player in this scene
+            ResolveMomentumIntroFeedbacks();
+
+            #if CINEMACHINE
+            ResolveTurboCameras();
+            #endif
 
             // kick the unified flow (no signals needed)
             BeginGameplayAfterIntroAsync(this.GetCancellationTokenOnDestroy()).Forget();
@@ -700,6 +1029,7 @@ public class GameManager : MonoBehaviour
         // 3) Start gameplay normally (Player map + input ON)
         SwitchActionMap(MAP_PLAYER);
         SetInputEnabled(true);
+        SetupMomentumGateForFirstLevel();
 
         // 4) First time only: show Move tutorial overlay (no pause, no input change)
         if (!_hasShownFirstTutorial && IsFirstLevelActive())
@@ -719,13 +1049,24 @@ public class GameManager : MonoBehaviour
         UIManager.Instance?.ShowPlayerUI(visible);
         if (!visible) UIManager.Instance?.HideAllTutorials();
 
-        ResolveGauge();
+        ResolveGauge();  // finds MomentumGaugeUI in scene
 
         if (_gauge != null)
         {
-            if (visible) _gauge.TL_ShowGauge();
+            bool shouldShowGauge = visible && ShouldGaugeBeVisibleNow();
+
+            if (shouldShowGauge) _gauge.TL_ShowGauge();
             else _gauge.TL_HideGauge();
         }
+    }
+
+    private bool ShouldGaugeBeVisibleNow()
+    {
+        // Non-first levels: always show
+        if (!IsFirstLevelActive()) return true;
+
+        // First level: only show after Momentum tutorial is flagged as learned
+        return TutorialProgress.IsLearned(TutorialKey.Momentum);
     }
 
     void SetInputEnabled(bool enabled)
@@ -749,5 +1090,17 @@ public class GameManager : MonoBehaviour
             _playerInput.defaultActionMap = map;
             _playerInput.SwitchCurrentActionMap(map);
         }
+    }
+    private void SetupMomentumGateForFirstLevel()
+    {
+        bool gateMomentum =
+            IsFirstLevelActive() &&                      // only first level
+            !TutorialProgress.IsLearned(TutorialKey.Momentum); // only if not learned yet
+
+        MomentumManager.Instance?.SetGainPaused(gateMomentum);  // stops positive AddMomentum
+
+        // (Optional) also hard reset momentum if you want it to always start from 0
+        if (gateMomentum)
+            MomentumManager.Instance?.ResetAll();
     }
 }
