@@ -56,6 +56,10 @@ public class TutorialStepTrigger : MonoBehaviour
             {
                 GameManager.Instance?.ShowMomentumTutorial();
             }
+            else if (key == TutorialKey.Turbo)
+            {
+                GameManager.Instance?.ShowTurboTutorial();
+            }
             else
             {
                 // Default behavior for Move / Jump / Dash / Attack

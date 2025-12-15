@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1920367358605782239}
   - component: {fileID: 2546069217631545926}
-  m_Layer: 7
+  m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -49,6 +49,22 @@ MonoBehaviour:
   _titleFirstSelected: {fileID: 0}
   _titleFirstSelectedTag: FirstSelected
   _titleFirstSelectedName: Button_Title
+  _firstTutorialFirstSelected: {fileID: 0}
+  _momentumFocusMask: {fileID: 0}
+  _momentumFocusFadeDuration: 0.5
+  _momentumPreTutorialDelay: 3
+  _momentumIntroFeedbacks: {fileID: 0}
+  _momentumIntroTag: MomentumIntro
+  _turboPlayerCam: {fileID: 0}
+  _turboTrapCam: {fileID: 0}
+  _turboToTrapBlendTime: 0.5
+  _turboTrapHoldTime: 3
+  _turboBackBlendTime: 0.5
+  _turboPlayerCamTag: TurboPlayerCam
+  _turboTrapCamTag: TurboTrapCam
+  _turboFocusMask: {fileID: 0}
+  _turboFocusFadeDuration: 0.5
+  _turboPreTutorialDelay: 3
   _useAdditive: 0
   _feelLoadingScene: LoadingScreen
   _feelAdditiveLoadingScene: MMAdditiveLoadingScreen
