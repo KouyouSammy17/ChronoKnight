@@ -178,7 +178,6 @@ GameObject:
   - component: {fileID: 1930619966368644061}
   - component: {fileID: 2243039379770787826}
   - component: {fileID: 5004028763009620421}
-  - component: {fileID: 6394119979970133079}
   m_Layer: 9
   m_Name: Canvas
   m_TagString: Untagged
@@ -284,18 +283,6 @@ MonoBehaviour:
   _target: {fileID: 478360944662821497}
   _offset: {x: 0, y: 4, z: 0}
   _smoothSpeed: 10
---- !u!225 &6394119979970133079
-CanvasGroup:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2491485958184236743}
-  m_Enabled: 1
-  m_Alpha: 1
-  m_Interactable: 1
-  m_BlocksRaycasts: 1
-  m_IgnoreParentGroups: 0
 --- !u!1 &2749352428806314448
 GameObject:
   m_ObjectHideFlags: 0
@@ -567,6 +554,7 @@ GameObject:
   m_Component:
   - component: {fileID: 96016061734352711}
   - component: {fileID: 4968946189460357062}
+  - component: {fileID: 9192742013156359168}
   m_Layer: 9
   m_Name: MomentumGaugeUI
   m_TagString: Untagged
@@ -611,11 +599,29 @@ MonoBehaviour:
   _tweenDuration: 0.3
   _ease: 6
   _animateWhilePaused: 1
-  _group: {fileID: 6394119979970133079}
+  _group: {fileID: 9192742013156359168}
   _startHidden: 1
   _showHideDuration: 0.25
+  _root: {fileID: 96016061734352711}
+  _useScanIn: 1
+  _fromScale: 0.9
+  _overshootScale: 1.03
+  _useSlide: 1
+  _slideY: 18
   _highlightRoot: {fileID: 9068647836605140821}
   _highlightPulse: {fileID: 1518584027171081687}
+--- !u!225 &9192742013156359168
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6430350937912750617}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &7524616865943299786
 GameObject:
   m_ObjectHideFlags: 0

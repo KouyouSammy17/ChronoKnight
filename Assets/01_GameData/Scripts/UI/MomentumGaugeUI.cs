@@ -19,6 +19,14 @@ public class MomentumGaugeUI : MonoBehaviour
     [SerializeField] private bool _startHidden = false;
     [SerializeField] private float _showHideDuration = 0.25f;
 
+    [Header("Show Animation (Scan-in)")]
+    [SerializeField] private RectTransform _root;   // gauge root rect (usually this transform)
+    [SerializeField] private bool _useScanIn = true;
+    [SerializeField] private float _fromScale = 0.90f;
+    [SerializeField] private float _overshootScale = 1.03f;
+
+    [SerializeField] private bool _useSlide = false;
+    [SerializeField] private float _slideY = 18f;   // pixels
 
     [Header("Tutorial Highlight")]
     [SerializeField] private GameObject _highlightRoot;      // the highlight Image object
@@ -28,6 +36,9 @@ public class MomentumGaugeUI : MonoBehaviour
     private float _lastValue = -999f;
     private bool _isBound = false;
     private CancellationTokenSource _cts;
+    private Sequence _showSeq;
+    private Vector3 _baseScale;
+    private Vector2 _baseAnchoredPos;
 
     private void Awake()
     {
@@ -41,6 +52,10 @@ public class MomentumGaugeUI : MonoBehaviour
         // make sure highlight starts off
         if (_highlightRoot != null)
             _highlightRoot.SetActive(false);
+
+        if (_root == null) _root = transform as RectTransform;
+        _baseScale = _root.localScale;
+        _baseAnchoredPos = _root.anchoredPosition;
     }
 
     private void OnEnable()
@@ -56,12 +71,16 @@ public class MomentumGaugeUI : MonoBehaviour
         _cts?.Cancel(); _cts?.Dispose(); _cts = null;
         Unbind();
         _valueTween?.Kill(); _valueTween = null;
+        _showSeq?.Kill();
+        _showSeq = null;
     }
 
     private void OnDestroy()
     {
         Unbind();
         _valueTween?.Kill(); _valueTween = null;
+        _showSeq?.Kill();
+        _showSeq = null;
     }
 
     private void OnSceneLoaded(Scene s, LoadSceneMode m)
@@ -127,21 +146,81 @@ public class MomentumGaugeUI : MonoBehaviour
             return;
         }
 
+        // stop previous show animation
+        _showSeq?.Kill();
+        _showSeq = null;
+
+        bool useUnscaled = _animateWhilePaused; // respect your setting
+
+        if (visible)
+        {
+            // IMPORTANT: must be active to render + run tweens
+            if (!gameObject.activeSelf) gameObject.SetActive(true);
+
+            if (instant || !Application.isPlaying)
+            {
+                _group.alpha = 1f;
+                _group.interactable = true;
+                _group.blocksRaycasts = true;
+
+                if (_root != null)
+                {
+                    _root.localScale = _baseScale;
+                    _root.anchoredPosition = _baseAnchoredPos;
+                }
+                return;
+            }
+
+            _group.alpha = 0f;
+            _group.interactable = true;
+            _group.blocksRaycasts = true;
+
+            if (_root == null || !_useScanIn)
+            {
+                _group.DOFade(1f, _showHideDuration).SetUpdate(useUnscaled);
+                return;
+            }
+
+            // start pose
+            _root.localScale = _baseScale * _fromScale;
+            if (_useSlide)
+                _root.anchoredPosition = _baseAnchoredPos - new Vector2(0f, _slideY);
+
+            _showSeq = DOTween.Sequence().SetUpdate(useUnscaled);
+            _showSeq.Join(_group.DOFade(1f, _showHideDuration).SetEase(Ease.OutQuad));
+            _showSeq.Join(_root.DOScale(_baseScale * _overshootScale, _showHideDuration).SetEase(Ease.OutBack));
+            _showSeq.Append(_root.DOScale(_baseScale, 0.10f).SetEase(Ease.OutQuad));
+
+            if (_useSlide)
+                _showSeq.Join(_root.DOAnchorPos(_baseAnchoredPos, _showHideDuration + 0.08f).SetEase(Ease.OutCubic));
+
+            _showSeq.SetLink(gameObject, LinkBehaviour.KillOnDestroy);
+            return;
+        }
+
+        // HIDE
         if (instant || !Application.isPlaying)
         {
-            _group.alpha = visible ? 1f : 0f;
-            _group.interactable = visible;
-            _group.blocksRaycasts = visible;
+            _group.alpha = 0f;
+            _group.interactable = false;
+            _group.blocksRaycasts = false;
+            // optional: disable instantly
+            // gameObject.SetActive(false);
+            return;
         }
-        else
-        {
-            _group
-                .DOFade(visible ? 1f : 0f, _showHideDuration)
-                .SetUpdate(true); // works even when Time.timeScale = 0
-            _group.interactable = visible;
-            _group.blocksRaycasts = visible;
-        }
+
+        _group.interactable = false;
+        _group.blocksRaycasts = false;
+
+        _group.DOFade(0f, _showHideDuration)
+              .SetUpdate(useUnscaled)
+              .OnComplete(() =>
+              {
+                  // optional: turn off object after fade
+                  // gameObject.SetActive(false);
+              });
     }
+
 
     public void ShowTutorialHighlight(bool show)
     {
