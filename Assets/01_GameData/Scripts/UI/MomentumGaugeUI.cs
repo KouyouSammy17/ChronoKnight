@@ -28,6 +28,12 @@ public class MomentumGaugeUI : MonoBehaviour
     [SerializeField] private bool _useSlide = false;
     [SerializeField] private float _slideY = 18f;   // pixels
 
+    [Header("Glow Pulse (>= 50%)")]
+    [SerializeField] private Image _glowImage;           // behind the fill
+    [SerializeField] private float _glowMinAlpha = 0.25f;
+    [SerializeField] private float _glowMaxAlpha = 0.75f;
+    [SerializeField] private float _glowPulseTime = 0.9f;
+
     [Header("Tutorial Highlight")]
     [SerializeField] private GameObject _highlightRoot;      // the highlight Image object
     [SerializeField] private UIHighlightPulse _highlightPulse;
@@ -39,7 +45,8 @@ public class MomentumGaugeUI : MonoBehaviour
     private Sequence _showSeq;
     private Vector3 _baseScale;
     private Vector2 _baseAnchoredPos;
-
+    private Tween _glowTween;
+    private bool _glowActive;
     private void Awake()
     {
         if (_momentumSlider == null) _momentumSlider = GetComponent<Slider>();
@@ -125,6 +132,9 @@ public class MomentumGaugeUI : MonoBehaviour
         float target = Mathf.Clamp(m, 0f, _momentumSlider.maxValue);
         if (Mathf.Approximately(_lastValue, target)) return;
         _lastValue = target;
+
+        float pct = (_momentumSlider.maxValue <= 0f) ? 0f : target / _momentumSlider.maxValue;
+        SetGlowActive(pct >= 0.5f);
 
         _valueTween?.Kill();
         _valueTween = _momentumSlider
@@ -233,5 +243,39 @@ public class MomentumGaugeUI : MonoBehaviour
             _highlightPulse.StopPulse();
         }
     }
+
+    private void SetGlowActive(bool active)
+    {
+        if (_glowImage == null) return;
+        if (_glowActive == active) return;
+        _glowActive = active;
+
+        _glowTween?.Kill();
+        _glowTween = null;
+
+        var c = _glowImage.color;
+
+        if (!active)
+        {
+            c.a = 0f;
+            _glowImage.color = c;
+            return;
+        }
+
+        // start visible
+        c.a = _glowMinAlpha;
+        _glowImage.color = c;
+
+        _glowTween = DOTween.To(
+                () => _glowImage.color.a,
+                a => { var cc = _glowImage.color; cc.a = a; _glowImage.color = cc; },
+                _glowMaxAlpha,
+                _glowPulseTime)
+            .SetEase(Ease.InOutSine)
+            .SetLoops(-1, LoopType.Yoyo)
+            .SetUpdate(_animateWhilePaused)
+            .SetLink(_glowImage.gameObject, LinkBehaviour.KillOnDestroy);
+    }
+
 }
     
