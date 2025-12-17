@@ -34,7 +34,9 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private string _firstLevelName = "Level_01";
 
     [Header("First Selected (optional)")]
-    [SerializeField] private GameObject _firstTutorialFirstSelected; // Continue button etc.
+    [SerializeField] private GameObject _firstTutorialFirstSelected; // Continue button etc. (legacy / generic)
+    [SerializeField] private GameObject _momentumFirstSelected; // optional: explicit first selected for Momentum tutorial
+    [SerializeField] private GameObject _turboFirstSelected; // optional: explicit first selected for Turbo tutorial
 
     // „Ÿ„Ÿ HUD delayed reveal (moved from GameManager)
     [SerializeField] private float _hudRevealDelay = 5f;              // tweak as needed
@@ -288,7 +290,8 @@ public class TutorialManager : MonoBehaviour
         if (ct.IsCancellationRequested) return;
 
         UIManager.Instance?.ShowTutorial(TutorialKey.Momentum);
-        FocusFirstSelectedNextFrame().Forget();
+        // prefer explicit per-tutorial first selected, fallback to generic
+        FocusFirstSelectedNextFrame(_momentumFirstSelected ?? _firstTutorialFirstSelected).Forget();
 
         _momentumSequenceRunning = false;
     }
@@ -379,7 +382,8 @@ public class TutorialManager : MonoBehaviour
         if (ct.IsCancellationRequested) return;
 
         UIManager.Instance?.ShowTutorial(TutorialKey.Turbo);
-        FocusFirstSelectedNextFrame().Forget();
+        // prefer explicit per-tutorial first selected
+        FocusFirstSelectedNextFrame(_turboFirstSelected).Forget();
 
         _turboSequenceRunning = false;
     }
@@ -579,17 +583,18 @@ public class TutorialManager : MonoBehaviour
         Cursor.lockState = CursorLockMode.Locked;
     }
 
-    private async UniTaskVoid FocusFirstSelectedNextFrame()
+    private async UniTaskVoid FocusFirstSelectedNextFrame(GameObject target = null)
     {
         await UniTask.Yield(PlayerLoopTiming.Update, _destroyToken);
 
         var es = EventSystem.current;
-        if (es == null) return;
+        if (es == null) return; 
 
-        if (_firstTutorialFirstSelected != null && _firstTutorialFirstSelected.activeInHierarchy)
+        var toSelect = target ?? _firstTutorialFirstSelected;
+        if (toSelect != null && toSelect.activeInHierarchy)
         {
             es.SetSelectedGameObject(null);
-            es.SetSelectedGameObject(_firstTutorialFirstSelected);
+            es.SetSelectedGameObject(toSelect);
         }
     }
 
