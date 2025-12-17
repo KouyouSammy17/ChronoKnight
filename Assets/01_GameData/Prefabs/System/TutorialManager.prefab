@@ -46,20 +46,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TutorialManager
   _firstLevelName: Level_01
   _firstTutorialFirstSelected: {fileID: 0}
+  _momentumFirstSelected: {fileID: 0}
+  _turboFirstSelected: {fileID: 0}
   _hudRevealDelay: 6
   _momentumFocusMask: {fileID: 0}
-  _momentumFocusFadeDuration: 1.5
-  _momentumPreTutorialDelay: 0.5
+  _momentumFocusFadeDuration: 2
+  _momentumPreTutorialDelay: 2
   _momentumIntroFeedbacks: {fileID: 0}
   _momentumIntroTag: MomentumIntro
   _turboFocusMask: {fileID: 0}
-  _turboFocusFadeDuration: 1.5
-  _turboPreTutorialDelay: 0.5
+  _turboFocusFadeDuration: 2
+  _turboPreTutorialDelay: 2
   _turboPlayerCam: {fileID: 0}
   _turboTrapCam: {fileID: 0}
-  _turboToTrapBlendTime: 0.8
-  _turboTrapHoldTime: 3
-  _turboBackBlendTime: 0.8
+  _turboToTrapBlendTime: 0.5
+  _turboTrapHoldTime: 2
+  _turboBackBlendTime: 2
   _turboPlayerCamTag: TurboPlayerCam
   _turboTrapCamTag: TurboTrapCam
   _log: 0

@@ -189,14 +189,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 6528287342087654938, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
-      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
-      value: 
-      objectReference: {fileID: 701631322}
-    - target: {fileID: 6528287342087654938, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
-      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
-      value: OnClickContinue
-      objectReference: {fileID: 0}
     - target: {fileID: 6553864055051988729, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
@@ -206,11 +198,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
---- !u!1 &467014163 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 8035308526716817393, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
-  m_PrefabInstance: {fileID: 467014162}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &553070625
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -264,33 +251,9 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 991380026}
     - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
-      propertyPath: _turboFocusMask
-      value: 
-      objectReference: {fileID: 199186551}
-    - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
-      propertyPath: _momentumFocusMask
-      value: 
-      objectReference: {fileID: 2038987145}
-    - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
-      propertyPath: _turboTrapHoldTime
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
       propertyPath: _titleFirstSelected
       value: 
       objectReference: {fileID: 1936087848}
-    - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
-      propertyPath: _turboBackBlendTime
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
-      propertyPath: _turboFocusFadeDuration
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 2546069217631545926, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
-      propertyPath: _firstTutorialFirstSelected
-      value: 
-      objectReference: {fileID: 314557664}
     - target: {fileID: 3140687796065368608, guid: 8d7adf266d8b5ea45a7efe016fee5f91, type: 3}
       propertyPath: m_Name
       value: GameManager
@@ -397,17 +360,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
---- !u!114 &701631322 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 3033668416332840457, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
-  m_PrefabInstance: {fileID: 467014162}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 507285033580ae54aa71151a964ccf0e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TurboTutorialUI
 --- !u!114 &991380026 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8253882821762582175, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
@@ -590,6 +542,11 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1854605874 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6528287342087654916, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
+  m_PrefabInstance: {fileID: 467014162}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1936087848 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 2024616274984463055, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
@@ -668,9 +625,13 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 2038987145}
     - target: {fileID: 3612455809641717944, guid: c4004ad8946e9b34d852eb02533eb596, type: 3}
-      propertyPath: _firstTutorialFirstSelected
+      propertyPath: _turboFirstSelected
       value: 
-      objectReference: {fileID: 467014163}
+      objectReference: {fileID: 1854605874}
+    - target: {fileID: 3612455809641717944, guid: c4004ad8946e9b34d852eb02533eb596, type: 3}
+      propertyPath: _momentumFirstSelected
+      value: 
+      objectReference: {fileID: 314557664}
     - target: {fileID: 6220754658548904461, guid: c4004ad8946e9b34d852eb02533eb596, type: 3}
       propertyPath: m_Name
       value: TutorialManager
