@@ -1,5 +1,7 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
+[RequireComponent(typeof(Collider))]
 public class TutorialStepTrigger : MonoBehaviour
 {
     public enum TriggerAction { Show, Complete }
@@ -18,6 +20,13 @@ public class TutorialStepTrigger : MonoBehaviour
 
     private bool _fired;
 
+    private void Awake()
+    {
+        // ensure trigger collider
+        var col = GetComponent<Collider>();
+        if (col) col.isTrigger = true;
+    }
+
     private bool Allowed()
     {
         if (!onlyInFirstLevel) return true;
@@ -27,8 +36,7 @@ public class TutorialStepTrigger : MonoBehaviour
             return GameManager.Instance.IsFirstLevelActive();
 
         // Fallback to name check
-        return UnityEngine.SceneManagement.SceneManager
-            .GetActiveScene().name == "Level_01";
+        return SceneManager.GetActiveScene().name == "Level_01";
     }
 
     private void OnTriggerEnter(Collider other)
@@ -45,44 +53,26 @@ public class TutorialStepTrigger : MonoBehaviour
 
         if (action == TriggerAction.Show)
         {
-            // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
-            // SPECIAL CASE: Momentum tutorial
-            // Use GameManager so it can:
-            //  - Zoom camera
-            //  - Show gauge + black mask
-            //  - Then show the Momentum UI
-            // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
-            if (key == TutorialKey.Momentum)
-            {
-                GameManager.Instance?.ShowMomentumTutorial();
-            }
-            else if (key == TutorialKey.Turbo)
-            {
-                GameManager.Instance?.ShowTurboTutorial();
-            }
-            else
-            {
-                // Default behavior for Move / Jump / Dash / Attack
-                UIManager.Instance?.ShowTutorial(key);
-            }
+            //  Centralized routing (Momentum/Turbo special cases handled inside TutorialManager)
+            TutorialManager.Instance?.RequestShow(key);
         }
         else // Complete
         {
-            // Mark learned + success animation
-            TutorialProgress.SetLearned(key);
-            UIManager.Instance?.TutorialSuccess(key);
+            // Centralized completion (handles SetLearned + success + special resume for Momentum/Turbo)
+            TutorialManager.Instance?.CompleteTutorial(key);
         }
     }
 
     private void OnTriggerExit(Collider other)
     {
-        if (action != TriggerAction.Show) return; // only meaningful for gshowh triggers
+        if (action != TriggerAction.Show) return;
         if (!hideOnExit) return;
+        if (!_fired) return;
         if (!other.CompareTag("Player")) return;
         if (!Allowed()) return;
 
-        // If not learned yet, hide the panel on exit
+        // Only hide if not learned (Momentum/Turbo will ignore hide inside TutorialManager)
         if (!TutorialProgress.IsLearned(key))
-            UIManager.Instance?.HideTutorial(key);
+            TutorialManager.Instance?.RequestHide(key);
     }
 }
