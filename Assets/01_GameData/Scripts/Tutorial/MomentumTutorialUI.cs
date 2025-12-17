@@ -367,14 +367,7 @@ public class MomentumTutorialUI : MonoBehaviour
 
     public void OnClickContinue()
     {
-        // Mark this tutorial as completed & hide it
-        UIManager.Instance?.TutorialSuccess(TutorialKey.Momentum);
-        TutorialProgress.SetLearned(TutorialKey.Momentum);
-
-        // Resume gameplay (timeScale + inputs + cursor lock)
-        if (GameManager.Instance != null)
-        {
-            GameManager.Instance.OnMomentumTutorialCompleted();
-        }
+        TutorialManager.Instance?.CompleteTutorial(TutorialKey.Momentum);
     }
+
 }
