@@ -3,8 +3,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Cysharp.Threading.Tasks;
-using System;
 using System.Threading;
+using MoreMountains.Feedbacks;
 
 public class MomentumGaugeUI : MonoBehaviour
 {
@@ -28,11 +28,24 @@ public class MomentumGaugeUI : MonoBehaviour
     [SerializeField] private bool _useSlide = false;
     [SerializeField] private float _slideY = 18f;   // pixels
 
-    [Header("Glow Pulse (>= 50%)")]
-    [SerializeField] private Image _glowImage;           // behind the fill
-    [SerializeField] private float _glowMinAlpha = 0.25f;
-    [SerializeField] private float _glowMaxAlpha = 0.75f;
-    [SerializeField] private float _glowPulseTime = 0.9f;
+    [Header("Fill Glow (FEEL)")]
+    [SerializeField] private Image _fillImage;
+    [SerializeField] private MMFeedbacks _fillGlowBurst; // FB_FillGlowBurst
+
+
+    [Header("Glow (>= 50%) - FEEL")]
+    [SerializeField] private GameObject _glowRoot;       // GlowImage GameObject
+    [SerializeField] private CanvasGroup _glowGroup;     // CanvasGroup on GlowImage
+    [SerializeField] private MMFeedbacks _glowAppear;    // plays once when enabling
+    [SerializeField] private MMFeedbacks _glowBlinkLoop; // loops while enabled
+    [SerializeField, Range(0f, 1f)] private float _glowStartPct = 0.5f;
+
+    [Header("Outside Glow (ONLY at 100%) - FEEL")]
+    [SerializeField] private GameObject _glowOutsideRoot;        // GlowOutside GameObject
+    [SerializeField] private CanvasGroup _glowOutsideGroup;      // CanvasGroup on GlowOutside
+    [SerializeField] private MMFeedbacks _glowOutsideAppear;     // plays once when enabling
+    [SerializeField] private MMFeedbacks _glowOutsideBlinkLoop;  // loops while enabled
+    [SerializeField] private float _maxEpsilon = 0.001f;         // float safety
 
     [Header("Tutorial Highlight")]
     [SerializeField] private GameObject _highlightRoot;      // the highlight Image object
@@ -45,14 +58,22 @@ public class MomentumGaugeUI : MonoBehaviour
     private Sequence _showSeq;
     private Vector3 _baseScale;
     private Vector2 _baseAnchoredPos;
-    private Tween _glowTween;
-    private bool _glowActive;
+    private bool _glowOn;
+    private bool _outsideGlowOn;
+    private Color _baseFillColor;
     private void Awake()
     {
         if (_momentumSlider == null) _momentumSlider = GetComponent<Slider>();
         if (_group == null) _group = GetComponent<CanvasGroup>();
         if (_group == null) { _group = gameObject.AddComponent<CanvasGroup>(); } // safe default
-
+        if (_fillImage != null) _baseFillColor = _fillImage.color;
+        if (_glowRoot != null) _glowRoot.SetActive(false);
+        if (_glowGroup != null) _glowGroup.alpha = 0f;
+        if (_glowOutsideRoot != null) _glowOutsideRoot.SetActive(false);
+        if (_glowOutsideGroup != null) _glowOutsideGroup.alpha = 0f;
+        _glowOn = false;
+        _outsideGlowOn = false;
+       
         if (_startHidden)
             SetVisible(false, instant: true);
 
@@ -80,6 +101,17 @@ public class MomentumGaugeUI : MonoBehaviour
         _valueTween?.Kill(); _valueTween = null;
         _showSeq?.Kill();
         _showSeq = null;
+        if (_fillImage != null) _fillImage.color = _baseFillColor;
+        _glowBlinkLoop?.StopFeedbacks();
+        _glowAppear?.StopFeedbacks();
+        if (_glowGroup != null) _glowGroup.alpha = 0f;
+        if (_glowRoot != null) _glowRoot.SetActive(false);
+        _glowOutsideBlinkLoop?.StopFeedbacks();
+        _glowOutsideAppear?.StopFeedbacks();
+        if (_glowOutsideGroup != null) _glowOutsideGroup.alpha = 0f;
+        if (_glowOutsideRoot != null) _glowOutsideRoot.SetActive(false);
+        _glowOn = false;
+        _outsideGlowOn = false;
     }
 
     private void OnDestroy()
@@ -130,19 +162,34 @@ public class MomentumGaugeUI : MonoBehaviour
         if (_momentumSlider == null) return;
 
         float target = Mathf.Clamp(m, 0f, _momentumSlider.maxValue);
+
+        // detect increase BEFORE _lastValue updates
+        bool increased = (_lastValue > -900f) && (target > _lastValue + 0.0001f);
+
         if (Mathf.Approximately(_lastValue, target)) return;
         _lastValue = target;
 
-        float pct = (_momentumSlider.maxValue <= 0f) ? 0f : target / _momentumSlider.maxValue;
-        SetGlowActive(pct >= 0.5f);
-
+        // your existing slider tween
         _valueTween?.Kill();
         _valueTween = _momentumSlider
             .DOValue(target, _tweenDuration)
             .SetEase(_ease)
             .SetUpdate(_animateWhilePaused)
             .SetLink(_momentumSlider.gameObject, LinkBehaviour.KillOnDestroy);
+
+        // FEEL burst on gain
+        if (increased)
+            _fillGlowBurst?.PlayFeedbacks();
+
+        // FEEL loop from 50%
+        float pct = (_momentumSlider.maxValue <= 0f) ? 0f : (target / _momentumSlider.maxValue);
+        SetLoopGlow(pct >= _glowStartPct);
+        
+        bool isMax = (_momentumSlider.maxValue > 0f) && (target >= _momentumSlider.maxValue - _maxEpsilon);
+        SetOutsideGlowMaxOnly(isMax);
+
     }
+
 
     // „Ÿ„Ÿ Timeline-callable helpers „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
     public void TL_HideGauge() => SetVisible(false, instant: false);
@@ -244,38 +291,58 @@ public class MomentumGaugeUI : MonoBehaviour
         }
     }
 
-    private void SetGlowActive(bool active)
+    private void SetLoopGlow(bool enable)
     {
-        if (_glowImage == null) return;
-        if (_glowActive == active) return;
-        _glowActive = active;
+        if (_glowRoot == null) return;
 
-        _glowTween?.Kill();
-        _glowTween = null;
+        if (_glowOn == enable) return;
+        _glowOn = enable;
 
-        var c = _glowImage.color;
-
-        if (!active)
+        if (enable)
         {
-            c.a = 0f;
-            _glowImage.color = c;
-            return;
+            // show object first
+            _glowRoot.SetActive(true);
+
+            // reset alpha to start (so appear always looks correct)
+            if (_glowGroup != null) _glowGroup.alpha = 0f;
+
+            // play appear once, then start blink loop
+            _glowAppear?.PlayFeedbacks();
+            _glowBlinkLoop?.PlayFeedbacks();
         }
+        else
+        {
+            // stop loop + hide
+            _glowBlinkLoop?.StopFeedbacks();
+            _glowAppear?.StopFeedbacks();
 
-        // start visible
-        c.a = _glowMinAlpha;
-        _glowImage.color = c;
+            if (_glowGroup != null) _glowGroup.alpha = 0f;
+            _glowRoot.SetActive(false);
+        }
+    }
+    private void SetOutsideGlowMaxOnly(bool enable)
+    {
+        if (_glowOutsideRoot == null) return;
 
-        _glowTween = DOTween.To(
-                () => _glowImage.color.a,
-                a => { var cc = _glowImage.color; cc.a = a; _glowImage.color = cc; },
-                _glowMaxAlpha,
-                _glowPulseTime)
-            .SetEase(Ease.InOutSine)
-            .SetLoops(-1, LoopType.Yoyo)
-            .SetUpdate(_animateWhilePaused)
-            .SetLink(_glowImage.gameObject, LinkBehaviour.KillOnDestroy);
+        if (_outsideGlowOn == enable) return;
+        _outsideGlowOn = enable;
+
+        if (enable)
+        {
+            _glowOutsideRoot.SetActive(true);
+            if (_glowOutsideGroup != null) _glowOutsideGroup.alpha = 0f;
+
+            _glowOutsideAppear?.PlayFeedbacks();
+            _glowOutsideBlinkLoop?.PlayFeedbacks();
+        }
+        else
+        {
+            _glowOutsideBlinkLoop?.StopFeedbacks();
+            _glowOutsideAppear?.StopFeedbacks();
+
+            if (_glowOutsideGroup != null) _glowOutsideGroup.alpha = 0f;
+            _glowOutsideRoot.SetActive(false);
+        }
     }
 
 }
-    
