@@ -3,6 +3,7 @@ using UnityEngine.Events;
 
 [System.Serializable]
 public class FloatEvent : UnityEvent<float> { }
+public class MomentumStateEvent : UnityEvent<MomentumState> { }
 
 public class MomentumManager : MonoBehaviour
 {
@@ -16,6 +17,7 @@ public class MomentumManager : MonoBehaviour
     [Header("Events")]
     public FloatEvent onMomentumChanged;  // Sends currentMomentum [0–max]
     public UnityEvent onMaxReached;       // Called once when 100% reached
+    public MomentumStateEvent onStateChanged; // NEW: fires only when tier/state changes
 
     private float _currentMomentum;
 
@@ -40,6 +42,11 @@ public class MomentumManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
+
+        // IMPORTANT: make sure events are never null
+        onMomentumChanged ??= new FloatEvent();
+        onMaxReached ??= new UnityEvent();
+        onStateChanged ??= new MomentumStateEvent();
 
         _currentMomentum = 0f;
         _currentState = MomentumState.None;
@@ -89,6 +96,9 @@ public class MomentumManager : MonoBehaviour
 
         if (newState != _currentState)
         {
+            // fire state changed FIRST (so listeners get the new tier immediately)
+            onStateChanged?.Invoke(newState);
+
             if (newState == MomentumState.Max && !_maxLock)
             {
                 _maxLock = true;
@@ -98,6 +108,7 @@ public class MomentumManager : MonoBehaviour
             _currentState = newState;
         }
     }
+
 
     public void BreakMaxLock()
     {
