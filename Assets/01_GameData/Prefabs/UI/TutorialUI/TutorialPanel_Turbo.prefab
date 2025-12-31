@@ -1443,6 +1443,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2732863660410911799}
     m_Modifications:
+    - target: {fileID: 104884437264091862, guid: eec2bdcc6715e4700a81eafc1c6f584c, type: 3}
+      propertyPath: _scaleTime
+      value: 0.15
+      objectReference: {fileID: 0}
+    - target: {fileID: 104884437264091862, guid: eec2bdcc6715e4700a81eafc1c6f584c, type: 3}
+      propertyPath: _pressScale
+      value: 0.8
+      objectReference: {fileID: 0}
     - target: {fileID: 5471898312717548452, guid: eec2bdcc6715e4700a81eafc1c6f584c, type: 3}
       propertyPath: m_Navigation.m_Mode
       value: 0
