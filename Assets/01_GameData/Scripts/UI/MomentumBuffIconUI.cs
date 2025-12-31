@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.UI;
 using DG.Tweening;
 using Cysharp.Threading.Tasks;
 using System.Threading;
@@ -26,18 +25,17 @@ public class MomentumBuffIconUI : MonoBehaviour
     [SerializeField] private bool _showAllUnlockedBelowMax = true; // Tier3 also shows Tier1/2 etc.
     [SerializeField] private bool _animateWhilePaused = true;
 
-    [Header("Anim")]
-    [SerializeField] private float _fadeIn = 0.15f;
-    [SerializeField] private float _fadeOut = 0.12f;
-    [SerializeField] private float _popScale = 1.12f;
-    [SerializeField] private float _popTime = 0.12f;
+    [Header("Anim (snappy recommended)")]
+    [SerializeField] private float _fadeIn = 0.10f;
+    [SerializeField] private float _fadeOut = 0.08f;
+    [SerializeField] private float _popScale = 1.10f;
+    [SerializeField] private float _popTime = 0.10f;
 
     private CancellationTokenSource _cts;
     private bool _bound;
 
     private void Awake()
     {
-        // cache + default hidden
         if (_icons == null) return;
 
         foreach (var e in _icons)
@@ -69,11 +67,13 @@ public class MomentumBuffIconUI : MonoBehaviour
         _cts = null;
 
         if (_bound && MomentumManager.Instance != null)
-            MomentumManager.Instance.onMomentumChanged.RemoveListener(OnMomentumChanged);
+        {
+            // NEW: listen to state changes (no spam, instant timing)
+            MomentumManager.Instance.onStateChanged.RemoveListener(OnStateChanged);
+        }
 
         _bound = false;
 
-        // kill tweens safely
         if (_icons != null)
         {
             foreach (var e in _icons)
@@ -86,19 +86,17 @@ public class MomentumBuffIconUI : MonoBehaviour
         await UniTask.WaitUntil(() => MomentumManager.Instance != null, cancellationToken: token);
         if (token.IsCancellationRequested) return;
 
-        MomentumManager.Instance.onMomentumChanged.AddListener(OnMomentumChanged);
+        // NEW: subscribe to state change event
+        MomentumManager.Instance.onStateChanged.AddListener(OnStateChanged);
         _bound = true;
 
-        // force refresh
-        OnMomentumChanged(MomentumManager.Instance.CurrentMomentum);
+        // force refresh immediately
+        ApplyState(MomentumManager.Instance.CurrentState);
     }
 
-    private void OnMomentumChanged(float _)
+    private void OnStateChanged(MomentumState state)
     {
-        if (MomentumManager.Instance == null) return;
-
-        var s = MomentumManager.Instance.CurrentState;
-        ApplyState(s);
+        ApplyState(state);
     }
 
     private void ApplyState(MomentumState current)
@@ -134,21 +132,19 @@ public class MomentumBuffIconUI : MonoBehaviour
 
             if (e.rect != null) e.rect.localScale = e.baseScale;
 
-            // fade in + tiny pop
             var seq = DOTween.Sequence().SetUpdate(unscaled);
             seq.Append(e.group.DOFade(1f, _fadeIn).SetEase(Ease.OutQuad));
 
             if (e.rect != null)
             {
                 seq.Join(e.rect.DOScale(e.baseScale * _popScale, _popTime).SetEase(Ease.OutBack));
-                seq.Append(e.rect.DOScale(e.baseScale, 0.08f).SetEase(Ease.OutQuad));
+                seq.Append(e.rect.DOScale(e.baseScale, 0.07f).SetEase(Ease.OutQuad));
             }
 
             e.tween = seq.SetLink(e.root, LinkBehaviour.KillOnDestroy);
         }
         else
         {
-            // fade out then disable
             e.tween = e.group
                 .DOFade(0f, _fadeOut)
                 .SetEase(Ease.OutQuad)

@@ -1,7 +1,8 @@
-using UnityEngine;
-using DG.Tweening;
 using Cysharp.Threading.Tasks;
+using DG.Tweening;
 using System.Threading;
+using UnityEngine;
+using static UnityEngine.CullingGroup;
 
 public class MomentumBuffFeedUI : MonoBehaviour
 {
@@ -64,7 +65,7 @@ public class MomentumBuffFeedUI : MonoBehaviour
         _cts?.Cancel(); _cts?.Dispose(); _cts = null;
 
         if (_bound && MomentumManager.Instance != null)
-            MomentumManager.Instance.onMomentumChanged.RemoveListener(OnMomentumChanged);
+            MomentumManager.Instance.onStateChanged.RemoveListener(OnStateChanged);
         _bound = false;
 
         KillTier(_tier25);
@@ -75,33 +76,28 @@ public class MomentumBuffFeedUI : MonoBehaviour
 
     private async UniTaskVoid BindAsync(CancellationToken token)
     {
-        await UniTask.WaitUntil(() => MomentumManager.Instance != null, cancellationToken: token);
+        await UniTask.WaitUntil(() =>
+      MomentumManager.Instance != null &&
+      MomentumManager.Instance.onStateChanged != null,
+      cancellationToken: token);
+       
         if (token.IsCancellationRequested) return;
 
         _lastState = MomentumManager.Instance.CurrentState;
-        MomentumManager.Instance.onMomentumChanged.AddListener(OnMomentumChanged);
+        MomentumManager.Instance.onStateChanged.AddListener(OnStateChanged);
         _bound = true;
     }
 
-    private void OnMomentumChanged(float _)
+    private void OnStateChanged(MomentumState state)
     {
-        if (MomentumManager.Instance == null) return;
-
-        var state = MomentumManager.Instance.CurrentState;
-
-        // Only when tier increases (prevents spam)
-        if (state > _lastState)
+        // This event only fires when state changes, so no spam.
+        switch (state)
         {
-            switch (state)
-            {
-                case MomentumState.Tier1: PlayTier(_tier25); break;
-                case MomentumState.Tier2: PlayTier(_tier50); break;  // 2 icons
-                case MomentumState.Tier3: PlayTier(_tier75); break;
-                case MomentumState.Max: PlayTier(_tier100); break; // 3 icons
-            }
+            case MomentumState.Tier1: PlayTier(_tier25); break;
+            case MomentumState.Tier2: PlayTier(_tier50); break;  // 2 icons
+            case MomentumState.Tier3: PlayTier(_tier75); break;
+            case MomentumState.Max: PlayTier(_tier100); break; // 3 icons
         }
-
-        _lastState = state;
     }
 
     // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ setup/hide

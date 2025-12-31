@@ -1046,13 +1046,13 @@ MonoBehaviour:
       startScale: {x: 0, y: 0, z: 0}
   _startScale: 0.95
   _popScale: 1.05
-  _popTime: 0.12
+  _popTime: 0.1
   _riseDistance: 40
-  _riseTime: 0.35
-  _holdTime: 0.25
-  _fadeOutTime: 0.25
-  _betweenEntriesDelay: 0.06
+  _riseTime: 0.25
+  _holdTime: 0.1
+  _fadeOutTime: 0.2
   _useUnscaledTime: 0
+  _stagger: 0.1
 --- !u!1 &3883286836555550976
 GameObject:
   m_ObjectHideFlags: 0
