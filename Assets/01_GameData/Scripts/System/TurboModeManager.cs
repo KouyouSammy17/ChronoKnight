@@ -32,9 +32,13 @@ public class TurboModeManager : MonoBehaviour
     [SerializeField, Tooltip("How much momentum to spend to start Turbo (0-1 of Max).")]
     private float _momentumCostPct = 0.25f;
 
+    [Header("Tutorial Gate")]
+    [SerializeField] private bool _turboUnlocked = false; // start locked
+
     [Header("Events")]
     public UnityEvent onTurboStart;
     public UnityEvent onTurboEnd;
+
 
     // runtime
     private bool _isActive;
@@ -73,10 +77,13 @@ public class TurboModeManager : MonoBehaviour
     /// </summary>
     public float TurboComp => _comp;
 
+    public bool TurboUnlocked => _turboUnlocked;
+
     private void Awake()
     {
         if (Instance == null) { Instance = this; DontDestroyOnLoad(gameObject); }
         else { Destroy(gameObject); return; }
+
         _originalFixedDelta = Time.fixedDeltaTime;
     }
 
@@ -169,6 +176,9 @@ public class TurboModeManager : MonoBehaviour
 
     public bool TryStartTurbo(PlayerController player, PlayerAnimator anim)
     {
+        // NEW: gate turbo until tutorial trigger touched
+        if (!_turboUnlocked) return false;
+
         if (_isActive || _onCooldown) return false;
 
         var mm = MomentumManager.Instance;
@@ -312,7 +322,7 @@ public class TurboModeManager : MonoBehaviour
 
     public bool IsActive => _isActive;
     public bool IsOnCooldown => _onCooldown;
-
+    public void SetTurboUnlocked(bool unlocked) => _turboUnlocked = unlocked;
     /// <summary>
     /// Forcefully restore time, player params, and (optionally) clear cooldown.
     /// Safe to call on scene load, game over, or before restart.
