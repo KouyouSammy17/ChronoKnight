@@ -33,6 +33,16 @@ public class TurboCooldownUI : MonoBehaviour
     private bool _unlocked = true;
     private bool _isCoolingDown = false;
 
+    // Tutorial gate: Turbo is not usable until tutorial unlocks it
+    private bool _tutorialUnlocked = true;
+
+    // Keep momentum-based unlocked separate (>=25%)
+    private bool _momentumUnlocked = true;
+
+    // Effective unlock = tutorial unlocked AND momentum unlocked
+    private bool EffectiveUnlocked => _tutorialUnlocked && _momentumUnlocked;
+
+
     // Pending lock flag (used to avoid snapping when Turbo starts right after cost)
     private bool _lockPending = false;
 
@@ -117,19 +127,23 @@ public class TurboCooldownUI : MonoBehaviour
             ? 0f
             : (mm.CurrentMomentum / mm.MaxMomentum) * 100f;
 
-        _unlocked = percent >= 25f;
+        _momentumUnlocked = percent >= 25f;
+        _unlocked = EffectiveUnlocked; // keep existing var for your cooldown logic
         _isCoolingDown = false;
         KillTweens();
 
         if (_icon != null)
             _icon.localRotation = Quaternion.identity;
 
+        bool eff = EffectiveUnlocked;
+
         if (_cooldownFill != null)
-            _cooldownFill.fillAmount = _unlocked ? 0f : 1f;
+            _cooldownFill.fillAmount = eff ? 0f : 1f;
 
         if (_background != null)
-            _background.localScale = Vector3.one * (_unlocked ? _readyScale : _lockedScale);
+            _background.localScale = Vector3.one * (eff ? _readyScale : _lockedScale);
     }
+
 
     private void HandleMomentumChanged(float currentMomentum)
     {
@@ -140,11 +154,14 @@ public class TurboCooldownUI : MonoBehaviour
             ? 0f
             : (currentMomentum / mm.MaxMomentum) * 100f;
 
-        bool newUnlocked = percent >= 25f;
-        if (newUnlocked == _unlocked) return;
+        bool newMomentumUnlocked = percent >= 25f;
+        _momentumUnlocked = newMomentumUnlocked;
 
-        // Always keep the logical flag updated
-        _unlocked = newUnlocked;
+        bool newEffective = EffectiveUnlocked;
+        if (newEffective == _unlocked) return;
+
+        // Always keep the logical flag updated (this flag now means EFFECTIVE unlock)
+        _unlocked = newEffective;
 
         // IMPORTANT:
         // If we are in the middle of a cooldown animation,
@@ -245,9 +262,22 @@ public class TurboCooldownUI : MonoBehaviour
         }
     }
 
+    public void SetTutorialUnlocked(bool unlocked)
+    {
+        if (_tutorialUnlocked == unlocked) return;
+        _tutorialUnlocked = unlocked;
+
+        // Re-evaluate visuals immediately (don’t kill cooldown mid animation)
+        if (_isCoolingDown) return;
+
+        if (EffectiveUnlocked) OnMomentumUnlocked();
+        else ApplyLockedVisuals(); // locked by tutorial OR momentum
+    }
+
     // ───────────────────────────────────────────────────────────────────
     private void OnTurboStart()
     {
+        if (!_tutorialUnlocked) return;
         // Once Turbo really starts, we know this is NOT a "idle → locked" case.
         // Cancel any pending lock from the momentum cost.
         ClearPendingLock();
@@ -259,6 +289,7 @@ public class TurboCooldownUI : MonoBehaviour
 
     private void OnTurboEnd()
     {
+        if (!_tutorialUnlocked) return;
         // Always run cooldown when Turbo ends, even if momentum <25.
         StopRotation();
         StartCooldown();

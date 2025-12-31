@@ -139,7 +139,8 @@ public class TutorialManager : MonoBehaviour
     {
         if (!IsPlayingScene()) return;
 
-        ApplyMomentumGateIfNeeded(IsFirstLevelActive());
+        ApplyMomentumAndTurboGateIfNeeded(IsFirstLevelActive());
+
 
         // Match old behavior: show Move once per session on first level.
         if (IsFirstLevelActive() && !_shownMoveThisSession)
@@ -242,7 +243,7 @@ public class TutorialManager : MonoBehaviour
 
         // Reset momentum and re-apply gate on first level (if supported)
         TryResetMomentum();
-        ApplyMomentumGateIfNeeded(IsFirstLevelActive());
+        ApplyMomentumAndTurboGateIfNeeded(IsFirstLevelActive());
 
         GameManager.Instance?.RestartLevel();
     }
@@ -391,6 +392,7 @@ public class TutorialManager : MonoBehaviour
     private void FinishTurboTutorial()
     {
         FadeMaskOut(_turboFocusMask, _turboFocusFadeDuration);
+        SetTurboTutorialGate(true);
         ResumeWorldToGameplay();
     }
 
@@ -677,15 +679,17 @@ public class TutorialManager : MonoBehaviour
     // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
     // First-level gating
 
-    private void ApplyMomentumGateIfNeeded(bool isFirstLevel)
+    private void ApplyMomentumAndTurboGateIfNeeded(bool isFirstLevel)
     {
-        bool gate = isFirstLevel && !TutorialProgress.IsLearned(TutorialKey.Momentum);
+        bool momentumGate = isFirstLevel && !TutorialProgress.IsLearned(TutorialKey.Momentum);
 
-        // If your MomentumManager supports SetGainPaused, wefll use it. Otherwise we just reset momentum.
-        TrySetGainPaused(gate);
-
-        if (gate)
+        TrySetGainPaused(momentumGate);
+        if (momentumGate)
             TryResetMomentum();
+
+        // NEW: Turbo gate mirrors Momentum gate style
+        bool turboGate = isFirstLevel && !TutorialProgress.IsLearned(TutorialKey.Turbo);
+        SetTurboTutorialGate(!turboGate);
     }
 
     // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
@@ -732,6 +736,18 @@ public class TutorialManager : MonoBehaviour
             // ignore
         }
     }
+
+    private void SetTurboTutorialGate(bool unlocked)
+    {
+        if (TurboModeManager.Instance != null)
+            TurboModeManager.Instance.SetTurboUnlocked(unlocked);
+
+        // Update the cooldown UI visuals too
+        var ui = FindFirstObjectByType<TurboCooldownUI>(FindObjectsInactive.Include);
+        if (ui != null)
+            ui.SetTutorialUnlocked(unlocked);
+    }
+
 
     private void TryResetMomentum()
     {

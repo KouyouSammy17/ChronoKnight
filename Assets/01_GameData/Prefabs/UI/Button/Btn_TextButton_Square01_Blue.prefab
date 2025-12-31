@@ -12,6 +12,8 @@ GameObject:
   - component: {fileID: 5471898312717548454}
   - component: {fileID: 5471898312717548455}
   - component: {fileID: 5471898312717548452}
+  - component: {fileID: 104884437264091862}
+  - component: {fileID: 3260659902436098075}
   m_Layer: 5
   m_Name: Btn_TextButton_Square01_Blue
   m_TagString: Untagged
@@ -33,7 +35,6 @@ RectTransform:
   m_Children:
   - {fileID: 5471898314031541989}
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -122,6 +123,42 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &104884437264091862
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5471898312717548474}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c8caebd2312c984ea32a0d791b55cff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SciFiSquareButtonFX
+  _root: {fileID: 5471898312717548453}
+  _text: {fileID: 5471898314031541989}
+  _canvasGroup: {fileID: 3260659902436098075}
+  _hoverScale: 1.08
+  _pressScale: 0.95
+  _scaleTime: 0.12
+  _punchStrength: 0.12
+  _punchDuration: 0.15
+  _textSlideX: 8
+  _textSlideTime: 0.08
+  _disabledAlpha: 0.7
+  _disabledScale: 0.95
+--- !u!225 &3260659902436098075
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5471898312717548474}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &5471898314031542010
 GameObject:
   m_ObjectHideFlags: 0
@@ -153,7 +190,6 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5471898312717548453}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -231,15 +267,17 @@ MonoBehaviour:
   m_lineSpacingMax: 0
   m_paragraphSpacing: 0
   m_charWidthMaxAdj: 0
-  m_enableWordWrapping: 1
+  m_TextWrappingMode: 1
   m_wordWrappingRatios: 0.4
   m_overflowMode: 0
   m_linkedTextComponent: {fileID: 0}
   parentLinkedComponent: {fileID: 0}
   m_enableKerning: 1
+  m_ActiveFontFeatures: 6e72656b
   m_enableExtraPadding: 0
   checkPaddingRequired: 0
   m_isRichText: 1
+  m_EmojiFallbackSupport: 1
   m_parseCtrlCharacters: 1
   m_isOrthographic: 1
   m_isCullingEnabled: 0
