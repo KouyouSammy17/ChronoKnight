@@ -16,17 +16,17 @@ public class CombatController : MonoBehaviour
         public float speedMultiplier;
         public int damage;
         public float momentumGain;
+        public float knockbackForce;
     }
 
     [Header("Combo Definition")]
     [SerializeField] private List<ComboStep> _comboSteps = new List<ComboStep>();
 
     [Header("References (auto-assigned)")]
-    [SerializeField] private PlayerController _playerController;
+    [SerializeField] private PlayerMotor _motor;
     [SerializeField] private PlayerAnimator _playerAnim;
     [SerializeField] private WeaponHitbox _weaponHitbox;
 
-    // runtime
     private int _comboIndex;
     private bool _canBuffer;
     private bool _bufferedAttack;
@@ -35,32 +35,39 @@ public class CombatController : MonoBehaviour
     private float _speedBuff = 1f;
     private CancellationTokenSource _cts;
 
-    // === NEW: attack-start buffer ===
-    [Header("Attack Start Buffer")]
-    [SerializeField] private float _attackStartBufferTime = 0.2f;  // seconds
-    private bool _attackStartBuffered;
-    private CancellationTokenSource _attackStartCts;
+    public bool IsComboActive => _isActive;
 
     private void Awake()
     {
-        _playerController = _playerController ?? GetComponent<PlayerController>();
+        _motor = _motor ?? GetComponent<PlayerMotor>();
         _playerAnim = _playerAnim ?? GetComponentInChildren<PlayerAnimator>();
         _weaponHitbox = _weaponHitbox ?? GetComponentInChildren<WeaponHitbox>();
     }
 
-    private void OnDisable()
+    // Optional: keep input callback compatibility
+    public void OnAttack(InputAction.CallbackContext ctx)
     {
-        _attackStartCts?.Cancel();
-        _cts?.Cancel();
+        if (!ctx.started) return;
+        RequestAttack();
     }
 
-    // Public API
-    public bool IsComboActive => _isActive;
+    public void RequestAttack()
+    {
+        if (!_isActive)
+            StartComboAsync().Forget();
+        else if (_canBuffer)
+            _bufferedAttack = true;
+    }
+
+    public void CancelCombo()
+    {
+        _cts?.Cancel();
+        _weaponHitbox?.DisableHitbox();
+    }
+
     public void SetDamageMultiplier(float m) => _damageMul = m;
     public void SetAttackSpeedBuff(float b) => _speedBuff = b;
-    public float AttackSpeedBuff => _speedBuff;
 
-    // Animator events
     public void OnOpenComboWindow()
     {
         _canBuffer = true;
@@ -68,8 +75,9 @@ public class CombatController : MonoBehaviour
 
         int finalDamage = Mathf.RoundToInt(step.damage * _damageMul);
         float finalMomentum = step.momentumGain * _damageMul;
+        float finalKnockback = step.knockbackForce;
 
-        _weaponHitbox.EnableHitbox(finalDamage, finalMomentum);
+        _weaponHitbox.EnableHitbox(finalDamage, finalMomentum, finalKnockback);
     }
 
     public void OnCloseComboWindow()
@@ -78,77 +86,6 @@ public class CombatController : MonoBehaviour
         _weaponHitbox.DisableHitbox();
     }
 
-    // Input
-    public void OnAttack(InputAction.CallbackContext ctx)
-    {
-        if (!ctx.started) return;
-
-        // If a combo is already playing, allow buffering regardless of movement input lock
-        if (_isActive)
-        {
-            if (_canBuffer) _bufferedAttack = true;
-            return;
-        }
-
-        // Not in a combo:
-        // If input is locked (e.g., hit-stun or attack root-motion), buffer a start-attack
-        if (_playerController != null && !_playerController.InputEnabled)
-        {
-            BufferAttackStart();
-            return;
-        }
-
-        // Normal start
-        StartComboAsync().Forget();
-    }
-
-    // Request an attack programmatically (optional external call)
-    public void RequestAttack()
-    {
-        if (!_isActive) StartComboAsync().Forget();
-        else if (_canBuffer) _bufferedAttack = true;
-    }
-    public void CancelCombo()
-    {
-        _cts?.Cancel();
-    }
-
-    // === NEW: attack-start buffering logic ===
-    private void BufferAttackStart()
-    {
-        _attackStartBuffered = true;
-
-        // restart watcher task
-        _attackStartCts?.Cancel();
-        _attackStartCts = new CancellationTokenSource();
-        WatchAttackStartBuffer(_attackStartCts.Token).Forget();
-    }
-
-    private async UniTaskVoid WatchAttackStartBuffer(CancellationToken token)
-    {
-        float deadline = Time.time + _attackStartBufferTime;
-
-        // Wait until either input is enabled or the timer expires
-        while (Time.time < deadline && !_playerController.InputEnabled)
-        {
-            await UniTask.Yield(PlayerLoopTiming.Update, token);
-        }
-
-        if (token.IsCancellationRequested) return;
-
-        if (_attackStartBuffered && _playerController.InputEnabled)
-        {
-            _attackStartBuffered = false;
-            StartComboAsync().Forget();
-        }
-        else
-        {
-            // expired or still locked beyond buffer window
-            _attackStartBuffered = false;
-        }
-    }
-
-    // Core combo flow
     private async UniTaskVoid StartComboAsync()
     {
         _cts?.Cancel();
@@ -158,10 +95,8 @@ public class CombatController : MonoBehaviour
         _isActive = true;
         _comboIndex = 0;
 
-        // --- 1) at the very start: block movement, but keep buffering movement ---
-        _playerController.DisableInput();
-        _playerController.GetRigidbody().linearVelocity = Vector3.zero;
-        _playerController.PreloadMovementBufferFromHold();
+        _motor.DisableInput();
+        _motor.PreloadMovementBufferFromHold();
         _playerAnim.SetApplyRootMotion(true);
 
         try
@@ -170,69 +105,54 @@ public class CombatController : MonoBehaviour
             {
                 var step = _comboSteps[_comboIndex];
 
-                // Zero horizontal drift each step start
-                _playerController.GetRigidbody().linearVelocity = Vector3.zero;
-
-                // Decide final attack speed (Turbo overrides other buffs if you do that)
-                float finalBuff = _speedBuff;
-                var turboMgr = TurboModeManager.Instance;
-                if (turboMgr != null && turboMgr.IsActive)
-                    finalBuff = turboMgr.TurboComp;
-
-                _playerAnim.SetAttackSpeed(step.speedMultiplier * finalBuff);
-
+                _playerAnim.SetAttackSpeed(step.speedMultiplier * _speedBuff);
                 _bufferedAttack = false;
+
                 _playerAnim.TriggerAttack(_comboIndex);
 
-                // Wait for animator events opening/closing the hit window
                 await UniTask.WaitUntil(() => _canBuffer, cancellationToken: token);
                 await UniTask.WaitUntil(() => !_canBuffer, cancellationToken: token);
 
-                // Restore control between swings
                 _playerAnim.SetApplyRootMotion(false);
-                _playerController.EnableInput();
+                _motor.EnableInput();
 
-                // Let input system tick one frame so holds/releases hit our buffer
                 await UniTask.Yield();
 
-                // Flush truly buffered movement
-                Vector2 moveBuf = _playerController.GetBufferedMovement();
+                Vector2 moveBuf = _motor.GetBufferedMovement();
                 if (moveBuf.sqrMagnitude > 0.01f)
-                    _playerController.ApplyBufferedMovement(moveBuf);
-                _playerController.ClearBufferedMovement();
+                    _motor.ApplyBufferedMovement(moveBuf);
+                _motor.ClearBufferedMovement();
 
                 if (_bufferedAttack)
                 {
-                    // Next swing: lock movement again & continue
-                    _playerController.DisableInput();
+                    _motor.DisableInput();
                     _playerAnim.SetApplyRootMotion(true);
                     _comboIndex++;
                     continue;
                 }
-                else break;
+
+                break;
             }
         }
         catch (OperationCanceledException) { }
         finally
         {
-            // Reset animator & input
             _playerAnim.SetApplyRootMotion(false);
             _playerAnim.SetAttackSpeed(1f);
-            _playerController.EnableInput();
+
+            _motor.EnableInput();
 
             await UniTask.Yield();
 
-            Vector2 finalMove = _playerController.GetBufferedMovement();
+            Vector2 finalMove = _motor.GetBufferedMovement();
             if (finalMove.sqrMagnitude > 0.01f)
-                _playerController.ApplyBufferedMovement(finalMove);
-            _playerController.ClearBufferedMovement();
-
-            if (_playerController.IsHoldingMove && _playerController.GetLastMoveInput().sqrMagnitude > 0.01f)
-                _playerController.ApplyBufferedMovement(_playerController.GetLastMoveInput());
+                _motor.ApplyBufferedMovement(finalMove);
+            _motor.ClearBufferedMovement();
 
             _isActive = false;
             _comboIndex = 0;
             _canBuffer = false;
+            _weaponHitbox?.DisableHitbox();
         }
     }
 }

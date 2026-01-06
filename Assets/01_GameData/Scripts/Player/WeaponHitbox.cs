@@ -20,7 +20,7 @@ public class WeaponHitbox : MonoBehaviour
     /// <summary>
     /// Call before the hit‐window opens. Assigns damage & momentum, then enables the collider.
     /// </summary>
-    public void EnableHitbox(int damage, float momentumGain)
+    public void EnableHitbox(int damage, float momentumGain, float finalKnockback)
     {
         Damage = damage;
         MomentumGain = momentumGain;

@@ -72,7 +72,7 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private bool _log;
 
     // Cached (scene-dependent)
-    private PlayerController _player;
+    private PlayerMotor _player;
     private PlayerInput _playerInput;
     private MomentumGaugeUI _gauge;
 
@@ -481,9 +481,9 @@ public class TutorialManager : MonoBehaviour
         if (_player == null)
         {
 #if UNITY_6000_0_OR_NEWER
-            _player = UnityEngine.Object.FindFirstObjectByType<PlayerController>(FindObjectsInactive.Exclude);
+            _player = UnityEngine.Object.FindFirstObjectByType<PlayerMotor>(FindObjectsInactive.Exclude);
 #else
-            _player = UnityEngine.Object.FindObjectOfType<PlayerController>();
+            _player = UnityEngine.Object.FindObjectOfType<PlayerMotor>();
 #endif
         }
 

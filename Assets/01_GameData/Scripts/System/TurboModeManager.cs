@@ -46,7 +46,7 @@ public class TurboModeManager : MonoBehaviour
     private float _originalFixedDelta;
     private float _cooldownTimer;
 
-    private PlayerController _player;
+    private PlayerMotor _player;
     private PlayerAnimator _anim;
     private float _originalMoveSpeed;
     private float _originalAnimSpeed;
@@ -174,7 +174,7 @@ public class TurboModeManager : MonoBehaviour
         // CombatTurboManager now manages animation speed, so nothing to enforce here.
     }
 
-    public bool TryStartTurbo(PlayerController player, PlayerAnimator anim)
+    public bool TryStartTurbo(PlayerMotor player, PlayerAnimator anim)
     {
         // NEW: gate turbo until tutorial trigger touched
         if (!_turboUnlocked) return false;

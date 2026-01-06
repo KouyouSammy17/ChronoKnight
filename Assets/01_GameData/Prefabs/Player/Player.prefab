@@ -302,13 +302,15 @@ GameObject:
   - component: {fileID: 3141142386819147541}
   - component: {fileID: 2750798087969043719}
   - component: {fileID: 8472819382826331774}
-  - component: {fileID: 4028094239222328936}
   - component: {fileID: 4824774254867511453}
   - component: {fileID: 4947035130095512096}
   - component: {fileID: 3471398806271338333}
   - component: {fileID: 2298466729405537635}
   - component: {fileID: 6165824155517872486}
   - component: {fileID: 6452052586895441888}
+  - component: {fileID: 7031160067776511118}
+  - component: {fileID: 2421464310367457772}
+  - component: {fileID: 8960479336214151246}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -363,8 +365,8 @@ MonoBehaviour:
   m_ActionEvents:
   - m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 4028094239222328936}
-        m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
+      - m_Target: {fileID: 2421464310367457772}
+        m_TargetAssemblyTypeName: PlayerInputRouter, Assembly-CSharp
         m_MethodName: OnMove
         m_Mode: 0
         m_Arguments:
@@ -379,8 +381,8 @@ MonoBehaviour:
     m_ActionName: 'Player/Move[/Keyboard/w,/Keyboard/upArrow,/Keyboard/s,/Keyboard/downArrow,/Keyboard/a,/Keyboard/leftArrow,/Keyboard/d,/Keyboard/rightArrow]'
   - m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 4947035130095512096}
-        m_TargetAssemblyTypeName: CombatController, Assembly-CSharp
+      - m_Target: {fileID: 2421464310367457772}
+        m_TargetAssemblyTypeName: PlayerInputRouter, Assembly-CSharp
         m_MethodName: OnAttack
         m_Mode: 0
         m_Arguments:
@@ -399,8 +401,8 @@ MonoBehaviour:
     m_ActionName: 'Player/Interact[/Keyboard/e]'
   - m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 4028094239222328936}
-        m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
+      - m_Target: {fileID: 2421464310367457772}
+        m_TargetAssemblyTypeName: PlayerInputRouter, Assembly-CSharp
         m_MethodName: OnJump
         m_Mode: 0
         m_Arguments:
@@ -423,8 +425,8 @@ MonoBehaviour:
     m_ActionName: 'Player/Next[/Keyboard/2]'
   - m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 4028094239222328936}
-        m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
+      - m_Target: {fileID: 2421464310367457772}
+        m_TargetAssemblyTypeName: PlayerInputRouter, Assembly-CSharp
         m_MethodName: OnDash
         m_Mode: 0
         m_Arguments:
@@ -495,8 +497,8 @@ MonoBehaviour:
     m_ActionName: 'Player/Heavy Attack[/Mouse/rightButton]'
   - m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 4028094239222328936}
-        m_TargetAssemblyTypeName: PlayerController, Assembly-CSharp
+      - m_Target: {fileID: 2421464310367457772}
+        m_TargetAssemblyTypeName: PlayerInputRouter, Assembly-CSharp
         m_MethodName: OnTurbo
         m_Mode: 0
         m_Arguments:
@@ -510,23 +512,11 @@ MonoBehaviour:
     m_ActionId: d1b32718-aa9b-41bb-9be0-69219696b788
     m_ActionName: 'Player/Activate Turbo Mode[/Keyboard/e]'
   - m_PersistentCalls:
-      m_Calls:
-      - m_Target: {fileID: 0}
-        m_TargetAssemblyTypeName: GameManager, Assembly-CSharp
-        m_MethodName: OnPauseStarted
-        m_Mode: 0
-        m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
-          m_IntArgument: 0
-          m_FloatArgument: 0
-          m_StringArgument: 
-          m_BoolArgument: 0
-        m_CallState: 2
+      m_Calls: []
     m_ActionId: bbf7c560-322e-47d7-b4f9-9593bc33f951
     m_ActionName: 'Player/Pause[/Keyboard/escape]'
   m_NeverAutoSwitchControlSchemes: 0
-  m_DefaultControlScheme: Keyboard&Mouse
+  m_DefaultControlScheme: 
   m_DefaultActionMap: Player
   m_SplitScreenIndex: -1
   m_Camera: {fileID: 0}
@@ -580,49 +570,6 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 88
   m_CollisionDetection: 2
---- !u!114 &4028094239222328936
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7524616865943299786}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d48d0b09a1ea31c4396243b48e339292, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _moveSpeed: 6
-  _acceleration: 10
-  _deceleration: 10
-  _rotateSpeed: 10
-  _edgeCheckForward: 0.5
-  _edgeCheckDown: 0.75
-  _groundLayer:
-    serializedVersion: 2
-    m_Bits: 128
-  _jumpForce: 18
-  _coyoteTime: 0.1
-  _jumpBufferTime: 0.05
-  _fallMultiplier: 7
-  _jumpCutMultiplier: 0.8
-  _maxFallSpeed: 40
-  _dashJumpForce: 16
-  _maxHoldJumpHeight: 5
-  _wallCheckDistance: 1.2
-  _wallLayer:
-    serializedVersion: 2
-    m_Bits: 64
-  _wallSlideSpeed: 4
-  _wallJumpForce: 20
-  _wallJumpHorizontalForce: 18
-  _postWallJumpLockTime: 0.2
-  _dashForce: 30
-  _dashDuration: 0.3
-  _dashCooldown: 1
-  _momentumGainRatePerSecond: 10
-  _rb: {fileID: 8472819382826331774}
-  _playerAnim: {fileID: 806295723654692614}
 --- !u!114 &4824774254867511453
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -688,20 +635,22 @@ MonoBehaviour:
     speedMultiplier: 1.1
     damage: 7
     momentumGain: 5
+    knockbackForce: 0
   - stepName: Attack2
     inputWindow: 0.12
     speedMultiplier: 1.1
     damage: 10
     momentumGain: 7
+    knockbackForce: 0
   - stepName: Attack3
     inputWindow: 0.1
     speedMultiplier: 1.1
     damage: 20
     momentumGain: 10
-  _playerController: {fileID: 4028094239222328936}
+    knockbackForce: 0
+  _motor: {fileID: 7031160067776511118}
   _playerAnim: {fileID: 806295723654692614}
   _weaponHitbox: {fileID: 3836916834006099128}
-  _attackStartBufferTime: 0.2
 --- !u!114 &3471398806271338333
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -759,6 +708,80 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlatformRider
   topContactDot: 0.75
   velocityBlend: 1
+--- !u!114 &7031160067776511118
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7524616865943299786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fcd3f1406d76d9d438a2530b54bb1daa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerMotor
+  _moveSpeed: 5
+  _acceleration: 10
+  _deceleration: 10
+  _rotateSpeed: 10
+  _edgeCheckForward: 0.5
+  _edgeCheckDown: 1
+  _groundLayer:
+    serializedVersion: 2
+    m_Bits: 128
+  _jumpForce: 18
+  _coyoteTime: 0.2
+  _jumpBufferTime: 0.15
+  _fallMultiplier: 6
+  _jumpCutMultiplier: 0.3
+  _maxFallSpeed: 40
+  _dashJumpForce: 16
+  _maxHoldJumpHeight: 3
+  _wallCheckDistance: 0.5
+  _wallLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  _wallSlideSpeed: 2
+  _wallJumpForce: 12
+  _wallJumpHorizontalForce: 8
+  _postWallJumpLockTime: 0.2
+  _dashForce: 15
+  _dashDuration: 0.2
+  _dashCooldown: 1
+  _momentumGainRatePerSecond: 10
+  _rb: {fileID: 8472819382826331774}
+  _playerAnim: {fileID: 806295723654692614}
+--- !u!114 &2421464310367457772
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7524616865943299786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4a88f0453d1c1840818d857bd9f63a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerInputRouter
+--- !u!114 &8960479336214151246
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7524616865943299786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e43d551a07dcb7f488bf7b3f83f1e3c3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStateMachineBrain
+  _motor: {fileID: 0}
+  _input: {fileID: 0}
+  _combat: {fileID: 0}
+  _damage: {fileID: 0}
+  _stats: {fileID: 0}
+  _current: 0
+  _modeCurrent: 0
 --- !u!1001 &2217807941476821120
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1213,7 +1236,7 @@ PrefabInstance:
     - target: {fileID: 4454032978244359500, guid: 5ad8ffa6497fa6040bc77599535b1a8c, type: 3}
       propertyPath: _player
       value: 
-      objectReference: {fileID: 4028094239222328936}
+      objectReference: {fileID: 7031160067776511118}
     - target: {fileID: 8243256833976447495, guid: 5ad8ffa6497fa6040bc77599535b1a8c, type: 3}
       propertyPath: m_IsActive
       value: 0

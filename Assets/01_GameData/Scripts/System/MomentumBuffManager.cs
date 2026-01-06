@@ -9,11 +9,11 @@ using Cysharp.Threading.Tasks;
 /// MomentumBuffsManager.cs from the ChronoKnight project. It is needed for
 /// testing Turbo Mode interactions with momentum buffs.
 /// </summary>
-[RequireComponent(typeof(CombatController), typeof(PlayerController))]
+[RequireComponent(typeof(CombatController), typeof(PlayerMotor))]
 public class MomentumBuffsManager : MonoBehaviour
 {
     private CombatController _combat;
-    private PlayerController _ctrl;
+    private PlayerMotor _ctrl;
 
     // Base move speed used when resetting from buffs
     [SerializeField] private float baseMoveSpeed = 6f;
@@ -23,7 +23,7 @@ public class MomentumBuffsManager : MonoBehaviour
     private void Start()
     {
         _combat = GetComponent<CombatController>();
-        _ctrl = GetComponent<PlayerController>();
+        _ctrl = GetComponent<PlayerMotor>();
     }
 
     private void OnEnable()

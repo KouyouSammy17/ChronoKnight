@@ -48,7 +48,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float _respawnIFrames = 1.0f; // optional: post-respawn grace (sec)
 
     [Header("Player Spawn")]
-    [SerializeField] private PlayerController _playerPrefab;
+    [SerializeField] private PlayerMotor _playerPrefab;
     // NEW: reference to PauseMenu (assign in Inspector or auto-resolve)
     [SerializeField] private PauseMenu _pauseMenu;
     [SerializeField] private float _pauseInputBuffer = 0.35f;
@@ -62,7 +62,7 @@ public class GameManager : MonoBehaviour
     public GameState State { get; private set; } = GameState.Title;
 
     // runtime refs
-    private PlayerController _player;
+    private PlayerMotor _player;
     private PlayerInput _playerInput;
     private InputAction _pauseAction;   // from Player map
     private InputAction _cancelAction;  // from UI map
@@ -73,7 +73,7 @@ public class GameManager : MonoBehaviour
     private bool _pauseBlocked = false;
     private bool _isPaused = false;
     public bool IsPaused => _isPaused;
-    public PlayerController Player => _player;
+    public PlayerMotor Player => _player;
     public PlayerInput PlayerInput => _playerInput;
 
     void Awake()
@@ -204,7 +204,7 @@ public class GameManager : MonoBehaviour
         });
     }
 
-    public PlayerController GetPlayer() => _player;
+    public PlayerMotor GetPlayer() => _player;
 
     // GameManager.cs
     public void RespawnPlayer(bool resetStats = true)
@@ -434,7 +434,7 @@ public class GameManager : MonoBehaviour
         _spawnPoint = spawnGo ? spawnGo.transform : null;
 
 #if UNITY_6000_0_OR_NEWER
-        _player = UnityEngine.Object.FindFirstObjectByType<PlayerController>();
+        _player = UnityEngine.Object.FindFirstObjectByType<PlayerMotor>();
 #else
         _player = UnityEngine.Object.FindObjectOfType<PlayerController>();
 #endif
@@ -626,31 +626,6 @@ public class GameManager : MonoBehaviour
         {
             EventSystem.current.SetSelectedGameObject(null);
             EventSystem.current.SetSelectedGameObject(target);
-        }
-    }
-    
-    // HUD / tutorial flow moved to TutorialManager
-private         
-    void SetInputEnabled(bool enabled)
-    {
-        if (enabled) _player?.EnableInput();
-        else _player?.DisableInput();
-
-        if (_playerInput != null)
-        {
-            if (!_playerInput.enabled) _playerInput.enabled = true;
-            if (_playerInput.actions != null && !_playerInput.actions.enabled) _playerInput.actions.Enable();
-        }
-    }
-
-    void SwitchActionMap(string map)
-    {
-        if (string.IsNullOrEmpty(map) || _playerInput == null || _playerInput.actions == null) return;
-        var found = _playerInput.actions.FindActionMap(map, false);
-        if (found != null)
-        {
-            _playerInput.defaultActionMap = map;
-            _playerInput.SwitchCurrentActionMap(map);
         }
     }
 }
