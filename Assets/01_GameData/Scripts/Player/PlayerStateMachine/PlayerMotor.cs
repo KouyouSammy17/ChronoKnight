@@ -388,7 +388,6 @@ public class PlayerMotor : MonoBehaviour
 
     public void MotorFixedUpdate(bool allowHorizontalMovement)
     {
-        // smooth rotate toward target
         Quaternion newRot = Quaternion.Slerp(
             _rb.rotation,
             _targetRotation,
@@ -401,10 +400,21 @@ public class PlayerMotor : MonoBehaviour
             HandleMovementRotation();
             HandleMovement();
         }
+        else
+        {
+            // NEW: kill horizontal drift while attacking/hurt/etc.
+            var v = _rb.linearVelocity;
+            v.x = 0f;
+            v.z = 0f;
+            _rb.linearVelocity = v;
+
+            _currentVelocity = new Vector3(0f, _currentVelocity.y, 0f);
+        }
 
         HandleDash();
         HandleVerticalMotion();
     }
+
 
     // ───────────────────────────────────────────────────────────────────────────────
     // Core logic (mostly unchanged from your PlayerController)

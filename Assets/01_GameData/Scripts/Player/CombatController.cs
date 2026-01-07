@@ -95,8 +95,14 @@ public class CombatController : MonoBehaviour
         _isActive = true;
         _comboIndex = 0;
 
+        // Lock control for the whole combo
         _motor.DisableInput();
-        _motor.PreloadMovementBufferFromHold();
+
+        // Stop carry-over drift
+        var rb = _motor.GetRigidbody();
+        if (rb != null)
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+
         _playerAnim.SetApplyRootMotion(true);
 
         try
@@ -104,6 +110,10 @@ public class CombatController : MonoBehaviour
             while (_comboIndex < _comboSteps.Count)
             {
                 var step = _comboSteps[_comboIndex];
+
+                // optional: stop drift at each swing start
+                if (rb != null)
+                    rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
 
                 _playerAnim.SetAttackSpeed(step.speedMultiplier * _speedBuff);
                 _bufferedAttack = false;
@@ -113,20 +123,9 @@ public class CombatController : MonoBehaviour
                 await UniTask.WaitUntil(() => _canBuffer, cancellationToken: token);
                 await UniTask.WaitUntil(() => !_canBuffer, cancellationToken: token);
 
-                _playerAnim.SetApplyRootMotion(false);
-                _motor.EnableInput();
-
-                await UniTask.Yield();
-
-                Vector2 moveBuf = _motor.GetBufferedMovement();
-                if (moveBuf.sqrMagnitude > 0.01f)
-                    _motor.ApplyBufferedMovement(moveBuf);
-                _motor.ClearBufferedMovement();
-
+                // IMPORTANT: don't enable input, don't apply buffered movement mid-combo
                 if (_bufferedAttack)
                 {
-                    _motor.DisableInput();
-                    _playerAnim.SetApplyRootMotion(true);
                     _comboIndex++;
                     continue;
                 }
@@ -140,13 +139,10 @@ public class CombatController : MonoBehaviour
             _playerAnim.SetApplyRootMotion(false);
             _playerAnim.SetAttackSpeed(1f);
 
+            // Unlock only at the end
             _motor.EnableInput();
 
-            await UniTask.Yield();
-
-            Vector2 finalMove = _motor.GetBufferedMovement();
-            if (finalMove.sqrMagnitude > 0.01f)
-                _motor.ApplyBufferedMovement(finalMove);
+            // Let locomotion states handle move input normally next frame
             _motor.ClearBufferedMovement();
 
             _isActive = false;
@@ -155,4 +151,5 @@ public class CombatController : MonoBehaviour
             _weaponHitbox?.DisableHitbox();
         }
     }
+
 }

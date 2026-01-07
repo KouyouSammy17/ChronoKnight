@@ -663,7 +663,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90bb172f2c2cf5d48869943b92086488, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  baseMoveSpeed: 5
+  baseMoveSpeed: 6
 --- !u!114 &2298466729405537635
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -730,10 +730,10 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 128
   _jumpForce: 18
-  _coyoteTime: 0.2
-  _jumpBufferTime: 0.15
-  _fallMultiplier: 6
-  _jumpCutMultiplier: 0.3
+  _coyoteTime: 0.15
+  _jumpBufferTime: 0.05
+  _fallMultiplier: 7
+  _jumpCutMultiplier: 0.8
   _maxFallSpeed: 40
   _dashJumpForce: 16
   _maxHoldJumpHeight: 5
