@@ -720,7 +720,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fcd3f1406d76d9d438a2530b54bb1daa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMotor
-  _moveSpeed: 5
+  _moveSpeed: 6
   _acceleration: 10
   _deceleration: 10
   _rotateSpeed: 10
@@ -736,17 +736,17 @@ MonoBehaviour:
   _jumpCutMultiplier: 0.3
   _maxFallSpeed: 40
   _dashJumpForce: 16
-  _maxHoldJumpHeight: 3
-  _wallCheckDistance: 0.5
+  _maxHoldJumpHeight: 5
+  _wallCheckDistance: 1.2
   _wallLayer:
     serializedVersion: 2
     m_Bits: 64
-  _wallSlideSpeed: 2
-  _wallJumpForce: 12
-  _wallJumpHorizontalForce: 8
+  _wallSlideSpeed: 3
+  _wallJumpForce: 25
+  _wallJumpHorizontalForce: 20
   _postWallJumpLockTime: 0.2
-  _dashForce: 15
-  _dashDuration: 0.2
+  _dashForce: 30
+  _dashDuration: 0.3
   _dashCooldown: 1
   _momentumGainRatePerSecond: 10
   _rb: {fileID: 8472819382826331774}

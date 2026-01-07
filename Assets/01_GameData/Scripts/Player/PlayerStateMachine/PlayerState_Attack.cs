@@ -13,7 +13,7 @@ public class PlayerState_Attack : PlayerStateBase
             brain.Combat?.RequestAttack();
         }
 
-        brain.Motor.MotorUpdate(false, true, true); 
+        brain.Motor.MotorUpdate(false, true, false); 
     }
 
     public override void FixedTick(PlayerStateMachineBrain brain)
