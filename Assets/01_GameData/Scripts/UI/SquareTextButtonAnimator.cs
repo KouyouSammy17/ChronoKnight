@@ -20,7 +20,6 @@ public class SquareTextButtonAnimator :
 
     [Header("Scale")]
     [SerializeField] private float _hoverScale = 1.08f;
-    [SerializeField] private float _pressScale = 0.92f;
     [SerializeField] private float _scaleTime = 0.12f;
 
     [Header("Press Punch")]

@@ -6,7 +6,7 @@ using UnityEngine;
 public class PlayerAnimator : MonoBehaviour
 {
     [SerializeField] private Animator _anim;           // Your Animator component
-    [SerializeField] private PlayerController _player; // Your PlayerController component
+    [SerializeField] private PlayerMotor _player;
     [SerializeField] private CombatController _combat;
 
 
@@ -147,11 +147,16 @@ public class PlayerAnimator : MonoBehaviour
         _anim.SetTrigger(_hashDash);
     }
 
+    public void SetHurt(bool on)
+    {
+        _anim.SetBool(_hashIsHurt, on);
+    }
+
     public void TriggerDamage()
     {
         _anim.SetTrigger(_hashDamage);
     }
-    public void SetHurt(bool on) => _anim.SetBool(_hashIsHurt, on);
+
     public void OnOpenComboWindow() => _combat.OnOpenComboWindow();
     public void OnCloseComboWindow() => _combat.OnCloseComboWindow();
     public void TriggerAttack(int idx)
