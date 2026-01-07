@@ -17,7 +17,7 @@ public class TurboModeManager : MonoBehaviour
     private float _playerSpeedMult = 1.5f;
 
     [SerializeField, Tooltip("Extra multiplier for fall speed during Turbo (1 = normal, <1 = lighter, >1 = heavier)")]
-    private float _fallTurboScale = 0.8f; // try values between 0.7–0.9
+    private float _fallTurboScale = 1f; // try values between 0.7–0.9
 
     [SerializeField, Tooltip("Turbo duration (seconds, in real time).")]
     private float _duration = 10f;
@@ -76,7 +76,7 @@ public class TurboModeManager : MonoBehaviour
     /// Other systems can use this to scale their own values when Turbo is active.
     /// </summary>
     public float TurboComp => _comp;
-
+    public float RealTimeComp => 1f / _slowFactor; // expose slow-mo compensation only
     public bool TurboUnlocked => _turboUnlocked;
 
     private void Awake()
@@ -136,7 +136,9 @@ public class TurboModeManager : MonoBehaviour
             _player.SetMoveSpeed(_originalMoveSpeed * _comp);
             _player.SetAccelDecel(_origAcc * _comp, _origDec * _comp);
             _player.RotateSpeed = _originalRotateSpeed * _comp;
-            _player.DashForce = _originalDashForce * _comp;
+           
+            float dashComp = 1.5f / _slowFactor;
+            _player.DashForce = _originalDashForce * dashComp;
 
             // Compensate vertical motion separately for jump impulses and falling.
             // We use the full compensation factor (_comp) for jump forces so that
@@ -148,8 +150,8 @@ public class TurboModeManager : MonoBehaviour
             // Jump forces use the full compensation factor (1/slowFactor * playerSpeedMult)
             float verticalCompJump = _comp;
             _player.JumpForce = _origJumpForce * verticalCompJump;
-            _player.WallJumpForce = _origWallJumpForce * verticalCompJump;
-            // The horizontal component of a wall jump still uses the horizontal compensation
+
+            _player.WallJumpForce = _origWallJumpForce * _comp;
             _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
 
             // Limit the hold jump height by scaling only with playerSpeedMult.  This prevents
@@ -205,6 +207,7 @@ public class TurboModeManager : MonoBehaviour
         // Compute compensation and store for reuse during Turbo
         _comp = (1f / _slowFactor) * _playerSpeedMult;
 
+
         // Cache additional movement parameters
         _origAcc = _player.Acceleration;
         _origDec = _player.Deceleration;
@@ -237,8 +240,8 @@ public class TurboModeManager : MonoBehaviour
         // Jumps use the full compensation (_comp) so takeoff speed matches horizontal feel.
         float verticalCompStartJump = _comp;
         _player.JumpForce = _origJumpForce * verticalCompStartJump;
-        _player.WallJumpForce = _origWallJumpForce * verticalCompStartJump;
-        // Horizontal component of wall jump still uses horizontal compensation
+
+        _player.WallJumpForce = _origWallJumpForce * _comp;
         _player.WallJumpHorizontalForce = _origWallJumpHForce * _comp;
 
         // Limit hold-jump height using only playerSpeedMult to avoid excessively tall jumps

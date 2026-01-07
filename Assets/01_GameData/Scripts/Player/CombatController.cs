@@ -33,6 +33,7 @@ public class CombatController : MonoBehaviour
     private bool _isActive;
     private float _damageMul = 1f;
     private float _speedBuff = 1f;
+    private float _turboAttackMultiplier = 1.5f; // desired real-time attack speed in Turbo
     private CancellationTokenSource _cts;
 
     public bool IsComboActive => _isActive;
@@ -115,7 +116,15 @@ public class CombatController : MonoBehaviour
                 if (rb != null)
                     rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
 
-                _playerAnim.SetAttackSpeed(step.speedMultiplier * _speedBuff);
+                float turboAttack = 1f;
+                var turbo = TurboModeManager.Instance;
+                if (turbo != null && turbo.IsActive)
+                {
+                    // RealTimeComp cancels slow-mo; then multiply by 1.5x
+                    turboAttack = turbo.RealTimeComp * _turboAttackMultiplier;
+                }
+
+                _playerAnim.SetAttackSpeed(step.speedMultiplier * _speedBuff * turboAttack);
                 _bufferedAttack = false;
 
                 _playerAnim.TriggerAttack(_comboIndex);
