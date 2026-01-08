@@ -692,6 +692,9 @@ public class PlayerMotor : MonoBehaviour
 
     private void HandleMovementRotation()
     {
+        // don't let held input override wall-jump facing during lock/lerp
+        if (isTapWallJump || _postWallJumpTimer > 0f) return;
+
         if (Mathf.Abs(_moveInput.x) > 0.01f)
         {
             float yaw = _moveInput.x > 0 ? 90f : -90f;
@@ -701,10 +704,18 @@ public class PlayerMotor : MonoBehaviour
 
     private void RotateOnWallJump(Vector3 wallJumpDirection)
     {
-        Vector3 dir = new Vector3(wallJumpDirection.x, 0f, wallJumpDirection.z).normalized;
-        if (dir.sqrMagnitude < 0.001f) return;
+        // 2.5D: face only left/right. Ignore any Z.
+        float x = wallJumpDirection.x;
 
-        _targetRotation = Quaternion.LookRotation(dir, Vector3.up);
+        // fallback if x is near zero
+        if (Mathf.Abs(x) < 0.001f)
+            x = _lastMoveInput.x != 0f ? _lastMoveInput.x : 1f;
+
+        float yaw = (x >= 0f) ? 90f : -90f;
+        _targetRotation = Quaternion.Euler(0f, yaw, 0f);
+
+        // optional: snap immediately on the wall-jump frame
+        _rb.MoveRotation(_targetRotation);
     }
 
     private bool IsGroundedCheck()
