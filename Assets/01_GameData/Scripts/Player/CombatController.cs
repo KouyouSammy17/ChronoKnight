@@ -27,9 +27,18 @@ public class CombatController : MonoBehaviour
     [SerializeField] private PlayerAnimator _playerAnim;
     [SerializeField] private WeaponHitbox _weaponHitbox;
 
+    [Header("Dash Attack")]
+    [SerializeField] private float _dashAttackSpeedMult = 1.0f;
+    [SerializeField] private int _dashAttackDamage = 20;
+    [SerializeField] private float _dashAttackMomentum = 10f;
+    [SerializeField] private float _dashAttackKnockback = 10f;
+
     private int _comboIndex;
     private bool _canBuffer;
     private bool _bufferedAttack;
+    private bool _dashAttackActive;
+    private bool _dashAttackChainBuffered;
+    private bool _dashAttackMode;
     private bool _isActive;
     private float _damageMul = 1f;
     private float _speedBuff = 1f;
@@ -37,6 +46,7 @@ public class CombatController : MonoBehaviour
     private CancellationTokenSource _cts;
 
     public bool IsComboActive => _isActive;
+    public bool IsDashAttackActive => _dashAttackActive;
 
     private void Awake()
     {
@@ -54,12 +64,17 @@ public class CombatController : MonoBehaviour
 
     public void RequestAttack()
     {
+        if (_dashAttackActive)
+        {
+            _dashAttackChainBuffered = true;
+            return;
+        }
+
         if (!_isActive)
             StartComboAsync().Forget();
         else if (_canBuffer)
             _bufferedAttack = true;
     }
-
     public void CancelCombo()
     {
         _cts?.Cancel();
@@ -72,6 +87,15 @@ public class CombatController : MonoBehaviour
     public void OnOpenComboWindow()
     {
         _canBuffer = true;
+
+        if (_dashAttackMode)
+        {
+            int dmg = Mathf.RoundToInt(_dashAttackDamage * _damageMul);
+            float mom = _dashAttackMomentum * _damageMul;
+            _weaponHitbox.EnableHitbox(dmg, mom, _dashAttackKnockback);
+            return;
+        }
+
         var step = _comboSteps[_comboIndex];
 
         int finalDamage = Mathf.RoundToInt(step.damage * _damageMul);
@@ -87,6 +111,7 @@ public class CombatController : MonoBehaviour
         _weaponHitbox.DisableHitbox();
     }
 
+ 
     private async UniTaskVoid StartComboAsync()
     {
         _cts?.Cancel();
@@ -160,5 +185,40 @@ public class CombatController : MonoBehaviour
             _weaponHitbox?.DisableHitbox();
         }
     }
+    public void StartDashAttack()
+    {
+        // don't allow dash attack during normal combo
+        if (_isActive) return;
+        if (_dashAttackActive) return;
 
+        _dashAttackActive = true;
+        _dashAttackMode = true;
+        _dashAttackChainBuffered = false;
+
+        // lock player while dash attack plays
+        _motor.DisableInput();
+
+        _playerAnim.SetApplyRootMotion(true);
+        _playerAnim.SetAttackSpeed(_dashAttackSpeedMult);
+        _playerAnim.TriggerDashAttack(); // you'll add this to PlayerAnimator
+    }
+
+    public void OnDashAttackEnd()
+    {
+        _weaponHitbox.DisableHitbox();
+        _playerAnim.SetApplyRootMotion(false);
+        _playerAnim.SetAttackSpeed(1f);
+
+        _motor.EnableInput();
+
+        _dashAttackActive = false;
+        _dashAttackMode = false;
+
+        // if player pressed attack during dash attack, start combo after it ends
+        if (_dashAttackChainBuffered)
+        {
+            _dashAttackChainBuffered = false;
+            RequestAttack(); // starts normal combo
+        }
+    }
 }

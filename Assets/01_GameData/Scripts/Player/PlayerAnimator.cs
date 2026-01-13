@@ -22,6 +22,7 @@ public class PlayerAnimator : MonoBehaviour
     private int _hashWallHangIn;    // Trigger for “hang-in” clip
     private int _hashWallHangLoop;  // Bool for staying in WallHangLoop
     private int[] _attackHashes;
+    private int _hashDashAttack;
     private int _hashDamage;
     private int _hashIsHurt; 
     private bool _wasWallSliding = false;
@@ -51,6 +52,7 @@ public class PlayerAnimator : MonoBehaviour
             Animator.StringToHash("Attack2"),
             Animator.StringToHash("Attack3")
         };
+        _hashDashAttack = Animator.StringToHash("DashAttack");
         // 2) grab the Rigidbody up the hierarchy
         _rb = GetComponentInParent<Rigidbody>();
         if (_rb == null)
@@ -159,11 +161,17 @@ public class PlayerAnimator : MonoBehaviour
 
     public void OnOpenComboWindow() => _combat.OnOpenComboWindow();
     public void OnCloseComboWindow() => _combat.OnCloseComboWindow();
+    public void OnCloseDashAttackWindow() => _combat.OnDashAttackEnd();
     public void TriggerAttack(int idx)
     {
         if (idx < 0 || idx >= _attackHashes.Length)
             throw new ArgumentOutOfRangeException(nameof(idx));
         _anim.SetTrigger(_attackHashes[idx]);
+    }
+
+    public void TriggerDashAttack()
+    {
+        _anim.SetTrigger(_hashDashAttack);
     }
 
     public void SetAttackSpeed(float multiplier)

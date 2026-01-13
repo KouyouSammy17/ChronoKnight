@@ -651,6 +651,10 @@ MonoBehaviour:
   _motor: {fileID: 7031160067776511118}
   _playerAnim: {fileID: 806295723654692614}
   _weaponHitbox: {fileID: 3836916834006099128}
+  _dashAttackSpeedMult: 1
+  _dashAttackDamage: 20
+  _dashAttackMomentum: 10
+  _dashAttackKnockback: 10
 --- !u!114 &3471398806271338333
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -706,7 +710,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c9da751704378af46a6db283fc4f3694, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlatformRider
-  topContactDot: 0.75
+  topContactDot: 1
   velocityBlend: 1
 --- !u!114 &7031160067776511118
 MonoBehaviour:

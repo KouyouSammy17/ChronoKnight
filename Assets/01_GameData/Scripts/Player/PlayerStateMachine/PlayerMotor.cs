@@ -805,6 +805,12 @@ public class PlayerMotor : MonoBehaviour
         _frozen = frozen;
     }
 
+    public void CancelDash()
+    {
+        _isDashing = false;
+        _dashTimer = 0f;
+    }
+
     /// <summary>Stops only horizontal drift (use if you still want gravity).</summary>
     public void StopHorizontalInstant()
     {
