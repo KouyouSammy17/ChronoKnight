@@ -643,11 +643,16 @@ MonoBehaviour:
     momentumGain: 7
     knockbackForce: 0
   - stepName: Attack3
-    inputWindow: 0.1
+    inputWindow: 0.2
     speedMultiplier: 1.1
     damage: 20
     momentumGain: 10
     knockbackForce: 0
+  _airAttackSpeedMult: 1
+  _airAttackDamage: 15
+  _airAttackMomentum: 8
+  _airAttackKnockback: 8
+  _airAttackOncePerAirtime: 1
   _motor: {fileID: 7031160067776511118}
   _playerAnim: {fileID: 806295723654692614}
   _weaponHitbox: {fileID: 3836916834006099128}
@@ -655,6 +660,7 @@ MonoBehaviour:
   _dashAttackDamage: 20
   _dashAttackMomentum: 10
   _dashAttackKnockback: 10
+  _turboAttackMultiplier: 1.5
 --- !u!114 &3471398806271338333
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -695,9 +701,9 @@ MonoBehaviour:
   _hitStun: 0.2
   _knockback: 8
   _iframes: 0.5
-  _groundMask:
-    serializedVersion: 2
-    m_Bits: 128
+  _cancelHorizontalVelocityOnHit: 1
+  _keepUpwardVelocity: 1
+  _ignoreTimeScale: 1
 --- !u!114 &6452052586895441888
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -752,6 +758,7 @@ MonoBehaviour:
   _dashForce: 30
   _dashDuration: 0.3
   _dashCooldown: 1
+  _useAirComboHang: 1
   _momentumGainRatePerSecond: 10
   _rb: {fileID: 8472819382826331774}
   _playerAnim: {fileID: 806295723654692614}

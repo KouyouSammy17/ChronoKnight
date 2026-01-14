@@ -44,6 +44,9 @@ public class PlayerMotor : MonoBehaviour
     [SerializeField] private float _dashDuration = 0.2f;
     [SerializeField] private float _dashCooldown = 1f;
 
+    [Header("Air Combo Hang")]
+    [SerializeField] private bool _useAirComboHang = true;
+
     [Header("Momentum Gain")]
     [SerializeField] private float _momentumGainRatePerSecond = 10f;
 
@@ -104,6 +107,10 @@ public class PlayerMotor : MonoBehaviour
     private Vector3 _wallJumpTargetVelocity = Vector3.zero;
 
     private float _postWallJumpTimer = 0f;
+
+    private bool _airComboHang;
+    private bool _savedUseGravity;
+
 
     private float PlayerDT =>
       (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
@@ -645,6 +652,17 @@ public class PlayerMotor : MonoBehaviour
             _rb.linearVelocity = clamped;
         }
 
+        // air combo hang(freeze Y while attacking in air)
+        if (_airComboHang && !_isGrounded)
+        {
+            _isWallSliding = false;
+
+            var v = _rb.linearVelocity;
+            v.y = 0f;
+            _rb.linearVelocity = v;
+            return;
+        }
+
         // fast fall
         if (vY < 0f)
         {
@@ -823,4 +841,28 @@ public class PlayerMotor : MonoBehaviour
 
         _currentVelocity = new Vector3(0f, _currentVelocity.y, 0f);
     }
+
+    public void SetAirComboHang(bool on)
+    {
+        if (!_useAirComboHang) return;
+        if (_rb == null) return;
+
+        if (_airComboHang == on) return;
+        _airComboHang = on;
+
+        if (on)
+        {
+            _savedUseGravity = _rb.useGravity;
+            _rb.useGravity = false;
+
+            var v = _rb.linearVelocity;
+            v.y = 0f;
+            _rb.linearVelocity = v;
+        }
+        else
+        {
+            _rb.useGravity = _savedUseGravity;
+        }
+    }
+
 }

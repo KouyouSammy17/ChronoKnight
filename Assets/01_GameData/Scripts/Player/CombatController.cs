@@ -19,8 +19,17 @@ public class CombatController : MonoBehaviour
         public float knockbackForce;
     }
 
-    [Header("Combo Definition")]
+    [Header("Ground Combo Definition")]
     [SerializeField] private List<ComboStep> _comboSteps = new List<ComboStep>();
+
+    [Header("Air Attack (Single)")]
+    [SerializeField] private float _airAttackSpeedMult = 1.0f;
+    [SerializeField] private int _airAttackDamage = 15;
+    [SerializeField] private float _airAttackMomentum = 8f;
+    [SerializeField] private float _airAttackKnockback = 8f;
+
+    [Tooltip("If ON, you can only do 1 air attack per airtime (resets on landing).")]
+    [SerializeField] private bool _airAttackOncePerAirtime = true;
 
     [Header("References (auto-assigned)")]
     [SerializeField] private PlayerMotor _motor;
@@ -33,17 +42,28 @@ public class CombatController : MonoBehaviour
     [SerializeField] private float _dashAttackMomentum = 10f;
     [SerializeField] private float _dashAttackKnockback = 10f;
 
+    // runtime
     private int _comboIndex;
     private bool _canBuffer;
     private bool _bufferedAttack;
+
     private bool _dashAttackActive;
     private bool _dashAttackChainBuffered;
     private bool _dashAttackMode;
+
+    private bool _airAttackMode;
+
     private bool _isActive;
     private float _damageMul = 1f;
     private float _speedBuff = 1f;
-    private float _turboAttackMultiplier = 1.5f; // desired real-time attack speed in Turbo
+
+    [Header("Turbo")]
+    [SerializeField] private float _turboAttackMultiplier = 1.5f; // real-time attack speed bonus during Turbo
+
     private CancellationTokenSource _cts;
+
+    // once-per-airtime gate (local, resets when grounded)
+    private bool _airAttackUsedThisAirtime;
 
     public bool IsComboActive => _isActive;
     public bool IsDashAttackActive => _dashAttackActive;
@@ -64,17 +84,43 @@ public class CombatController : MonoBehaviour
 
     public void RequestAttack()
     {
+        if (_motor == null || _playerAnim == null) return;
+
+        // If dash attack is playing, allow "chain into ground combo" buffer
         if (_dashAttackActive)
         {
             _dashAttackChainBuffered = true;
             return;
         }
 
-        if (!_isActive)
-            StartComboAsync().Forget();
-        else if (_canBuffer)
-            _bufferedAttack = true;
+        // If something is already active:
+        if (_isActive)
+        {
+            // IMPORTANT: air attack should NOT loop, so ignore buffering while air-attack mode
+            if (_canBuffer && !_airAttackMode)
+                _bufferedAttack = true;
+
+            return;
+        }
+
+        bool airborne = !_motor.IsGrounded;
+
+        // ---------- AIR ATTACK (single) ----------
+        if (airborne)
+        {
+            if (_airAttackOncePerAirtime && _airAttackUsedThisAirtime)
+                return;
+
+            _airAttackUsedThisAirtime = true;
+
+            StartAirAttackAsync().Forget();
+            return;
+        }
+
+        // ---------- GROUND COMBO ----------
+        StartComboAsync().Forget();
     }
+
     public void CancelCombo()
     {
         _cts?.Cancel();
@@ -88,6 +134,7 @@ public class CombatController : MonoBehaviour
     {
         _canBuffer = true;
 
+        // Dash attack hitbox
         if (_dashAttackMode)
         {
             int dmg = Mathf.RoundToInt(_dashAttackDamage * _damageMul);
@@ -95,6 +142,19 @@ public class CombatController : MonoBehaviour
             _weaponHitbox.EnableHitbox(dmg, mom, _dashAttackKnockback);
             return;
         }
+
+        // Air attack hitbox
+        if (_airAttackMode)
+        {
+            int dmg = Mathf.RoundToInt(_airAttackDamage * _damageMul);
+            float mom = _airAttackMomentum * _damageMul;
+            _weaponHitbox.EnableHitbox(dmg, mom, _airAttackKnockback);
+            return;
+        }
+
+        // Ground combo hitbox
+        if (_comboSteps == null || _comboSteps.Count == 0) return;
+        if (_comboIndex < 0 || _comboIndex >= _comboSteps.Count) return;
 
         var step = _comboSteps[_comboIndex];
 
@@ -111,20 +171,36 @@ public class CombatController : MonoBehaviour
         _weaponHitbox.DisableHitbox();
     }
 
- 
-    private async UniTaskVoid StartComboAsync()
+    private float ComputeTurboAttackComp()
+    {
+        float turboAttack = 1f;
+        var turbo = TurboModeManager.Instance;
+        if (turbo != null && turbo.IsActive)
+        {
+            // RealTimeComp cancels slow-mo; then apply your desired 1.5x
+            turboAttack = turbo.RealTimeComp * _turboAttackMultiplier;
+        }
+        return turboAttack;
+    }
+
+    // -----------------------
+    // AIR ATTACK (single)
+    // -----------------------
+    private async UniTaskVoid StartAirAttackAsync()
     {
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
 
         _isActive = true;
+        _airAttackMode = true;
         _comboIndex = 0;
+        _bufferedAttack = false;
 
-        // Lock control for the whole combo
+        // Lock control for the attack
         _motor.DisableInput();
 
-        // Stop carry-over drift
+        // Stop carry-over drift (keep Y)
         var rb = _motor.GetRigidbody();
         if (rb != null)
             rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
@@ -133,21 +209,68 @@ public class CombatController : MonoBehaviour
 
         try
         {
-            while (_comboIndex < _comboSteps.Count)
+            float turboAttack = ComputeTurboAttackComp();
+            _playerAnim.SetAttackSpeed(_airAttackSpeedMult * _speedBuff * turboAttack);
+
+            // IMPORTANT:
+            // We reuse TriggerAttack(0) (Attack1 trigger) but Animator chooses the AIR clip when IsGrounded=false.
+            _playerAnim.TriggerAttack(0);
+
+            await UniTask.WaitUntil(() => _canBuffer, cancellationToken: token);
+            await UniTask.WaitUntil(() => !_canBuffer, cancellationToken: token);
+
+            // No chaining. Ignore bufferedAttack.
+        }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            _airAttackMode = false;
+
+            _playerAnim.SetApplyRootMotion(false);
+            _playerAnim.SetAttackSpeed(1f);
+
+            _motor.EnableInput();
+            _motor.ClearBufferedMovement();
+
+            _isActive = false;
+            _comboIndex = 0;
+            _canBuffer = false;
+            _bufferedAttack = false;
+            _weaponHitbox?.DisableHitbox();
+        }
+    }
+
+    // -----------------------
+    // GROUND COMBO
+    // -----------------------
+    private async UniTaskVoid StartComboAsync()
+    {
+        _cts?.Cancel();
+        _cts = new CancellationTokenSource();
+        var token = _cts.Token;
+
+        _isActive = true;
+        _airAttackMode = false;
+        _comboIndex = 0;
+
+        _motor.DisableInput();
+
+        var rb = _motor.GetRigidbody();
+        if (rb != null)
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+
+        _playerAnim.SetApplyRootMotion(true);
+
+        try
+        {
+            while (_comboSteps != null && _comboIndex < _comboSteps.Count)
             {
                 var step = _comboSteps[_comboIndex];
 
-                // optional: stop drift at each swing start
                 if (rb != null)
                     rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
 
-                float turboAttack = 1f;
-                var turbo = TurboModeManager.Instance;
-                if (turbo != null && turbo.IsActive)
-                {
-                    // RealTimeComp cancels slow-mo; then multiply by 1.5x
-                    turboAttack = turbo.RealTimeComp * _turboAttackMultiplier;
-                }
+                float turboAttack = ComputeTurboAttackComp();
 
                 _playerAnim.SetAttackSpeed(step.speedMultiplier * _speedBuff * turboAttack);
                 _bufferedAttack = false;
@@ -157,7 +280,6 @@ public class CombatController : MonoBehaviour
                 await UniTask.WaitUntil(() => _canBuffer, cancellationToken: token);
                 await UniTask.WaitUntil(() => !_canBuffer, cancellationToken: token);
 
-                // IMPORTANT: don't enable input, don't apply buffered movement mid-combo
                 if (_bufferedAttack)
                 {
                     _comboIndex++;
@@ -173,21 +295,22 @@ public class CombatController : MonoBehaviour
             _playerAnim.SetApplyRootMotion(false);
             _playerAnim.SetAttackSpeed(1f);
 
-            // Unlock only at the end
             _motor.EnableInput();
-
-            // Let locomotion states handle move input normally next frame
             _motor.ClearBufferedMovement();
 
             _isActive = false;
             _comboIndex = 0;
             _canBuffer = false;
+            _bufferedAttack = false;
             _weaponHitbox?.DisableHitbox();
         }
     }
+
+    // -----------------------
+    // Dash Attack (unchanged)
+    // -----------------------
     public void StartDashAttack()
     {
-        // don't allow dash attack during normal combo
         if (_isActive) return;
         if (_dashAttackActive) return;
 
@@ -195,12 +318,11 @@ public class CombatController : MonoBehaviour
         _dashAttackMode = true;
         _dashAttackChainBuffered = false;
 
-        // lock player while dash attack plays
         _motor.DisableInput();
 
         _playerAnim.SetApplyRootMotion(true);
         _playerAnim.SetAttackSpeed(_dashAttackSpeedMult);
-        _playerAnim.TriggerDashAttack(); // you'll add this to PlayerAnimator
+        _playerAnim.TriggerDashAttack();
     }
 
     public void OnDashAttackEnd()
@@ -214,11 +336,17 @@ public class CombatController : MonoBehaviour
         _dashAttackActive = false;
         _dashAttackMode = false;
 
-        // if player pressed attack during dash attack, start combo after it ends
         if (_dashAttackChainBuffered)
         {
             _dashAttackChainBuffered = false;
-            RequestAttack(); // starts normal combo
+            RequestAttack();
         }
+    }
+
+    private void Update()
+    {
+        // reset once-per-airtime gate when grounded again
+        if (_motor != null && _motor.IsGrounded)
+            _airAttackUsedThisAirtime = false;
     }
 }
