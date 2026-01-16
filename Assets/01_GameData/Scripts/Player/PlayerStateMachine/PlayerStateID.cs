@@ -5,6 +5,7 @@ public enum PlayerStateID
     WallSlide,
     Dash,
     Attack,
+    DashAttack,
     Hurt,
     Dead
 }

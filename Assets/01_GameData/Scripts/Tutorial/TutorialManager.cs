@@ -548,6 +548,8 @@ public class TutorialManager : MonoBehaviour
                 _playerInput.SwitchCurrentActionMap(MAP_UI);
             }
         }
+        _player?.StopHorizontalInstant();
+        _player?.GetComponent<PlayerInputRouter>()?.ClearAll();
     }
 
     private void ResumeWorldToGameplay()
@@ -571,6 +573,8 @@ public class TutorialManager : MonoBehaviour
 
         _player?.EnableInput();
         SetCursorForGameplay();
+        _player?.SetFrozen(false);
+        _player?.GetComponent<PlayerInputRouter>()?.ClearAll();
     }
 
     private static void SetCursorForUI()

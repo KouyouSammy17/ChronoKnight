@@ -6,7 +6,7 @@ public class PlayerMotor : MonoBehaviour
 {
 
     [Header("Movement Settings")]
-    [SerializeField] private float _moveSpeed = 5f;
+    [SerializeField] private float _moveSpeed = 6f;
     [SerializeField] private float _acceleration = 10f;
     [SerializeField] private float _deceleration = 10f;
 
@@ -21,28 +21,31 @@ public class PlayerMotor : MonoBehaviour
 
     [Header("Jump Settings")]
     [SerializeField] private float _jumpForce = 18f;
-    [SerializeField] private float _coyoteTime = 0.2f;
-    [SerializeField] private float _jumpBufferTime = 0.15f;
-    [SerializeField] private float _fallMultiplier = 6f;
-    [SerializeField] private float _jumpCutMultiplier = 0.3f;
+    [SerializeField] private float _coyoteTime = 0.15f;
+    [SerializeField] private float _jumpBufferTime = 0.05f;
+    [SerializeField] private float _fallMultiplier = 7f;
+    [SerializeField] private float _jumpCutMultiplier = 0.8f;
     [SerializeField] private float _maxFallSpeed = 40f;
     [SerializeField] private float _dashJumpForce = 16f;
 
     [Header("Jump Hold Limit")]
-    [SerializeField] private float _maxHoldJumpHeight = 3f;
+    [SerializeField] private float _maxHoldJumpHeight = 5f;
 
     [Header("Wall Slide & Wall Jump")]
-    [SerializeField] private float _wallCheckDistance = 0.5f;
+    [SerializeField] private float _wallCheckDistance = 1.2f;
     [SerializeField] private LayerMask _wallLayer;
-    [SerializeField] private float _wallSlideSpeed = 2f;
-    [SerializeField] private float _wallJumpForce = 12f;
-    [SerializeField] private float _wallJumpHorizontalForce = 8f;
+    [SerializeField] private float _wallSlideSpeed = 3f;
+    [SerializeField] private float _wallJumpForce = 22f;
+    [SerializeField] private float _wallJumpHorizontalForce = 18f;
     [SerializeField] private float _postWallJumpLockTime = 0.2f;
 
     [Header("Dash Settings")]
-    [SerializeField] private float _dashForce = 15f;
+    [SerializeField] private float _dashForce = 30f;
     [SerializeField] private float _dashDuration = 0.2f;
     [SerializeField] private float _dashCooldown = 1f;
+
+    [Header("Air Combo Hang")]
+    [SerializeField] private bool _useAirComboHang = true;
 
     [Header("Momentum Gain")]
     [SerializeField] private float _momentumGainRatePerSecond = 10f;
@@ -54,6 +57,8 @@ public class PlayerMotor : MonoBehaviour
     // inputs (fed by brain)
     private Vector2 _moveInput = Vector2.zero;
     private bool _inputEnabled = true;
+    private RigidbodyConstraints _savedConstraints;
+    private bool _frozen;
 
     // buffering (needed for combat buffering)
     private Vector2 _moveInputBuffer = Vector2.zero;
@@ -103,6 +108,19 @@ public class PlayerMotor : MonoBehaviour
 
     private float _postWallJumpTimer = 0f;
 
+    private bool _airComboHang;
+    private bool _savedUseGravity;
+
+
+    private float PlayerDT =>
+      (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
+          ? Time.unscaledDeltaTime
+          : Time.deltaTime;
+
+    private float PlayerFixedDT =>
+        (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
+            ? Time.fixedUnscaledDeltaTime
+            : Time.fixedDeltaTime;
     // buffs
     public bool CanAirDash { get; private set; } = false;
     public int ExtraJumpCount { get; private set; } = 0;
@@ -347,8 +365,12 @@ public class PlayerMotor : MonoBehaviour
             _postWallJumpTimer -= Time.deltaTime;
 
         // cooldown timers
+        float dt = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
+        ? Time.unscaledDeltaTime
+        : Time.deltaTime;
+
         if (_dashCooldownTimer > 0f)
-            _dashCooldownTimer -= Time.deltaTime;
+            _dashCooldownTimer -= dt;
 
         // buffer decay (only while input is live)
         if (_moveBufferCounter > 0f)
@@ -388,10 +410,12 @@ public class PlayerMotor : MonoBehaviour
 
     public void MotorFixedUpdate(bool allowHorizontalMovement)
     {
+        float fdt = PlayerFixedDT;
+
         Quaternion newRot = Quaternion.Slerp(
             _rb.rotation,
             _targetRotation,
-            _rotateSpeed * Time.fixedDeltaTime
+            _rotateSpeed * fdt
         );
         _rb.MoveRotation(newRot);
 
@@ -471,7 +495,11 @@ public class PlayerMotor : MonoBehaviour
     {
         if (!_isDashing) return;
 
-        _dashTimer -= Time.fixedDeltaTime;
+        float dt = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
+      ? Time.fixedUnscaledDeltaTime
+      : Time.fixedDeltaTime;
+
+        _dashTimer -= dt;
 
         _rb.linearVelocity = _dashDirection * _dashForce
                            + new Vector3(0, _rb.linearVelocity.y, 0);
@@ -560,11 +588,13 @@ public class PlayerMotor : MonoBehaviour
     {
         float vY = _rb.linearVelocity.y;
         float heldHeight = transform.position.y - _jumpStartY;
+        float fdt = PlayerFixedDT;
+
 
         // wall jump lerp
         if (_isWallJumpLerping)
         {
-            _wallJumpLerpTimer -= Time.deltaTime;
+            _wallJumpLerpTimer -= fdt;
             float t = 1f - (_wallJumpLerpTimer / _wallJumpLerpTime);
             _rb.linearVelocity = Vector3.Lerp(_wallJumpStartVelocity, _wallJumpTargetVelocity, t);
             if (_wallJumpLerpTimer <= 0f) _isWallJumpLerping = false;
@@ -574,7 +604,7 @@ public class PlayerMotor : MonoBehaviour
         // wall jump immunity
         if (_isWallJumping)
         {
-            _wallJumpTimer -= Time.deltaTime;
+            _wallJumpTimer -= fdt;
             if (_wallJumpTimer <= 0f) _isWallJumping = false;
             return;
         }
@@ -609,12 +639,6 @@ public class PlayerMotor : MonoBehaviour
             return;
         }
 
-        // fast fall
-        if (vY < 0f)
-        {
-            _rb.linearVelocity += Vector3.up * Physics.gravity.y * (_fallMultiplier - 1f) * Time.deltaTime;
-        }
-
         if (_isDashJump && vY > 0f && (_rb.position.y - _jumpStartY) > 1.2f)
         {
             _rb.AddForce(Vector3.down * 20f, ForceMode.Acceleration);
@@ -627,6 +651,24 @@ public class PlayerMotor : MonoBehaviour
             clamped.y = -_maxFallSpeed;
             _rb.linearVelocity = clamped;
         }
+
+        // air combo hang(freeze Y while attacking in air)
+        if (_airComboHang && !_isGrounded)
+        {
+            _isWallSliding = false;
+
+            var v = _rb.linearVelocity;
+            v.y = 0f;
+            _rb.linearVelocity = v;
+            return;
+        }
+
+        // fast fall
+        if (vY < 0f)
+        {
+            _rb.linearVelocity += Vector3.up * Physics.gravity.y * (_fallMultiplier - 1f) * fdt;
+        }
+
     }
 
     private void Jump(bool isAirJump)
@@ -668,6 +710,9 @@ public class PlayerMotor : MonoBehaviour
 
     private void HandleMovementRotation()
     {
+        // don't let held input override wall-jump facing during lock/lerp
+        if (isTapWallJump || _postWallJumpTimer > 0f) return;
+
         if (Mathf.Abs(_moveInput.x) > 0.01f)
         {
             float yaw = _moveInput.x > 0 ? 90f : -90f;
@@ -677,10 +722,18 @@ public class PlayerMotor : MonoBehaviour
 
     private void RotateOnWallJump(Vector3 wallJumpDirection)
     {
-        Vector3 dir = new Vector3(wallJumpDirection.x, 0f, wallJumpDirection.z).normalized;
-        if (dir.sqrMagnitude < 0.001f) return;
+        // 2.5D: face only left/right. Ignore any Z.
+        float x = wallJumpDirection.x;
 
-        _targetRotation = Quaternion.LookRotation(dir, Vector3.up);
+        // fallback if x is near zero
+        if (Mathf.Abs(x) < 0.001f)
+            x = _lastMoveInput.x != 0f ? _lastMoveInput.x : 1f;
+
+        float yaw = (x >= 0f) ? 90f : -90f;
+        _targetRotation = Quaternion.Euler(0f, yaw, 0f);
+
+        // optional: snap immediately on the wall-jump frame
+        _rb.MoveRotation(_targetRotation);
     }
 
     private bool IsGroundedCheck()
@@ -738,4 +791,78 @@ public class PlayerMotor : MonoBehaviour
             _currentVelocity = targetVelocity;
         }
     }
+
+    /// <summary>Hard-freezes the player for tutorials/cutscenes (no drift, no falling).</summary>
+    public void SetFrozen(bool frozen)
+    {
+        if (_rb == null) return;
+        if (_frozen == frozen) return;
+
+        if (frozen)
+        {
+            _savedConstraints = _rb.constraints;
+            _rb.constraints = RigidbodyConstraints.FreezeAll;
+
+            _rb.linearVelocity = Vector3.zero;
+            _rb.angularVelocity = Vector3.zero;
+            _currentVelocity = Vector3.zero;
+
+            _isDashing = false;
+            _dashTimer = 0f;
+        }
+        else
+        {
+            _rb.constraints = _savedConstraints;
+
+            // avoid “unfreeze kick”
+            _rb.linearVelocity = Vector3.zero;
+            _rb.angularVelocity = Vector3.zero;
+            _currentVelocity = Vector3.zero;
+        }
+
+        _frozen = frozen;
+    }
+
+    public void CancelDash()
+    {
+        _isDashing = false;
+        _dashTimer = 0f;
+    }
+
+    /// <summary>Stops only horizontal drift (use if you still want gravity).</summary>
+    public void StopHorizontalInstant()
+    {
+        if (_rb == null) return;
+
+        var v = _rb.linearVelocity;
+        v.x = 0f;
+        v.z = 0f;
+        _rb.linearVelocity = v;
+
+        _currentVelocity = new Vector3(0f, _currentVelocity.y, 0f);
+    }
+
+    public void SetAirComboHang(bool on)
+    {
+        if (!_useAirComboHang) return;
+        if (_rb == null) return;
+
+        if (_airComboHang == on) return;
+        _airComboHang = on;
+
+        if (on)
+        {
+            _savedUseGravity = _rb.useGravity;
+            _rb.useGravity = false;
+
+            var v = _rb.linearVelocity;
+            v.y = 0f;
+            _rb.linearVelocity = v;
+        }
+        else
+        {
+            _rb.useGravity = _savedUseGravity;
+        }
+    }
+
 }

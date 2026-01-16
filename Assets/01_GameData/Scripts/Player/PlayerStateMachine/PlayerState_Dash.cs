@@ -14,7 +14,8 @@ public class PlayerState_Dash : PlayerStateBase
         // optional: allow attack during dash
         if (brain.Input.ConsumeAttackPressed())
         {
-            brain.Combat?.RequestAttack();
+            brain.ChangeState(PlayerStateID.DashAttack);
+            return;
         }
         brain.Motor.MotorUpdate(true, true, true);
     }

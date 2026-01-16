@@ -56,6 +56,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
         Register(new PlayerState_Attack());
         Register(new PlayerState_Hurt());
         Register(new PlayerState_Dead());
+        Register(new PlayerState_DashAttack());
 
         // Mode
         RegisterMode(new PlayerMode_Normal());
@@ -155,6 +156,13 @@ public class PlayerStateMachineBrain : MonoBehaviour
         if (_current == PlayerStateID.Dash && _motor != null && !_motor.IsDashing)
         {
             ChangeState(_motor.IsGrounded ? PlayerStateID.Grounded : PlayerStateID.Airborne);
+            return;
+        }
+        
+        // Dash attack: if player attacks during dash, go to DashAttack
+        if (_motor != null && _motor.IsDashing && _input != null && _input.ConsumeAttackPressed())
+        {
+            ChangeState(PlayerStateID.DashAttack);
             return;
         }
 

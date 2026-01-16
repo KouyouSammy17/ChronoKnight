@@ -56,4 +56,16 @@ public class PlayerInputRouter : MonoBehaviour
         _turboPressed = false;
         return v;
     }
+
+    public void ClearAll()
+    {
+        Move = Vector2.zero;
+        JumpHeld = false;
+
+        _jumpPressed = false;
+        _jumpReleased = false;
+        _dashPressed = false;
+        _attackPressed = false;
+        _turboPressed = false;
+    }
 }
