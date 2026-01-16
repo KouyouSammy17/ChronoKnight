@@ -108,7 +108,9 @@ namespace MoreMountains.Tools
 		public virtual float TimescaleTime { get { return (Timescale == Timescales.Regular) ? Time.time : Time.unscaledTime; } }
 		public virtual float TimescaleDeltaTime { get { return (Timescale == Timescales.Regular) ? Time.deltaTime : Time.unscaledDeltaTime; } }
 
+		#if MM_PHYSICS2D
 		protected Rigidbody2D _rigidbody2D;
+		#endif
 		protected Rigidbody _rigidbody;
 		protected Transform _childTransform;
 		protected Transform _parentTransform;
@@ -144,7 +146,9 @@ namespace MoreMountains.Tools
 			_springScale = _initialScale;
 
 			_rigidbody = this.transform.parent.GetComponent<Rigidbody>();
+			#if MM_PHYSICS2D
 			_rigidbody2D = this.transform.parent.GetComponent<Rigidbody2D>();
+			#endif
 
 			_childTransform = this.transform.GetChild(0).transform;
 			_parentTransform = this.transform.parent.GetComponent<Transform>();
@@ -190,7 +194,9 @@ namespace MoreMountains.Tools
 					break;
 
 				case Modes.Rigidbody2D:
+					#if MM_PHYSICS2D
 					Velocity = _rigidbody2D.linearVelocity;
+					#endif
 					break;
 
 				case Modes.Position:

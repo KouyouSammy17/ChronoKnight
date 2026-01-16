@@ -521,6 +521,15 @@ namespace MoreMountains.Tools
 			}
 		}
 
+		/// <summary>
+		/// Call this method to set a new initial color at runtime, which will be used as a base for the bump color changes
+		/// </summary>
+		/// <param name="newInitialColor"></param>
+		public virtual void SetInitialColor(Color newInitialColor)
+		{
+			_initialColor = newInitialColor;
+		}
+
 		protected virtual void StoreInitialColor()
 		{
 			if (!Bumping && _isForegroundImageNotNull)

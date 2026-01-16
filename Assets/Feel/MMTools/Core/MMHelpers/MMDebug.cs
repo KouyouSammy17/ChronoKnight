@@ -406,6 +406,8 @@ namespace MoreMountains.Tools
 
 		#region Casts
 
+		#if MM_PHYSICS2D
+		
 		/// <summary>
 		/// Draws a debug ray in 2D and does the actual raycast
 		/// </summary>
@@ -500,6 +502,8 @@ namespace MoreMountains.Tools
 			}
 			return new RaycastHit2D();        	
 		}
+
+		#endif
 
 		/// <summary>
 		/// Draws a debug ray in 3D and does the actual raycast

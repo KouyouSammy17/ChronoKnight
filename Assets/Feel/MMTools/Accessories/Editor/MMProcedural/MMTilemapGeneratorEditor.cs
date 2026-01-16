@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace MoreMountains.Tools
 {
+	#if MM_PHYSICS2D
 	/// <summary>
 	/// Custom editor for the MMTilemapGenerator, handles generate button and reorderable layers
 	/// </summary>
@@ -37,4 +38,5 @@ namespace MoreMountains.Tools
 			}
 		}
 	}
+	#endif
 }

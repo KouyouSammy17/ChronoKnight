@@ -11,6 +11,8 @@ namespace MoreMountains.Tools
 	/// </summary>
 	public class MMTilemap : MonoBehaviour
 	{
+		#if MM_PHYSICS2D
+		
 		/// <summary>
 		/// Returns a random world position on the specified tilemap/grid combo, filled or not based on the shouldBeFilled flag 
 		/// </summary>
@@ -88,5 +90,7 @@ namespace MoreMountains.Tools
 
 			return Vector2.zero;
 		}
+		
+		#endif
 	}
 }

@@ -8,6 +8,17 @@ namespace MoreMountains.Tools
 	public static class MMVector2Extensions
 	{
 		/// <summary>
+		/// Returns a random value between x and y
+		/// </summary>
+		/// <param name="vector"></param>
+		/// <returns></returns>
+		public static float MMRandom(this Vector2 vector)
+		{
+			return Random.Range(vector.x, vector.y);
+		}
+
+		
+		/// <summary>
 		/// Rotates a vector2 by angleInDegrees
 		/// </summary>
 		/// <param name="vector"></param>

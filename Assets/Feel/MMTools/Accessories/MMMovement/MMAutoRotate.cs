@@ -22,6 +22,17 @@ namespace MoreMountains.Tools
 		[MMCondition("Rotating", true)]
 		/// The rotation speed. Positive means clockwise, negative means counter clockwise.
 		public Vector3 RotationSpeed = new Vector3(100f, 0f, 0f);
+		/// Whether or not the rotation speed should be randomized
+		public bool RandomizeRotationSpeed = false;
+		/// the minimum rotation speed to use if RandomizeRotationSpeed is true
+		[MMCondition("RandomizeRotationSpeed", true)]
+		public Vector3 RotationSpeedMin = new Vector3(100f, 0f, 0f);
+		/// the maximum rotation speed to use if RandomizeRotationSpeed is true
+		[MMCondition("RandomizeRotationSpeed", true)]
+		public Vector3 RotationSpeedMax = new Vector3(300f, 0f, 0f);
+		/// an offset, in seconds, to apply before starting the rotation, to allow for a delay
+		[MMVector("Min", "Max")]
+		public Vector2 RandomInitialDelay = Vector2.zero; 
 
 		[Header("Orbit")]
 		/// if this is true, the object will also move around a pivot (only the position is affected, not the rotation)
@@ -71,7 +82,9 @@ namespace MoreMountains.Tools
 
 		protected Quaternion _newRotation;
 		protected Vector3 _desiredOrbitPosition;
+		protected float _initialDelay = 0f;
 		private Vector3 _previousPosition;
+		protected float _startTime = 0f;
 
 		/// <summary>
 		/// On start, we initialize our plane
@@ -79,6 +92,17 @@ namespace MoreMountains.Tools
 		protected virtual void Start()
 		{
 			_rotationPlane = new Plane();
+			
+			_startTime = Time.time;
+			_initialDelay = Random.Range(RandomInitialDelay.x, RandomInitialDelay.y);
+			
+			if (RandomizeRotationSpeed)
+			{
+				RotationSpeed = new Vector3(
+					Random.Range(RotationSpeedMin.x, RotationSpeedMax.x),
+					Random.Range(RotationSpeedMin.y, RotationSpeedMax.y),
+					Random.Range(RotationSpeedMin.z, RotationSpeedMax.z));
+			}
 		}
 
 		/// <summary>
@@ -86,6 +110,11 @@ namespace MoreMountains.Tools
 		/// </summary>
 		protected virtual void Update()
 		{
+			if (Time.time - _startTime < _initialDelay)
+			{
+				return;
+			}
+			
 			if (UpdateMode == UpdateModes.Update)
 			{
 				Rotate();

@@ -149,8 +149,10 @@ namespace MoreMountains.Tools
 		public virtual SphereCollider _sphereCollider { get; set; }
 		public virtual BoxCollider _boxCollider { get; set; }
 		public virtual MeshCollider _meshCollider { get; set; }
+		#if MM_PHYSICS2D
 		public virtual CircleCollider2D _circleCollider2D { get; set; }
 		public virtual BoxCollider2D _boxCollider2D { get; set; }
+		#endif
 		public virtual Vector3 _vector3Zero { get; set; }
 		public virtual Vector3 _newPosition { get; set; }
 		public virtual Vector2 _worldToGUIPosition { get; set; }

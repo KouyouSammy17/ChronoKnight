@@ -28,6 +28,7 @@ namespace MoreMountains.Tools
 
 		// Collision 2D ------------------------------------------------------------------------------------
 
+		#if MM_PHYSICS2D
 		protected virtual void OnCollisionEnter2D (Collision2D collision)
 		{
 			if (Collision2DLayerMask.MMContains (collision.gameObject))
@@ -77,6 +78,7 @@ namespace MoreMountains.Tools
 				OnTrigger2DStayEvent.Invoke();
 			}
 		}
+		#endif
 
 		// Collision ------------------------------------------------------------------------------------
 
