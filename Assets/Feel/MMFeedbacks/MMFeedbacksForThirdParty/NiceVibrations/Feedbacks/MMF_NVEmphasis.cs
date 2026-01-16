@@ -11,6 +11,7 @@ namespace MoreMountains.FeedbacksForThirdParty
 	/// Use this feedback to play an Emphasis haptics, short haptic bursts whose amplitude and frequency can be controlled in real time, also called Transients in CoreHaptics/iOS
 	/// </summary>
 	[AddComponentMenu("")]
+	[System.Serializable]
 	#if MOREMOUNTAINS_NICEVIBRATIONS_INSTALLED
 	[FeedbackPath("Haptics/Haptic Emphasis")]
 	#endif 
@@ -22,6 +23,7 @@ namespace MoreMountains.FeedbacksForThirdParty
 		/// a static bool used to disable all feedbacks of this type at once
 		public static bool FeedbackTypeAuthorized = true;
 		#if UNITY_EDITOR
+		public override bool HasCustomInspectors => true;
 		public override Color FeedbackColor { get { return MMFeedbacksInspectorColors.HapticsColor; } }
 		#endif
         
@@ -46,9 +48,21 @@ namespace MoreMountains.FeedbacksForThirdParty
 		public float MaxFrequency = 1f;
 
 		[MMFInspectorGroup("Settings", true, 16)]
+		/// a debug button that lets you test the haptic file from its inspector
+		public MMF_Button PlayEmphasisButton;
+		
 		/// a set of settings you can tweak to specify how and when exactly this haptic should play
 		[Tooltip("a set of settings you can tweak to specify how and when exactly this haptic should play")]
 		public MMFeedbackNVSettings HapticSettings;
+		
+		/// <summary>
+		/// Initializes custom buttons
+		/// </summary>
+		public override void InitializeCustomAttributes()
+		{
+			base.InitializeCustomAttributes();
+			PlayEmphasisButton = new MMF_Button("Test Emphasis", PlayEmphasis);
+		}
         
 		/// <summary>
 		/// On play, we randomize our amplitude and frequency and play our emphasis haptic
@@ -62,11 +76,20 @@ namespace MoreMountains.FeedbacksForThirdParty
 				return;
 			}
 
+			PlayEmphasis();
+		}
+
+		/// <summary>
+		/// Plays the specified emphasis haptic
+		/// </summary>
+		protected virtual void PlayEmphasis()
+		{
 			float amplitude = Random.Range(MinAmplitude, MaxAmplitude);
 			float frequency = Random.Range(MinFrequency, MaxFrequency);
 			HapticSettings.SetGamepad();
 			HapticPatterns.PlayEmphasis(amplitude, frequency);
 		}
+		
 		#else
 		protected override void CustomPlayFeedback(Vector3 position, float feedbacksIntensity = 1.0f) { }
 		#endif

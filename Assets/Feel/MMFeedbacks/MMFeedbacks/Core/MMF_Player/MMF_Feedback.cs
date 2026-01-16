@@ -741,9 +741,11 @@ namespace MoreMountains.Feedbacks
 				{
 					repeatDuration = Timing.DelayBetweenRepeats + FeedbackDuration - _repeatOffset;	
 				}
+				
 				yield return WaitFor(repeatDuration);
 				yield return null;
-				_repeatOffset = (time - repeatStartTime - Timing.DelayBetweenRepeats + FeedbackDuration);
+				time = InScaledTimescaleMode ? Time.time : Time.unscaledTime;
+				_repeatOffset = (time - repeatStartTime - (Timing.DelayBetweenRepeats + FeedbackDuration));
 			}
 			else
 			{

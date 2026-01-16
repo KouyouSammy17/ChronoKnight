@@ -64,6 +64,8 @@ namespace MoreMountains.Tools
 		public float EdgeThreshold = 0.5f;
 
 		public MeshFilter VisionMeshFilter;
+		
+		#if MM_PHYSICS2D
 
 		protected Mesh _visionMesh;
 		protected Collider2D[] _targetsWithinDistance;
@@ -261,5 +263,7 @@ namespace MoreMountains.Tools
 
 			return _returnRaycastData;
 		}
+
+		#endif
 	}
 }

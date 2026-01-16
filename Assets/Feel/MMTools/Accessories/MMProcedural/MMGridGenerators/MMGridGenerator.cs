@@ -45,6 +45,7 @@ namespace MoreMountains.Tools
 			}
 		}
 
+		#if MM_PHYSICS2D
 		/// <summary>
 		/// Converts a tilemap's contents into a grid
 		/// </summary>
@@ -76,6 +77,7 @@ namespace MoreMountains.Tools
 			}
 			return grid;
 		}
+		#endif
 
 		/// <summary>
 		/// Outputs the contents of a grid
@@ -174,7 +176,7 @@ namespace MoreMountains.Tools
 			return grid;
 		}
         
-        
+		#if MM_PHYSICS2D
 		/// <summary>
 		/// Carves "safe spots" with 0s into the specfied grid
 		/// </summary>
@@ -200,6 +202,7 @@ namespace MoreMountains.Tools
 			}
 			return grid;
 		}
+		#endif
 
 		/// <summary>
 		/// Adds bounds (walls made of 1) to a grid, on the selected sides

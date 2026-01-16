@@ -150,11 +150,13 @@ namespace MoreMountains.Tools
 				{
 					DestroyImmediate(collider);
 				}
+				#if MM_PHYSICS2D
 				Collider2D[] colliders2D = this.gameObject.GetComponentsInChildren<Collider2D>();
 				foreach (Collider2D collider2D in colliders2D)
 				{
 					DestroyImmediate(collider2D);
 				}
+				#endif
 				#endif
 			}
 		}

@@ -40,6 +40,8 @@ namespace MoreMountains.Tools
 
 		// Collision 2D ------------------------------------------------------------------------------------
 
+		#if MM_PHYSICS2D
+		
 		protected abstract void OnCollisionEnter2D_(Collision2D collision);
 		void OnCollisionEnter2D (Collision2D collision)
 		{
@@ -95,6 +97,8 @@ namespace MoreMountains.Tools
 				OnTriggerStay2D_(collider);
 			}
 		}
+
+		#endif
 
 		// Collision ------------------------------------------------------------------------------------
 

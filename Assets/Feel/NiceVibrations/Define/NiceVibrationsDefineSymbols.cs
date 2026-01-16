@@ -34,12 +34,19 @@ namespace MoreMountains.FeedbacksForThirdParty
 
 			if (activeProfile != null)
 			{
-				string[] currentDefines = activeProfile.scriptingDefines;
-				if (!Array.Exists(currentDefines, define => define == Symbols[0]))
+				var symbols = PlayerSettings.GetScriptingDefineSymbols(
+					UnityEditor.Build.NamedBuildTarget.FromBuildTargetGroup(EditorUserBuildSettings
+						.selectedBuildTargetGroup));
+
+				if (!symbols.Contains("MOREMOUNTAINS_NICEVIBRATIONS_INSTALLED"))
 				{
-					var updatedDefines = new List<string>(currentDefines);
-					updatedDefines.Add(Symbols[0]);
-					activeProfile.scriptingDefines = updatedDefines.ToArray();
+					string[] currentDefines = activeProfile.scriptingDefines;
+					if (!Array.Exists(currentDefines, define => define == Symbols[0]))
+					{
+						var updatedDefines = new List<string>(currentDefines);
+						updatedDefines.Add(Symbols[0]);
+						activeProfile.scriptingDefines = updatedDefines.ToArray();
+					}
 				}
 			}
 			else

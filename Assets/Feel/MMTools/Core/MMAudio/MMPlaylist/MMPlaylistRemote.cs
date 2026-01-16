@@ -109,6 +109,8 @@ namespace MoreMountains.Tools
 				PlaySelectedTrack();
 			}
 		}
+		
+		#if MM_PHYSICS2D
 
 		/// <summary>
 		/// On trigger enter 2D, we play the selected track if needed
@@ -132,5 +134,7 @@ namespace MoreMountains.Tools
 				PlaySelectedTrack();
 			}
 		}
+
+		#endif
 	}
 }
