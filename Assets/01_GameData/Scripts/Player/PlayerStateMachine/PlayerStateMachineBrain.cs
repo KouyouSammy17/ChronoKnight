@@ -56,6 +56,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
         Register(new PlayerState_Attack());
         Register(new PlayerState_Hurt());
         Register(new PlayerState_Dead());
+        Register(new PlayerState_Knockdown());
         Register(new PlayerState_DashAttack());
 
         // Mode
@@ -163,6 +164,12 @@ public class PlayerStateMachineBrain : MonoBehaviour
         if (_motor != null && _motor.IsDashing && _input != null && _input.ConsumeAttackPressed())
         {
             ChangeState(PlayerStateID.DashAttack);
+            return;
+        }
+       
+        if (_damage != null && _damage.IsKnockedDown)
+        {
+            if (_current != PlayerStateID.Knockdown) ChangeState(PlayerStateID.Knockdown);
             return;
         }
 

@@ -7,5 +7,6 @@ public enum PlayerStateID
     Attack,
     DashAttack,
     Hurt,
+    Knockdown,
     Dead
 }

@@ -1,17 +1,16 @@
-public class PlayerState_Hurt : PlayerStateBase
+public class PlayerState_Knockdown : PlayerStateBase
 {
-    public override PlayerStateID ID => PlayerStateID.Hurt;
+    public override PlayerStateID ID => PlayerStateID.Knockdown;
 
     public override void Tick(PlayerStateMachineBrain brain)
     {
-        brain.Motor.InputMove(brain.Input.Move);
-
+        // no input buffering here (youÅfre ÅgdownÅh)
         brain.Motor.MotorUpdate(false, false, false);
-
     }
 
     public override void FixedTick(PlayerStateMachineBrain brain)
     {
+        // IMPORTANT: allow physics velocity so knockback isnÅft erased
         brain.Motor.MotorFixedUpdate(allowHorizontalMovement: true);
     }
 }
