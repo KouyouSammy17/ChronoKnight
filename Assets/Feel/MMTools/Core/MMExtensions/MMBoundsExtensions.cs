@@ -39,11 +39,13 @@ namespace MoreMountains.Tools
 			}
 
 			// if the object has a collider2D at root level, we base our calculations on that
+			#if MM_PHYSICS2D
 			if (theObject.GetComponent<Collider2D>()!=null) 
 			{
 				returnBounds = theObject.GetComponent<Collider2D>().bounds;
 				return returnBounds;
 			}
+			#endif
 
 			// if the object contains at least one Collider we'll add all its children's Colliders bounds
 			if (theObject.GetComponentInChildren<Collider>()!=null)
@@ -58,6 +60,7 @@ namespace MoreMountains.Tools
 				return returnBounds;
 			}
 
+			#if MM_PHYSICS2D
 			// if the object contains at least one Collider2D we'll add all its children's Collider2Ds bounds
 			if (theObject.GetComponentInChildren<Collider2D>()!=null)
 			{
@@ -70,6 +73,7 @@ namespace MoreMountains.Tools
 				returnBounds = totalBounds;
 				return returnBounds;
 			}
+			#endif
 
 			returnBounds = new Bounds(Vector3.zero, Vector3.zero);
 			return returnBounds;

@@ -86,7 +86,7 @@ namespace MoreMountains.Feedbacks
 		public bool DisplayFullDurationDetails = false;
 		/// the timescale at which the player itself will operate. This notably impacts sequencing and pauses duration evaluation.
 		[Tooltip("the timescale at which the player itself will operate. This notably impacts sequencing and pauses duration evaluation.")]
-		public TimescaleModes PlayerTimescaleMode = TimescaleModes.Unscaled;
+		public TimescaleModes PlayerTimescaleMode = TimescaleModes.Scaled;
 
 		/// if this is true, this feedback will only play if its distance to RangeCenter is lower or equal to RangeDistance
 		[Tooltip("if this is true, this feedback will only play if its distance to RangeCenter is lower or equal to RangeDistance")]

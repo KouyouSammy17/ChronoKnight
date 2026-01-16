@@ -26,6 +26,7 @@ namespace MoreMountains.Feel
         
 		protected Snake _snake;
         
+		#if MM_PHYSICS2D
 		/// <summary>
 		/// When this food gets eaten, we play its eat feedback, and start moving it somewhere else in the scene
 		/// </summary>
@@ -41,6 +42,7 @@ namespace MoreMountains.Feel
 				StartCoroutine(MoveFood());
 			}
 		}
+		#endif
 
 		/// <summary>
 		/// Moves the food to another spot

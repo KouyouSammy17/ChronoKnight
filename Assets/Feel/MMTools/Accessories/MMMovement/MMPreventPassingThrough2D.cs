@@ -5,6 +5,7 @@ using UnityEngine.Serialization;
 
 namespace MoreMountains.Tools
 {
+	#if MM_PHYSICS2D
 	/// <summary>
 	/// Prevents fast moving objects from going through colliders by casting a ray backwards after each movement
 	/// </summary>
@@ -129,4 +130,5 @@ namespace MoreMountains.Tools
 			_positionLastFrame = this.transform.position; 
 		}
 	}
+	#endif
 }

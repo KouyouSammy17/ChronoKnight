@@ -57,6 +57,8 @@ namespace MoreMountains.Tools
 		public AudioSource RecycleAudioSource;
 		
 		[Header("Time")]
+		/// a delay in seconds to apply before playing a song
+		public float InitialDelay;
 		/// The time (in seconds) at which to start playing the sound
 		public float PlaybackTime;
 		/// The time (in seconds after which to stop playing the sound
@@ -166,6 +168,7 @@ namespace MoreMountains.Tools
 				defaultOptions.RecycleAudioSource = null;
 				defaultOptions.AudioGroup = null;
 				defaultOptions.Pitch = 1f;
+				defaultOptions.InitialDelay = 0f;
 				defaultOptions.PanStereo = 0f;
 				defaultOptions.SpatialBlend = 0.0f;
 				defaultOptions.SoloSingleTrack = false;

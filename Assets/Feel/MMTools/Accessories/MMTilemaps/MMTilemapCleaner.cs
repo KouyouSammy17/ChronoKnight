@@ -15,6 +15,8 @@ namespace MoreMountains.Tools
 		public bool CleanButton;
 		[MMInspectorButton("CleanAllChildren")] 
 		public bool CleanAllButton;
+		
+		#if MM_PHYSICS2D
         
 		protected Tilemap _tilemap;
 		protected Tilemap[] _tilemaps;
@@ -44,5 +46,7 @@ namespace MoreMountains.Tools
 			}
                 
 		}
+
+		#endif
 	}    
 }

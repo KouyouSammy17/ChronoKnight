@@ -461,15 +461,18 @@ namespace MoreMountains.Feedbacks
 			MMF_Events.FeedbackTypeAuthorized = UnityEvents;
 			MMF_Broadcast.FeedbackTypeAuthorized = Broadcast;
 			MMF_Collider.FeedbackTypeAuthorized = Collider;
-			MMF_Collider2D.FeedbackTypeAuthorized = Collider2D;
 			MMF_Destroy.FeedbackTypeAuthorized = DestroyTargetObject;
 			MMF_Enable.FeedbackTypeAuthorized = EnableBehaviour;
 			MMF_FloatController.FeedbackTypeAuthorized = FloatController;
 			MMF_InstantiateObject.FeedbackTypeAuthorized = InstantiateObject;
 			MMF_RadioSignal.FeedbackTypeAuthorized = MMRadioSignal;
 			MMF_Rigidbody.FeedbackTypeAuthorized = Rigidbody;
-			MMF_Rigidbody2D.FeedbackTypeAuthorized = Rigidbody2D;
 			MMF_SetActive.FeedbackTypeAuthorized = SetActive;
+			
+			#if MM_PHYSICS2D
+			MMF_Collider2D.FeedbackTypeAuthorized = Collider2D;
+			MMF_Rigidbody2D.FeedbackTypeAuthorized = Rigidbody2D;
+			#endif
 		  
 			#if MOREMOUNTAINS_NICEVIBRATIONS_INSTALLED
 			MMF_Haptics.FeedbackTypeAuthorized = HapticClip;

@@ -31,7 +31,9 @@ namespace MoreMountains.Tools
 
 		protected Vector3 _gizmoCenter;
 		protected Rigidbody _rigidbody;
+		#if MM_PHYSICS2D
 		protected Rigidbody2D _rigidbody2D;
+		#endif
 
 		/// <summary>
 		/// On Awake we grab our components and set our center of mass if needed
@@ -63,7 +65,9 @@ namespace MoreMountains.Tools
 		protected virtual void Initialization()
 		{
 			_rigidbody = this.gameObject.MMGetComponentNoAlloc<Rigidbody>();
+			#if MM_PHYSICS2D
 			_rigidbody2D = this.gameObject.MMGetComponentNoAlloc<Rigidbody2D>();
+			#endif
 		}
 
 		/// <summary>
@@ -76,10 +80,12 @@ namespace MoreMountains.Tools
 				_rigidbody.centerOfMass = CenterOfMassOffset;
 			}
 
+			#if MM_PHYSICS2D
 			if (_rigidbody2D != null)
 			{
 				_rigidbody2D.centerOfMass = CenterOfMassOffset;
 			}
+			#endif
 
 			if (AutoDestroyComponentAfterSet)
 			{

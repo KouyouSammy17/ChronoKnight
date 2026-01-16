@@ -39,15 +39,7 @@ namespace MoreMountains.Tools
 
 			for (int i = 0; i < poolSize; i++)
 			{
-				GameObject temporaryAudioHost = new GameObject("MMAudioSourcePool_"+i);
-				SceneManager.MoveGameObjectToScene(temporaryAudioHost.gameObject, parent.gameObject.scene);
-				AudioSource tempSource = temporaryAudioHost.AddComponent<AudioSource>();
-				MMFollowTarget followTarget = temporaryAudioHost.AddComponent<MMFollowTarget>();
-				followTarget.enabled = false;
-				followTarget.DisableSelfOnSetActiveFalse = true;
-				temporaryAudioHost.transform.SetParent(parent);
-				temporaryAudioHost.SetActive(false);
-				_pool.Add(tempSource);
+				AddOneObjectToThePool(i, parent, false);
 			}
 		}
 
@@ -128,16 +120,25 @@ namespace MoreMountains.Tools
 
 			if (poolCanExpand)
 			{
-				GameObject temporaryAudioHost = new GameObject("MMAudioSourcePool_"+_pool.Count);
-				SceneManager.MoveGameObjectToScene(temporaryAudioHost.gameObject, parent.gameObject.scene);
-				AudioSource tempSource = temporaryAudioHost.AddComponent<AudioSource>();
-				temporaryAudioHost.transform.SetParent(parent);
-				temporaryAudioHost.SetActive(true);
-				_pool.Add(tempSource);
+				AudioSource tempSource = AddOneObjectToThePool(_pool.Count, parent, true);
 				return tempSource;
 			}
 
 			return null;
+		}
+
+		protected virtual AudioSource AddOneObjectToThePool(int index, Transform parent, bool active)
+		{
+			GameObject temporaryAudioHost = new GameObject("MMAudioSourcePool_"+index);
+			SceneManager.MoveGameObjectToScene(temporaryAudioHost.gameObject, parent.gameObject.scene);
+			AudioSource tempSource = temporaryAudioHost.AddComponent<AudioSource>();
+			MMFollowTarget followTarget = temporaryAudioHost.AddComponent<MMFollowTarget>();
+			followTarget.enabled = false;
+			followTarget.DisableSelfOnSetActiveFalse = true;
+			temporaryAudioHost.transform.SetParent(parent);
+			temporaryAudioHost.SetActive(active);
+			_pool.Add(tempSource);
+			return tempSource;
 		}
 
 		/// <summary>

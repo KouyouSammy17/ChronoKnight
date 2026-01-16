@@ -4,6 +4,7 @@ using UnityEngine.Tilemaps;
 
 namespace MoreMountains.Tools
 {
+	#if MM_PHYSICS2D
 	/// <summary>
 	/// A class to put on a tilemap so it acts as a shadow/copy of another reference tilemap.
 	/// Useful for wall shadows for example.
@@ -80,6 +81,6 @@ namespace MoreMountains.Tools
 			// we feed it our positions
 			destination.SetTiles(positions, allTiles);
 		}
-		
 	}
+	#endif
 }
