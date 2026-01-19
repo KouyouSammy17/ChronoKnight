@@ -237,6 +237,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!1 &3718852939917964668
 GameObject:
@@ -701,9 +702,19 @@ MonoBehaviour:
   _hitStun: 0.2
   _knockback: 8
   _iframes: 0.5
+  _ignoreTimeScale: 1
   _cancelHorizontalVelocityOnHit: 1
   _keepUpwardVelocity: 1
-  _ignoreTimeScale: 1
+  _airDamageKnockdown: 1
+  _airLaunchUp: 6
+  _airLaunchHorizontalMultiplier: 1
+  _useSlamDown: 0
+  _slamDelay: 0.08
+  _slamDownAccel: 45
+  _minAirTumbleTime: 0.1
+  _impactToDownDelay: 0.12
+  _recoverTime: 0.5
+  _faceAttackerOnHit: 1
 --- !u!114 &6452052586895441888
 MonoBehaviour:
   m_ObjectHideFlags: 0

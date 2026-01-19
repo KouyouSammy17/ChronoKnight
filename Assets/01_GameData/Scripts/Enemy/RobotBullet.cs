@@ -29,7 +29,7 @@ public class RobotBullet : MonoBehaviour
         {
             var stats = other.GetComponent<PlayerStats>();
             if (stats != null)
-                stats.TakeDamage(Damage);   // invokes onHealthChanged, GameOver at zero HP :contentReference[oaicite:5]{index=5}
+                stats.TakeEnemyDamage(Damage, transform.position);            // invokes onHealthChanged, GameOver at zero HP :contentReference[oaicite:5]{index=5}
 
             Destroy(gameObject);
             return;

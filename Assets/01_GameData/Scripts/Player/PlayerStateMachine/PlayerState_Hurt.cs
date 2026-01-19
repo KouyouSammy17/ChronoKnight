@@ -4,13 +4,7 @@ public class PlayerState_Hurt : PlayerStateBase
 
     public override void Tick(PlayerStateMachineBrain brain)
     {
-        brain.Motor.InputMove(brain.Input.Move);
-
-        // buffer attack during stun (optional)
-        if (brain.Input.ConsumeAttackPressed())
-        {
-            brain.Damage?.BufferAttack();
-        }
+        //brain.Motor.InputMove(brain.Input.Move);
 
         brain.Motor.MotorUpdate(false, false, false);
 
@@ -18,6 +12,6 @@ public class PlayerState_Hurt : PlayerStateBase
 
     public override void FixedTick(PlayerStateMachineBrain brain)
     {
-        brain.Motor.MotorFixedUpdate(allowHorizontalMovement: false);
+        brain.Motor.MotorFixedUpdate(allowHorizontalMovement: true);
     }
 }

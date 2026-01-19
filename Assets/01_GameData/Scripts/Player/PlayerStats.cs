@@ -50,16 +50,29 @@ public class PlayerStats : MonoBehaviour
     {
         _noDamageUntilTime = Mathf.Max(_noDamageUntilTime, Time.unscaledTime + Mathf.Max(0f, seconds));
     }
+    // Legacy/simple damage (treated as hazard-like; still triggers hit react by default)
+    public bool TakeDamage(int amount)
+    {
+        return TakeDamageInternal(amount, sourceWorldPos: null, extraKnockback: 0f,
+                                  ignoreGates: false, triggerHitReact: true);
+    }
+    public bool TakeEnemyDamage(int amount, Vector3 sourceWorldPos, float extraKnockback = 0f,
+                            bool ignoreGates = false, bool triggerHitReact = true)
+    {
+        return TakeDamageInternal(amount, sourceWorldPos, extraKnockback, ignoreGates, triggerHitReact);
+    }
 
-    /// <summary>
-    /// Standard damage entry point.
-    /// </summary>
-    public void TakeDamage(int amount) => TakeDamage(amount, ignoreGates: false, triggerHitReact: true);
+    public bool TakeHazardDamage(int amount, bool ignoreGates = false, bool triggerHitReact = false)
+    {
+        // hazards typically shouldn't rotate/knockback; keep triggerHitReact false by default
+        return TakeDamageInternal(amount, sourceWorldPos: null, extraKnockback: 0f, ignoreGates, triggerHitReact);
+    }
 
     /// <summary>
     /// Overload that can bypass gates and/or skip hit-reaction (e.g., fall damage).
     /// </summary>
-    public bool TakeDamage(int amount, bool ignoreGates, bool triggerHitReact)
+    private bool TakeDamageInternal(int amount, Vector3? sourceWorldPos, float extraKnockback,
+                                  bool ignoreGates, bool triggerHitReact)
     {
         if (amount <= 0 || _currentHP <= 0) return false;
 
@@ -67,26 +80,25 @@ public class PlayerStats : MonoBehaviour
 
         if (!ignoreGates)
         {
-            // recent-damage cooldown
             if (Time.unscaledTime < _noDamageUntilTime) return false;
-            // global invuln flag (set by hit-react or externally)
             if (recv != null && recv.IsInvulnerable) return false;
         }
 
         _currentHP = Mathf.Max(_currentHP - amount, 0);
         onHealthChanged?.Invoke(_currentHP);
 
-        // Momentum penalties (keep your existing logic)
         MomentumManager.Instance?.AddMomentum(-20f);
         MomentumManager.Instance?.BreakMaxLock();
         GetComponent<MomentumBuffsManager>()?.RemoveMaxBuffIfActive();
 
-        // Kick the hit reaction unless explicitly skipped (e.g., fall damage)
-        if (triggerHitReact) recv?.PlayHitReact(null, 0f).Forget();
+        if (triggerHitReact && recv != null)
+            recv.PlayHitReact(sourceWorldPos, extraKnockback).Forget();
 
         if (_currentHP == 0) Die();
         return true;
     }
+
+
 
     public bool SpendStamina(int cost)
     {

@@ -60,12 +60,14 @@ public class PlayerInputRouter : MonoBehaviour
     public void ClearAll()
     {
         Move = Vector2.zero;
-        JumpHeld = false;
-
-        _jumpPressed = false;
-        _jumpReleased = false;
-        _dashPressed = false;
+       ClearPressedBuffers();
+    }
+    public void ClearPressedBuffers()
+    {
         _attackPressed = false;
+        _dashPressed = false;
+        _jumpPressed = false;
         _turboPressed = false;
+        JumpHeld = false;
     }
 }

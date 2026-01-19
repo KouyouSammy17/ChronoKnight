@@ -46,6 +46,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int _fallDamage = 20;      // HP lost on fall
     [SerializeField] private float _respawnFreeze = 0.1f; // short freeze before snap (sec, realtime)
     [SerializeField] private float _respawnIFrames = 1.0f; // optional: post-respawn grace (sec)
+    [SerializeField, Tooltip("Prevents double-triggering fall respawn in quick succession.")]
+    private float _fallRearmDelay = 0.35f;
+    private float _nextFallAllowedUnscaled = 0f;
 
     [Header("Player Spawn")]
     [SerializeField] private PlayerMotor _playerPrefab;
@@ -72,6 +75,7 @@ public class GameManager : MonoBehaviour
 
     private bool _pauseBlocked = false;
     private bool _isPaused = false;
+    private CancellationTokenSource _fallRespawnCts;
     public bool IsPaused => _isPaused;
     public PlayerMotor Player => _player;
     public PlayerInput PlayerInput => _playerInput;
@@ -108,12 +112,17 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        if (_enableFallCheck && State == GameState.Playing && _player != null && !_isRespawningFromFall)
+        if (!_enableFallCheck) return;
+        if (State != GameState.Playing) return;
+        if (_player == null) return;
+        if (_isRespawningFromFall) return;
+
+        // prevent spam triggers
+        if (Time.unscaledTime < _nextFallAllowedUnscaled) return;
+
+        if (_player.transform.position.y <= _fallKillY)
         {
-            if (_player.transform.position.y <= _fallKillY)
-            {
-                TriggerFallRespawn();
-            }
+            TriggerFallRespawn();
         }
     }
 
@@ -394,7 +403,10 @@ public class GameManager : MonoBehaviour
         State = scene.name == _titleScene ? GameState.Title : GameState.Playing;
 
         BindSpawnAndPlayer();
-
+        _isRespawningFromFall = false;
+        _fallRespawnCts?.Cancel();
+        _fallRespawnCts?.Dispose();
+        _fallRespawnCts = null;
         if (State == GameState.Playing)
         {
             UIManager.Instance?.ShowTitleUI(false);
@@ -436,9 +448,8 @@ public class GameManager : MonoBehaviour
 #if UNITY_6000_0_OR_NEWER
         _player = UnityEngine.Object.FindFirstObjectByType<PlayerMotor>();
 #else
-        _player = UnityEngine.Object.FindObjectOfType<PlayerController>();
+    _player = UnityEngine.Object.FindObjectOfType<PlayerMotor>();
 #endif
-
         if (_player == null && _playerPrefab != null && State == GameState.Playing)
         {
             Vector3 pos = _spawnPoint ? _spawnPoint.position : Vector3.zero;
@@ -518,56 +529,116 @@ public class GameManager : MonoBehaviour
         return SceneManager.GetActiveScene().name == _firstLevel;
     }
 
-    private async Cysharp.Threading.Tasks.UniTaskVoid FallRespawnAndDamageAsync()
+    private async UniTaskVoid FallRespawnAndDamageAsync()
     {
         if (_isRespawningFromFall) return;
+        if (_player == null) return;
+
         _isRespawningFromFall = true;
 
-        var stats = _player ? _player.GetComponent<PlayerStats>() : null;
-        var recv = _player ? _player.GetComponent<PlayerDamageReceiver>() : null;
-        var rb = _player ? _player.GetRigidbody() : null;
+        // re-arm delay (so we can't double-trigger immediately)
+        _nextFallAllowedUnscaled = Time.unscaledTime + _fallRearmDelay;
 
-        // 0) Hard-gate damage during the whole sequence
-        if (recv != null) recv.SetInvulnerable(true);
-        stats?.ArmNoDamageFor(_respawnIFrames + 0.05f); // make sure gates ignore TimeScale
-                                                        // (Uses Time.unscaledTime inside PlayerStats.) :contentReference[oaicite:3]{index=3}
+        // Cancel any previous fall routine
+        _fallRespawnCts?.Cancel();
+        _fallRespawnCts?.Dispose();
+        _fallRespawnCts = new CancellationTokenSource();
+        var ct = _fallRespawnCts.Token;
 
-        // 1) Kill all velocity and SNAP immediately to spawn
-        if (rb != null) rb.linearVelocity = Vector3.zero;
-        RespawnPlayer(resetStats: false); // moves to spawn and clears motion flags
-        if (rb != null) rb.linearVelocity = Vector3.zero;
-        Physics.SyncTransforms(); // ensure colliders update this frame
+        var player = _player;
+        var stats = player.GetComponent<PlayerStats>();
+        var recv = player.GetComponent<PlayerDamageReceiver>();
+        var combat = player.GetComponent<CombatController>();
+        var brain = player.GetComponent<PlayerStateMachineBrain>();
+        var rb = player.GetRigidbody();
 
-        // 2) (optional micro-freeze ONLY for feel; set to 0 to remove)
-        if (_respawnFreeze > 0f)
-            await Cysharp.Threading.Tasks.UniTask.Delay(
-                System.TimeSpan.FromSeconds(_respawnFreeze),
-                DelayType.Realtime
-            );
-
-        // 3) Apply fall damage exactly once, no hit-react
-        if (stats != null && _fallDamage > 0)
+        try
         {
-            // uses the overload that bypasses gates and skips hit reaction
-            stats.TakeDamage(_fallDamage, ignoreGates: true, triggerHitReact: false);
-        } // :contentReference[oaicite:4]{index=4}
+            // Make sure we have a spawn point (prevents "didn't respawn" loops)
+            EnsureSpawnPoint();
 
-        // 4) Short grace window to prevent immediate re-hits on landing
-        if (_respawnIFrames > 0f)
-            await Cysharp.Threading.Tasks.UniTask.Delay(
-                System.TimeSpan.FromSeconds(_respawnIFrames),
-                DelayType.Realtime
-            );
+            // Stop combat / queued stuff that can lock you
+            combat?.CancelCombo();
 
-        if (recv != null) recv.SetInvulnerable(false);
-        _isRespawningFromFall = false;
+            // Block incoming damage during the sequence + shortly after
+            recv?.SetInvulnerable(true);
+            stats?.ArmNoDamageFor(_respawnIFrames + 0.1f);
+
+            // Lock input + stop motion
+            player.DisableInput();
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+
+            // Snap to spawn (your RespawnPlayer already calls OnRespawnSnap + stops Turbo)
+            RespawnPlayer(resetStats: false);
+
+            if (rb != null) rb.linearVelocity = Vector3.zero;
+            Physics.SyncTransforms();
+
+            // Tiny freeze for feel
+            if (_respawnFreeze > 0f)
+            {
+                await UniTask.Delay(TimeSpan.FromSeconds(_respawnFreeze), DelayType.Realtime, PlayerLoopTiming.Update, ct);
+                if (ct.IsCancellationRequested) return;
+            }
+
+            // Apply fall damage ONCE (skip hit react)
+            if (stats != null && _fallDamage > 0)
+            {
+                stats.TakeHazardDamage(_fallDamage, ignoreGates: true, triggerHitReact: false);
+            }
+
+            // Force state machine back to locomotion (prevents “stuck can’t jump/attack”)
+            if (brain != null)
+            {
+                var next = player.IsGrounded ? PlayerStateID.Grounded : PlayerStateID.Airborne;
+                brain.ChangeState(next, force: true);
+            }
+
+            // Restore control
+            player.EnableInput();
+
+            if (_respawnIFrames > 0f)
+            {
+                recv?.SetInvulnerableFor(_respawnIFrames).Forget();
+            }
+        }
+        finally
+        {
+           _isRespawningFromFall = false;
+        }
     }
+
     public void TriggerFallRespawn()
     {
-        if (!_enableFallCheck || _player == null || _isRespawningFromFall) return;
+        if (!_enableFallCheck) return;
+        if (_player == null) return;
+        if (_isRespawningFromFall) return;
+        if (Time.unscaledTime < _nextFallAllowedUnscaled) return;
+
         FallRespawnAndDamageAsync().Forget();
     }
 
+
+    private void EnsureSpawnPoint()
+    {
+        if (_spawnPoint != null) return;
+
+        var spawnGo = GameObject.FindGameObjectWithTag("Respawn");
+        _spawnPoint = spawnGo ? spawnGo.transform : null;
+
+        // If still missing, fall back to world origin so we don't loop under killY forever.
+        if (_spawnPoint == null)
+        {
+            Debug.LogWarning("[GameManager] Respawn tag not found. Falling back to (0,0,0).");
+            var tmp = new GameObject("TEMP_RESPAWN_POINT");
+            tmp.transform.position = Vector3.zero;
+            _spawnPoint = tmp.transform;
+        }
+    }
 
     private void EnterResultMode(GameState newState, System.Action showUI)
     {
