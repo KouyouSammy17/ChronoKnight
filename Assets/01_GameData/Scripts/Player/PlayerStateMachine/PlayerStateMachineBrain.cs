@@ -11,6 +11,8 @@ public class PlayerStateMachineBrain : MonoBehaviour
     [SerializeField] private CombatController _combat;
     [SerializeField] private PlayerDamageReceiver _damage;
     [SerializeField] private PlayerStats _stats;
+    [SerializeField] private PlayerAnimator _anim;
+   
 
     [Header("Debug")]
     [SerializeField] private PlayerStateID _current = PlayerStateID.Grounded;
@@ -22,6 +24,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
 
     // accessors
     public PlayerMotor Motor => _motor;
+    public PlayerAnimator Anim => _anim;
     public PlayerInputRouter Input => _input;
     public CombatController Combat => _combat;
     public PlayerDamageReceiver Damage => _damage;
@@ -44,6 +47,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
         _combat = _combat ?? GetComponent<CombatController>();
         _damage = _damage ?? GetComponent<PlayerDamageReceiver>();
         _stats = _stats ?? GetComponent<PlayerStats>();
+        _anim = _anim ?? GetComponentInChildren<PlayerAnimator>();
 
         MovementState = new MMStateMachine<PlayerStateID>(this.gameObject, true);
         ModeState = new MMStateMachine<PlayerModeID>(this.gameObject, true);
@@ -58,6 +62,8 @@ public class PlayerStateMachineBrain : MonoBehaviour
         Register(new PlayerState_Dead());
         Register(new PlayerState_Knockdown());
         Register(new PlayerState_DashAttack());
+        Register(new PlayerState_TurboStart());
+        Register(new PlayerState_Dead());
 
         // Mode
         RegisterMode(new PlayerMode_Normal());
@@ -78,15 +84,15 @@ public class PlayerStateMachineBrain : MonoBehaviour
         // ─────────────────────────────────────────────
         // 1) Turbo input -> start Turbo via TurboModeManager
         // ─────────────────────────────────────────────
-        if (_input != null && _input.ConsumeTurboPressed())
+        if (Input != null && Input.ConsumeTurboPressed())
         {
             var turbo = TurboModeManager.Instance;
-            if (turbo != null)
+            if (turbo != null)   // add CanStartTurbo if you want
             {
-                var anim = GetComponentInChildren<PlayerAnimator>();
-                turbo.TryStartTurbo(_motor, anim); // requires TurboModeManager patched to PlayerMotor
+                ChangeState(PlayerStateID.TurboStart);
             }
         }
+
 
         // ─────────────────────────────────────────────
         // 2) Mirror runtime Turbo -> ModeState (Normal/Turbo)
@@ -223,5 +229,39 @@ public class PlayerStateMachineBrain : MonoBehaviour
 
         _modeActive = _modeStates.TryGetValue(next, out var s) ? s : null;
         _modeActive?.Enter(this);
+    }
+
+    public void ResetAfterRespawn(bool forceSnapYawRight = true)
+    {
+        // 0) Stop turbo and normalize mode (so DT / fixedDT go back to normal)
+        if (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
+            TurboModeManager.Instance.StopTurbo();
+        ChangeMode(PlayerModeID.Normal, true);
+
+        // 1) Clear stateful gameplay systems
+        Combat?.CancelCombo();
+
+        // 2) Clear buffered inputs so we don't "auto attack / auto jump" after respawn
+        Input?.ClearPressedBuffers();
+        Motor?.ClearBufferedMovement();
+
+        // 3) Reset motor runtime flags (dash, wall jump locks, etc.)
+        // Use OnRespawnSnap if you're already teleporting + SyncTransforms in GameManager
+        Motor?.OnRespawnSnap(); // keeps jump buffer behavior you designed
+        Motor?.SetHitReactLock(false);
+        Motor?.SetAirComboHang(false);
+        Motor?.SetFrozen(false);
+        Motor?.CancelDash();
+        Motor?.StopHorizontalInstant();
+
+        // 4) Reset animator flags (hurt/down/rootmotion/attack speed/etc.)
+        Anim?.ResetForRespawn();
+
+        // 5) Force the movement state back to grounded
+        ChangeState(PlayerStateID.Grounded, true);
+
+        // Optional: force facing yaw to a known default on respawn
+        if (forceSnapYawRight)
+            Motor?.ForceFacingYaw(90f, snap: true);
     }
 }

@@ -32,6 +32,9 @@ public class GameManager : MonoBehaviour
     [SerializeField] private string _titleFirstSelectedTag = "FirstSelected"; // optional fallback
     [SerializeField] private string _titleFirstSelectedName = "Btn_Title";    // optional fallback
 
+    [Header("Game Over")]
+    [SerializeField] private float _gameOverDelay = 2f;
+
     [Header("Feel MMSceneLoading")]
     [SerializeField] private bool _useAdditive = false;
     [SerializeField] private string _feelLoadingScene = "LoadingScreen";
@@ -72,6 +75,9 @@ public class GameManager : MonoBehaviour
     private bool _isRespawningFromFall = false;
     private Transform _spawnPoint;      // Tag: Respawn
     private MomentumGaugeUI _gauge; // auto-fetched from the Player
+
+    private CancellationTokenSource _gameOverCts;
+    private bool _gameOverSequenceRunning;
 
     private bool _pauseBlocked = false;
     private bool _isPaused = false;
@@ -161,6 +167,7 @@ public class GameManager : MonoBehaviour
 
         // Cursor should be visible on title
         UpdateCursorState();
+        CancelGameOverSequence();
     }
 
     public void StartNewGame() => LoadWithFeel(_firstLevel, GameState.Playing);
@@ -176,6 +183,7 @@ public class GameManager : MonoBehaviour
         ResolvePauseMenu();
         _pauseMenu?.HideMenu();  // <-- direct call
         UpdateCursorState();
+        CancelGameOverSequence();
     }
 
     public void LoadNextLevel()
@@ -205,12 +213,55 @@ public class GameManager : MonoBehaviour
 
     public void GameOver()
     {
-        if (State == GameState.GameOver) return;
+        if (State != GameState.Playing) return;
+        if (_gameOverSequenceRunning) return;
+
+        _gameOverSequenceRunning = true;
+
+        _gameOverCts?.Cancel();
+        _gameOverCts?.Dispose();
+        _gameOverCts = new CancellationTokenSource();
+
+        GameOverSequenceAsync(_gameOverCts.Token).Forget();
+        _gauge?.TL_HideGauge();
+    }
+
+    private void CancelGameOverSequence()
+    {
+        _gameOverCts?.Cancel();
+        _gameOverCts?.Dispose();
+        _gameOverCts = null;
+        _gameOverSequenceRunning = false;
+    }
+
+    private async UniTaskVoid GameOverSequenceAsync(CancellationToken ct)
+    {
+        // Make sure turbo timescale doesn’t make death feel weird
         TurboModeManager.Instance?.ForceReset(clearCooldown: true);
-        EnterResultMode(GameState.GameOver, () =>
+
+        // Lock player
+        _player?.DisableInput();
+
+        // Stop sliding
+        if (_player != null)
         {
-            UIManager.Instance?.ShowGameOverUI();
-        });
+            var rb = _player.GetRigidbody();
+            if (rb != null) rb.linearVelocity = Vector3.zero;
+
+        }
+
+        try
+        {
+            await UniTask.Delay(TimeSpan.FromSeconds(_gameOverDelay),
+                DelayType.Realtime, PlayerLoopTiming.Update, ct);
+        }
+        catch (OperationCanceledException) { return; }
+
+        if (ct.IsCancellationRequested || this == null) return;
+
+        
+        EnterResultMode(GameState.GameOver, () => UIManager.Instance?.ShowGameOverUI());
+        _gameOverSequenceRunning = false;
     }
 
     public PlayerMotor GetPlayer() => _player;
@@ -234,7 +285,11 @@ public class GameManager : MonoBehaviour
         _player.OnRespawnSnap();
 
         if (resetStats)
+        {
             _player.GetComponent<PlayerStats>()?.ResetStats();
+            _player.GetComponent<PlayerStateMachineBrain>().ResetAfterRespawn();
+        }
+            
         
         // NEW: if Turbo is active when we fall, stop it and start cooldown
         var turbo = TurboModeManager.Instance;

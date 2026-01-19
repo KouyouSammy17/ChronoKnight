@@ -1,21 +1,40 @@
-public class PlayerState_Dead : PlayerStateBase
+using UnityEngine;
+
+public class PlayerState_Dead : IPlayerState
 {
-    public override PlayerStateID ID => PlayerStateID.Dead;
+    public PlayerStateID ID => PlayerStateID.Dead;
 
-    public override void Enter(PlayerStateMachineBrain brain)
+    public void Enter(PlayerStateMachineBrain brain)
     {
-        brain.Motor?.DisableInput();
+        // hard lock everything
+        brain.Motor.DisableInput();
+        brain.Motor.StopHorizontalInstant();
+        brain.Combat?.CancelCombo();
+
+        // stop any dash / special movement (if you have a method)
+        brain.Motor.CancelDash();
+
+        // play death anim
+        var anim = brain.GetComponentInChildren<PlayerAnimator>();
+        anim?.TriggerDie();
+        anim?.SetDeadLoop(true); // optional bool
     }
 
-    public override void Tick(PlayerStateMachineBrain brain)
+    public void Tick(PlayerStateMachineBrain brain)
     {
-        // still tick motor for gravity/physics if you want:
-        brain.Motor.MotorUpdate(false, false, false);
-
+        // do nothing (stay dead)
     }
 
-    public override void FixedTick(PlayerStateMachineBrain brain)
+    public void FixedTick(PlayerStateMachineBrain brain)
     {
+        // freeze horizontal drift forever
         brain.Motor.MotorFixedUpdate(allowHorizontalMovement: false);
+    }
+
+    public void Exit(PlayerStateMachineBrain brain)
+    {
+        // usually never exits unless respawn/restart
+        var anim = brain.GetComponentInChildren<PlayerAnimator>();
+        anim?.SetDeadLoop(false);
     }
 }

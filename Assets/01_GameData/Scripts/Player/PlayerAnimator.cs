@@ -29,6 +29,10 @@ public class PlayerAnimator : MonoBehaviour
     private bool _justWallJumped = false;
     private int _hashKnockdown;
     private int _hashRecover;
+    private int _hashTurboStart;
+    private int _hashDie;
+    private int _hashDeadLoop;
+
 
 
     // NEW: cache the Rigidbody on your player parent
@@ -58,6 +62,9 @@ public class PlayerAnimator : MonoBehaviour
             Animator.StringToHash("Attack3")
         };
         _hashDashAttack = Animator.StringToHash("DashAttack");
+        _hashTurboStart = Animator.StringToHash("TurboStart");
+        _hashDie = Animator.StringToHash("Die");
+        _hashDeadLoop = Animator.StringToHash("IsDead");
         // 2) grab the Rigidbody up the hierarchy
         _rb = GetComponentInParent<Rigidbody>();
         if (_rb == null)
@@ -181,6 +188,19 @@ public class PlayerAnimator : MonoBehaviour
         _anim.SetTrigger(_hashDashAttack);
     }
 
+    public void TriggerTurboStart()
+    {
+        _anim.SetTrigger(_hashTurboStart);
+    }
+    public void TriggerDie()
+    {
+        _anim.SetTrigger(_hashDie);
+    }
+
+    public void SetDeadLoop(bool on)
+    {
+        _anim.SetBool(_hashDeadLoop, on);
+    }
     public void SetAttackSpeed(float multiplier)
     {
         _anim.speed = multiplier;
@@ -208,5 +228,19 @@ public class PlayerAnimator : MonoBehaviour
             () => _anim.GetCurrentAnimatorStateInfo(0).normalizedTime >= 1f,
             cancellationToken: ct
         );
+    }
+
+    public void ResetForRespawn()
+    {
+        SetHurt(false);
+       
+        // if you have death loop bool / dead flag
+        SetDeadLoop(false);
+
+        // if you use root motion during attacks
+        SetApplyRootMotion(false);
+
+        // reset attack speed
+        SetAttackSpeed(1f);
     }
 }

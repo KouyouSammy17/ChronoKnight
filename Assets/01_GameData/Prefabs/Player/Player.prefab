@@ -708,7 +708,7 @@ MonoBehaviour:
   _airDamageKnockdown: 1
   _airLaunchUp: 6
   _airLaunchHorizontalMultiplier: 1
-  _useSlamDown: 0
+  _useSlamDown: 1
   _slamDelay: 0.08
   _slamDownAccel: 45
   _minAirTumbleTime: 0.1
@@ -745,8 +745,8 @@ MonoBehaviour:
   _acceleration: 10
   _deceleration: 10
   _rotateSpeed: 10
-  _edgeCheckForward: 0.5
-  _edgeCheckDown: 1
+  _edgeCheckForward: 0.7
+  _edgeCheckDown: 1.6
   _groundLayer:
     serializedVersion: 2
     m_Bits: 128
@@ -802,6 +802,7 @@ MonoBehaviour:
   _combat: {fileID: 0}
   _damage: {fileID: 0}
   _stats: {fileID: 0}
+  _anim: {fileID: 0}
   _current: 0
   _modeCurrent: 0
 --- !u!1001 &2217807941476821120

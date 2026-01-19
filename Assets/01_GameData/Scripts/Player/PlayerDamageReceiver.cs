@@ -81,6 +81,8 @@ public class PlayerDamageReceiver : MonoBehaviour
     {
         if (_motor == null || _rb == null) return;
         if (_invuln) return;
+        var stats = GetComponent<PlayerStats>();
+        if (stats != null && stats.CurrentHP <= 0) return;
 
         // cancel previous reaction
         _hitCts?.Cancel();
