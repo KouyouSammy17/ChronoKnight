@@ -4,7 +4,7 @@ public class PlayerState_Hurt : PlayerStateBase
 
     public override void Tick(PlayerStateMachineBrain brain)
     {
-        brain.Motor.InputMove(brain.Input.Move);
+        //brain.Motor.InputMove(brain.Input.Move);
 
         brain.Motor.MotorUpdate(false, false, false);
 

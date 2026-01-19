@@ -11,7 +11,8 @@ public class DamageZone : MonoBehaviour
         {
             var stats = other.GetComponent<PlayerStats>();
             if (stats != null)
-                stats.TakeDamage(_damage);
+                // pass the trap world position so the player can face/knockback correctly
+                stats.TakeEnemyDamage(_damage, transform.position);
         }
     }
 }

@@ -10,7 +10,8 @@ public class PlayerState_Knockdown : PlayerStateBase
 
     public override void FixedTick(PlayerStateMachineBrain brain)
     {
-        // IMPORTANT: allow physics velocity so knockback isnÅft erased
-        brain.Motor.MotorFixedUpdate(allowHorizontalMovement: true);
+        // allow knockback while airborne, but stop sliding once grounded
+        bool allow = !brain.Motor.IsGrounded;
+        brain.Motor.MotorFixedUpdate(allowHorizontalMovement: allow);
     }
 }

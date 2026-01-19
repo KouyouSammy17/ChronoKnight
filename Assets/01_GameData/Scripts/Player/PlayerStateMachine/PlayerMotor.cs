@@ -110,6 +110,9 @@ public class PlayerMotor : MonoBehaviour
 
     private bool _airComboHang;
     private bool _savedUseGravity;
+    // --- Hit React Lock (Smash/Kirby style) ---
+    private bool _hitReactLock = false;
+
 
 
     private float PlayerDT =>
@@ -411,6 +414,10 @@ public class PlayerMotor : MonoBehaviour
     public void MotorFixedUpdate(bool allowHorizontalMovement)
     {
         float fdt = PlayerFixedDT;
+       
+        // update target rotation FIRST (so this frame uses it)
+        if (allowHorizontalMovement)
+            HandleMovementRotation();
 
         Quaternion newRot = Quaternion.Slerp(
             _rb.rotation,
@@ -421,7 +428,6 @@ public class PlayerMotor : MonoBehaviour
 
         if (allowHorizontalMovement)
         {
-            HandleMovementRotation();
             HandleMovement();
         }
         else
@@ -493,6 +499,7 @@ public class PlayerMotor : MonoBehaviour
 
     private void HandleDash()
     {
+        if (_hitReactLock) return;   
         if (!_isDashing) return;
 
         float dt = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
@@ -590,6 +597,20 @@ public class PlayerMotor : MonoBehaviour
         float heldHeight = transform.position.y - _jumpStartY;
         float fdt = PlayerFixedDT;
 
+        if (_hitReactLock)
+        {
+            _isWallSliding = false;
+
+            // optional: still clamp max fall speed
+            if (_rb.linearVelocity.y < -_maxFallSpeed)
+            {
+                Vector3 clamped = _rb.linearVelocity;
+                clamped.y = -_maxFallSpeed;
+                _rb.linearVelocity = clamped;
+            }
+
+            return; // IMPORTANT: do NOT run jump-cut, airComboHang, wall-slide, extra gravity, etc.
+        }
 
         // wall jump lerp
         if (_isWallJumpLerping)
@@ -864,5 +885,45 @@ public class PlayerMotor : MonoBehaviour
             _rb.useGravity = _savedUseGravity;
         }
     }
+    /// <summary>
+    /// While true, Motor won't apply dash / jump-cut / air-hang / wall-slide logic that can destroy knockback arcs.
+    /// </summary>
+    public void SetHitReactLock(bool on)
+    {
+        _hitReactLock = on;
 
+        if (on)
+        {
+            // Stop systems that overwrite velocity during hit
+            CancelDash();
+            SetAirComboHang(false);
+
+            _isJumpHeld = false;
+            _jumpBufferCounter = 0f;
+            _dashJumpBufferCounter = 0f;
+
+            _isWallJumping = false;
+            _isWallJumpLerping = false;
+            _wallJumpTimer = 0f;
+            _wallJumpLerpTimer = 0f;
+
+            _isWallSliding = false;
+            _allowWallSlide = false;
+        }
+    }
+
+    /// <summary>
+    /// Force the motor rotation so it doesn't "rotate back" next FixedUpdate.
+    /// Right=90, Left=-90.
+    /// </summary>
+    public void ForceFacingYaw(float yaw, bool snap = true)
+    {
+        _targetRotation = Quaternion.Euler(0f, yaw, 0f);
+
+        // keep “facing direction” consistent for knockback fallback
+        _lastMoveInput = (yaw >= 0f) ? Vector2.right : Vector2.left;
+
+        if (snap && _rb != null)
+            _rb.MoveRotation(_targetRotation);
+    }
 }

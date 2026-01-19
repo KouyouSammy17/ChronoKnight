@@ -28,7 +28,6 @@ public class PlayerAnimator : MonoBehaviour
     private bool _wasWallSliding = false;
     private bool _justWallJumped = false;
     private int _hashKnockdown;
-    private int _hashIsDown;
     private int _hashRecover;
 
 
@@ -51,7 +50,6 @@ public class PlayerAnimator : MonoBehaviour
         _hashDamage = Animator.StringToHash("Damage");
         _hashIsHurt = Animator.StringToHash("IsHurt");
         _hashKnockdown = Animator.StringToHash("Knockdown");
-        _hashIsDown = Animator.StringToHash("IsDown");
         _hashRecover = Animator.StringToHash("Recover");
         _attackHashes = new[]
        {
@@ -162,7 +160,6 @@ public class PlayerAnimator : MonoBehaviour
     }
 
     public void TriggerKnockdown() => _anim.SetTrigger(_hashKnockdown);
-    public void SetDown(bool on) => _anim.SetBool(_hashIsDown, on);
     public void TriggerRecover() => _anim.SetTrigger(_hashRecover);
     public void TriggerDamage()
     {

@@ -601,18 +601,14 @@ public class GameManager : MonoBehaviour
             // Restore control
             player.EnableInput();
 
-            // I-frames grace
             if (_respawnIFrames > 0f)
             {
-                // (optional) let PlayerDamageReceiver handle invuln timer if you want:
                 recv?.SetInvulnerableFor(_respawnIFrames).Forget();
             }
         }
         finally
         {
-            // Always restore flags (even if scene load / cancel happens)
-            recv?.SetInvulnerable(false);
-            _isRespawningFromFall = false;
+           _isRespawningFromFall = false;
         }
     }
 
