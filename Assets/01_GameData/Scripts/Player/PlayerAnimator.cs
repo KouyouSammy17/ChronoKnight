@@ -59,7 +59,8 @@ public class PlayerAnimator : MonoBehaviour
        {
             Animator.StringToHash("Attack1"),
             Animator.StringToHash("Attack2"),
-            Animator.StringToHash("Attack3")
+            Animator.StringToHash("Attack3"),
+            Animator.StringToHash("Attack4")
         };
         _hashDashAttack = Animator.StringToHash("DashAttack");
         _hashTurboStart = Animator.StringToHash("TurboStart");
