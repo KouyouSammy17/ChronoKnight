@@ -113,6 +113,10 @@ public class PlayerMotor : MonoBehaviour
     // --- Hit React Lock (Smash/Kirby style) ---
     private bool _hitReactLock = false;
 
+    // grounded (raw vs coyote)
+    private bool _isGroundedRaw = false;
+    public bool IsGroundedRaw => _isGroundedRaw;
+
 
 
     private float PlayerDT =>
@@ -204,7 +208,10 @@ public class PlayerMotor : MonoBehaviour
         if (_rb == null) _rb = GetComponent<Rigidbody>();
         if (_playerAnim == null) _playerAnim = GetComponentInChildren<PlayerAnimator>();
 
-        _isGrounded = IsGroundedCheck();
+        _isGroundedRaw = IsGroundedCheck();
+        _isGrounded = _isGroundedRaw;
+        if (_isGrounded) _coyoteTimeCounter = _coyoteTime;
+
         if (_lastMoveInput == Vector2.zero) _lastMoveInput = Vector2.right;
 
         _targetRotation = transform.rotation;
@@ -387,8 +394,10 @@ public class PlayerMotor : MonoBehaviour
         }
 
         // grounded + coyote + reset on land
-        bool wasGroundedThisFrame = IsGroundedCheck();
-        if (wasGroundedThisFrame)
+        bool rawGrounded = IsGroundedCheck();
+        _isGroundedRaw = rawGrounded;
+
+        if (rawGrounded)
         {
             if (!_isGrounded)
             {
@@ -402,7 +411,7 @@ public class PlayerMotor : MonoBehaviour
         }
         else
         {
-            _coyoteTimeCounter -= Time.deltaTime;
+            _coyoteTimeCounter -= PlayerDT;     // IMPORTANT: use PlayerDT
             if (_coyoteTimeCounter <= 0f)
                 _isGrounded = false;
         }
@@ -559,6 +568,7 @@ public class PlayerMotor : MonoBehaviour
 
             _rb.linearVelocity = Vector3.zero;
             _rb.AddForce(wallJumpDir, ForceMode.VelocityChange);
+            ForceUngroundNow();
 
             _isJumpHeld = false;
             _jumpBufferCounter = 0f;
@@ -709,6 +719,7 @@ public class PlayerMotor : MonoBehaviour
             _rb.linearVelocity = vel;
 
             _rb.AddForce(Vector3.up * 5f, ForceMode.VelocityChange);
+            ForceUngroundNow();
 
             _isDashing = false;
             _isDashJump = true;
@@ -766,6 +777,14 @@ public class PlayerMotor : MonoBehaviour
             _groundLayer
         );
     }
+
+    private void ForceUngroundNow()
+    {
+        _isGroundedRaw = false;
+        _isGrounded = false;
+        _coyoteTimeCounter = 0f;
+    }
+
 
     private void HandleContinuousMovementMomentum()
     {

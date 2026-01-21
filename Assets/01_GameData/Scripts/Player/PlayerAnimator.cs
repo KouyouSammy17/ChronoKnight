@@ -71,33 +71,40 @@ public class PlayerAnimator : MonoBehaviour
             Debug.LogError("PlayerAnimator: could not find a Rigidbody in parent!", this);
     }
 
-    private void Update()
+    private void LateUpdate()
     {
-        // 1) Read current movement/grounding/wall state
+        if (_player == null || _anim == null) return;
+
         float currentSpeed = _player.GetCurrentMovementSpeedNormalized();
         float vSpeed = _player.VerticalSpeed;
-        bool grounded = _player.IsGrounded;
         bool isWallSliding = _player.IsWallSliding;
 
-        // 2a) Just started hanging on a wall? (skip if we just wall-jumped)
+        // Animator grounded should be RAW (raycast), not coyote
+        bool grounded = _player.IsGroundedRaw;
+
+        // Extra safety: if moving upward, never call it grounded
+        if (vSpeed > 0.1f) grounded = false;
+
+        // wall hang transitions (same as you had)
         if (!_justWallJumped && !_wasWallSliding && isWallSliding)
         {
             _anim.SetTrigger(_hashWallHangIn);
             _anim.SetBool(_hashWallHangLoop, true);
         }
-        // 2b) Just stopped hanging (drop-off), but skip if we just wall-jumped
         else if (!_justWallJumped && _wasWallSliding && !isWallSliding)
         {
-            // Simply clear the loop; no exit animation
             _anim.SetBool(_hashWallHangLoop, false);
         }
 
-        // 3) Update core blend/jump/dash parameters
-        _anim.SetFloat(_hashSpeed,currentSpeed, 0.1f, Time.deltaTime); // use normalized speed here
+        // Use unscaled dt during Turbo so damping doesn't “slow”
+        float dt = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
+            ? Time.unscaledDeltaTime
+            : Time.deltaTime;
+
+        _anim.SetFloat(_hashSpeed, currentSpeed, 0.1f, dt);
         _anim.SetFloat(_hashVerticalSpeed, vSpeed);
         _anim.SetBool(_hashIsGrounded, grounded);
 
-        // 4) Reset “just wall-jumped” and record wall-slide state
         _justWallJumped = false;
         _wasWallSliding = isWallSliding;
     }
