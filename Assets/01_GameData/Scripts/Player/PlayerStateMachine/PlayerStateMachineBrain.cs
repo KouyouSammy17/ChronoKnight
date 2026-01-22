@@ -87,10 +87,11 @@ public class PlayerStateMachineBrain : MonoBehaviour
         if (Input != null && Input.ConsumeTurboPressed())
         {
             var turbo = TurboModeManager.Instance;
-            if (turbo != null)   // add CanStartTurbo if you want
+            if (turbo != null && turbo.CanStartTurbo())
             {
                 ChangeState(PlayerStateID.TurboStart);
             }
+            // else: ignore input (or play a “cooldown” SFX/UI flash)
         }
 
 

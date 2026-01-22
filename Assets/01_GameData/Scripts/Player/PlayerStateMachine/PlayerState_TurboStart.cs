@@ -17,23 +17,35 @@ public class PlayerState_TurboStart : IPlayerState
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
 
-        // lock gameplay input briefly (no dash/attack during the start pose)
+        var turbo = TurboModeManager.Instance;
+
+        if (turbo == null || !turbo.CanStartTurbo())
+        {
+            brain.ChangeState(brain.Motor.IsGrounded ? PlayerStateID.Grounded : PlayerStateID.Airborne);
+            return;
+        }
+
         brain.Motor.DisableInput();
         brain.Combat?.CancelCombo();
 
         // play anim
         var anim = brain.GetComponentInChildren<PlayerAnimator>();
-        anim?.TriggerTurboStart();
 
-        // start turbo system
-        var turbo = TurboModeManager.Instance;
-        if (turbo != null)
+        // Start turbo FIRST (should switch animator to UnscaledTime + set baseline anim speed)
+        bool started = turbo.TryStartTurbo(brain.Motor, anim);
+        if (!started)
         {
-            turbo.TryStartTurbo(brain.Motor, anim);
+            brain.Motor.EnableInput();
+            brain.ChangeState(brain.Motor.IsGrounded ? PlayerStateID.Grounded : PlayerStateID.Airborne);
+            return;
         }
+
+        // Now play the start pose (will play in real-time)
+        anim?.TriggerTurboStart();
 
         RunExitAfterAnim(brain, _cts.Token).Forget();
     }
+
 
     public void Exit(PlayerStateMachineBrain brain)
     {
@@ -58,17 +70,13 @@ public class PlayerState_TurboStart : IPlayerState
     {
         try
         {
-            await UniTask.Delay(TimeSpan.FromSeconds(START_ANIM_TIME),
-                DelayType.Realtime, PlayerLoopTiming.Update, ct);
+            await UniTask.Delay(TimeSpan.FromSeconds(START_ANIM_TIME), DelayType.Realtime, PlayerLoopTiming.Update, ct);
         }
         catch { return; }
 
         if (ct.IsCancellationRequested) return;
 
-        // restore control
         brain.Motor.EnableInput();
-
-        // go back to locomotion depending on grounded
         brain.ChangeState(brain.Motor.IsGrounded ? PlayerStateID.Grounded : PlayerStateID.Airborne);
     }
 }

@@ -26,7 +26,16 @@ public class PlayerMotor : MonoBehaviour
     [SerializeField] private float _fallMultiplier = 7f;
     [SerializeField] private float _jumpCutMultiplier = 0.8f;
     [SerializeField] private float _maxFallSpeed = 40f;
+
+    [Header("Dash Jump")]
     [SerializeField] private float _dashJumpForce = 16f;
+    [SerializeField] private float _dashJumpUpMultiplier = 1.2f;     // dash jump higher than normal
+    [SerializeField] private float _dashJumpBonusUpVelocity = 5f;    // optional extra pop (VelocityChange)
+    [SerializeField] private float _dashJumpAntiPopAccel = 20f; // was hardcoded
+
+    [Header("Ground Ignore After Jump")]
+    [SerializeField] private float _groundIgnoreAfterJump = 0.08f; // 80ms feels good
+   
 
     [Header("Jump Hold Limit")]
     [SerializeField] private float _maxHoldJumpHeight = 5f;
@@ -82,6 +91,7 @@ public class PlayerMotor : MonoBehaviour
     private float _dashJumpBufferCounter = 0f;
 
     private bool _isGrounded = false;
+    private float _groundIgnoreTimer = 0f;
 
     private float _coyoteTimeCounter = 0f;
     private float _jumpBufferCounter = 0f;
@@ -185,6 +195,14 @@ public class PlayerMotor : MonoBehaviour
 
     public float RotateSpeed { get => _rotateSpeed; set => _rotateSpeed = value; }
     public float DashForce { get => _dashForce; set => _dashForce = value; }
+
+    public float DashJumpForce { get => _dashJumpForce; set => _dashJumpForce = value; }
+    public float DashJumpUpMultiplier { get => _dashJumpUpMultiplier; }
+    public float DashJumpBonusUpVelocity
+    {
+        get => _dashJumpBonusUpVelocity;
+        set => _dashJumpBonusUpVelocity = value;
+    }
 
     public float JumpForce { get => _jumpForce; set => _jumpForce = value; }
     public float WallJumpForce { get => _wallJumpForce; set => _wallJumpForce = value; }
@@ -366,18 +384,21 @@ public class PlayerMotor : MonoBehaviour
         _allowWallSlide = allowWallSlide;
         // dash-jump buffer tracking
         if (_isDashing) _dashJumpBufferCounter = _dashJumpBufferTime;
-        else _dashJumpBufferCounter -= Time.deltaTime;
+        else _dashJumpBufferCounter -= PlayerDT;
 
         // wall detection
         CheckWall();
 
         if (_postWallJumpTimer > 0f)
-            _postWallJumpTimer -= Time.deltaTime;
+            _postWallJumpTimer -= PlayerDT;
 
         // cooldown timers
         float dt = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
         ? Time.unscaledDeltaTime
         : Time.deltaTime;
+
+        if (_groundIgnoreTimer > 0f)
+            _groundIgnoreTimer -= PlayerDT;
 
         if (_dashCooldownTimer > 0f)
             _dashCooldownTimer -= dt;
@@ -386,7 +407,7 @@ public class PlayerMotor : MonoBehaviour
         if (_moveBufferCounter > 0f)
         {
             if (_inputEnabled)
-                _moveBufferCounter -= Time.deltaTime;
+                _moveBufferCounter -= PlayerDT;
         }
         else
         {
@@ -423,7 +444,7 @@ public class PlayerMotor : MonoBehaviour
     public void MotorFixedUpdate(bool allowHorizontalMovement)
     {
         float fdt = PlayerFixedDT;
-       
+
         // update target rotation FIRST (so this frame uses it)
         if (allowHorizontalMovement)
             HandleMovementRotation();
@@ -493,11 +514,12 @@ public class PlayerMotor : MonoBehaviour
             );
         }
 
-        _currentVelocity = Vector3.Lerp(
-            _currentVelocity,
-            targetVel,
-            (_moveInput == Vector2.zero ? _deceleration : _acceleration) * Time.fixedDeltaTime
-        );
+        float fdt = PlayerFixedDT;
+        float rate = (_moveInput == Vector2.zero ? _deceleration : _acceleration);
+        float t = Mathf.Clamp01(rate * fdt);
+
+        _currentVelocity = Vector3.Lerp(_currentVelocity, targetVel, t
+            );
 
         _rb.linearVelocity = new Vector3(
             _currentVelocity.x,
@@ -508,7 +530,7 @@ public class PlayerMotor : MonoBehaviour
 
     private void HandleDash()
     {
-        if (_hitReactLock) return;   
+        if (_hitReactLock) return;
         if (!_isDashing) return;
 
         float dt = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
@@ -558,13 +580,14 @@ public class PlayerMotor : MonoBehaviour
         bool canExtraJump = _extraJumpsUsed < ExtraJumpCount;
 
         if (_jumpBufferCounter > 0f)
-            _jumpBufferCounter -= Time.deltaTime;
+            _jumpBufferCounter -= PlayerDT;
 
         // Wall Jump
         if (buffered && canWallJump)
         {
             Vector3 wallJumpDir = (_wallNormal * _wallJumpHorizontalForce) + (Vector3.up * _wallJumpForce);
             RotateOnWallJump(wallJumpDir);
+
 
             _rb.linearVelocity = Vector3.zero;
             _rb.AddForce(wallJumpDir, ForceMode.VelocityChange);
@@ -606,6 +629,8 @@ public class PlayerMotor : MonoBehaviour
         float vY = _rb.linearVelocity.y;
         float heldHeight = transform.position.y - _jumpStartY;
         float fdt = PlayerFixedDT;
+
+        ApplyTurboGravityCompensation();
 
         if (_hitReactLock)
         {
@@ -672,7 +697,16 @@ public class PlayerMotor : MonoBehaviour
 
         if (_isDashJump && vY > 0f && (_rb.position.y - _jumpStartY) > 1.2f)
         {
-            _rb.AddForce(Vector3.down * 20f, ForceMode.Acceleration);
+            float accel = _dashJumpAntiPopAccel;
+
+            var turbo = TurboModeManager.Instance;
+            if (turbo != null && turbo.IsActive)
+            {
+                // Cancel slow-mo so this limiter stays the same in REAL TIME
+                accel *= turbo.RealTimeComp;
+            }
+
+            _rb.AddForce(Vector3.down * accel, ForceMode.Acceleration);
         }
 
         // clamp fall speed
@@ -712,14 +746,19 @@ public class PlayerMotor : MonoBehaviour
         if (_dashJumpBufferCounter > 0f)
         {
             float minDashX = _dashForce * 0.9f;
+
+            // keep dash-jump horizontal consistent (TurboModeManager already scaled _dashForce if needed)
             if (Mathf.Abs(vel.x) < minDashX)
                 vel.x = _dashDirection.x * _dashForce;
 
-            vel.y = _dashJumpForce * 1.2f;
+            // dash-jump vertical: DO NOT use RealTimeComp here (instant velocity)
+            vel.y = _dashJumpForce * _dashJumpUpMultiplier;
+
             _rb.linearVelocity = vel;
 
-            _rb.AddForce(Vector3.up * 5f, ForceMode.VelocityChange);
-            ForceUngroundNow();
+            // optional extra pop (also instant)
+            if (_dashJumpBonusUpVelocity > 0f)
+                _rb.AddForce(Vector3.up * _dashJumpBonusUpVelocity, ForceMode.VelocityChange);
 
             _isDashing = false;
             _isDashJump = true;
@@ -738,6 +777,8 @@ public class PlayerMotor : MonoBehaviour
         _isJumpHeld = true;
         _jumpBufferCounter = 0f;
         _coyoteTimeCounter = 0f;
+        _groundIgnoreTimer = _groundIgnoreAfterJump;
+        ForceUngroundNow();
     }
 
     private void HandleMovementRotation()
@@ -770,6 +811,8 @@ public class PlayerMotor : MonoBehaviour
 
     private bool IsGroundedCheck()
     {
+        if (_groundIgnoreTimer > 0f) return false;
+
         return Physics.Raycast(
             transform.position + Vector3.up * 0.1f,
             Vector3.down,
@@ -778,11 +821,25 @@ public class PlayerMotor : MonoBehaviour
         );
     }
 
+
     private void ForceUngroundNow()
     {
         _isGroundedRaw = false;
         _isGrounded = false;
         _coyoteTimeCounter = 0f;
+    }
+
+    private void ApplyTurboGravityCompensation()
+    {
+        var turbo = TurboModeManager.Instance;
+        if (turbo == null || !turbo.IsActive) return;
+        if (IsGrounded) return;
+
+        // Cancel the "slow-mo gravity" effect for THIS rigidbody only
+        float s = Mathf.Clamp(turbo.SlowFactor, 0.05f, 1f);
+        float extraAccel = Physics.gravity.y * (1f / s - 1f); // gravity.y is negative
+
+        _rb.AddForce(Vector3.up * extraAccel, ForceMode.Acceleration);
     }
 
 
@@ -792,7 +849,7 @@ public class PlayerMotor : MonoBehaviour
 
         if (_moveInput.sqrMagnitude > 0.01f)
         {
-            _movementMomentumTimer += Time.deltaTime;
+            _movementMomentumTimer += PlayerDT;
             if (_movementMomentumTimer >= 1f)
             {
                 MomentumManager.Instance?.AddMomentum(_momentumGainRatePerSecond);
@@ -822,7 +879,7 @@ public class PlayerMotor : MonoBehaviour
 
         if (blend)
         {
-            _currentVelocity = Vector3.Lerp(_currentVelocity, targetVelocity, _acceleration * Time.deltaTime);
+            _currentVelocity = Vector3.Lerp(_currentVelocity, targetVelocity, _acceleration * PlayerDT);
             _rb.linearVelocity = new Vector3(_currentVelocity.x, _rb.linearVelocity.y, _currentVelocity.z);
         }
         else

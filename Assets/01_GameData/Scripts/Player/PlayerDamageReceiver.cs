@@ -100,6 +100,9 @@ public class PlayerDamageReceiver : MonoBehaviour
         // IMPORTANT: cancel combat, but do NOT allow it to re-enable control mid-hit
         _combat?.CancelCombo(); // if your CancelCombo enables input in finally, fix it (see note below)
 
+        _anim?.SetApplyRootMotion(false);
+        _anim?.RestoreBaselineSpeed();
+
         // also clear input buffers so we don't Ågauto attackÅh on recovery
         _motor.GetComponent<PlayerStateMachineBrain>()?.Input?.ClearPressedBuffers();
 
@@ -171,7 +174,17 @@ public class PlayerDamageReceiver : MonoBehaviour
         {
             await DelaySeconds(_slamDelay, ct);
             if (!ct.IsCancellationRequested)
-                _rb.AddForce(Vector3.down * _slamDownAccel, ForceMode.Acceleration);
+            {
+                float slamAccel = _slamDownAccel;
+
+                var turbo = TurboModeManager.Instance;
+                if (turbo != null && turbo.IsActive)
+                {
+                    // cancel slow-mo + apply "others = 1.1 real-time"
+                    slamAccel *= turbo.RealTimeComp * turbo.OtherAnimComp;
+                    _rb.AddForce(Vector3.down * _slamDownAccel, ForceMode.Acceleration);
+                }
+            }
         }
 
         // wait until grounded
@@ -206,6 +219,13 @@ public class PlayerDamageReceiver : MonoBehaviour
         float knockDirX = -attackerSideX; // away from attacker
 
         float force = (_knockback + Mathf.Max(0f, extraForce)) * horizontalMultiplier;
+        // If Turbo is active, compensate slow-mo so damage impulses feel normal in real time
+        var turbo = TurboModeManager.Instance;
+        if (turbo != null && turbo.IsActive)
+        {
+            force *= turbo.KnockbackComp;
+            verticalLaunch *= turbo.KnockbackComp;
+        }
 
         Vector3 v = _rb.linearVelocity;
         if (_cancelHorizontalVelocityOnHit) v.x = 0f;
@@ -219,6 +239,14 @@ public class PlayerDamageReceiver : MonoBehaviour
     {
         float knockDirX = -attackerSideX;
         float force = (_knockback + Mathf.Max(0f, extraForce)) * horizontalMultiplier;
+
+        // Compensate for Turbo slow-mo so airborne knockback feels normal speed
+        var turbo = TurboModeManager.Instance;
+        if (turbo != null && turbo.IsActive)
+        {
+            force *= turbo.KnockbackComp;
+            verticalLaunch *= turbo.KnockbackComp;
+        }
 
         Vector3 v = _rb.linearVelocity;
         if (_cancelHorizontalVelocityOnHit) v.x = 0f;

@@ -9,7 +9,16 @@ public class PlayerAnimator : MonoBehaviour
     [SerializeField] private PlayerMotor _player;
     [SerializeField] private CombatController _combat;
 
+    private bool _animPaused;
+    // ───────── Turbo anim control ─────────
+    private AnimatorUpdateMode _defaultUpdateMode;
+    private float _defaultAnimSpeed = 1f;
 
+    private bool _turboAnimActive;
+    private float _turboBaselineSpeed = 1.1f; // others
+    private float _turboAttackSpeed = 1.5f;   // attacks
+
+    private float _requestedAnimSpeedAbs = 1f;
     // Cached Animator parameter hashes
     private int _hashSpeed;
     private int _hashVerticalSpeed;
@@ -40,6 +49,9 @@ public class PlayerAnimator : MonoBehaviour
 
     private void Awake()
     {
+        _defaultUpdateMode = _anim.updateMode;
+        _defaultAnimSpeed = _anim.speed;
+
         // Names must match exactly your Animator parameters
         _hashSpeed = Animator.StringToHash("Speed");
         _hashVerticalSpeed = Animator.StringToHash("VerticalSpeed");
@@ -97,8 +109,8 @@ public class PlayerAnimator : MonoBehaviour
             _anim.SetBool(_hashWallHangLoop, false);
         }
 
-        // Use unscaled dt during Turbo so damping doesn't “slow”
-        float dt = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
+        // IMPORTANT: use unscaled dt when animator is unscaled (Turbo)
+        float dt = (_anim.updateMode == AnimatorUpdateMode.UnscaledTime)
             ? Time.unscaledDeltaTime
             : Time.deltaTime;
 
@@ -108,6 +120,48 @@ public class PlayerAnimator : MonoBehaviour
 
         _justWallJumped = false;
         _wasWallSliding = isWallSliding;
+    }
+
+    //private void ApplyAnimSpeed()
+    //{
+    //    if (_anim == null) return;
+
+    //    float baseSpeed = _defaultAnimSpeed; // important
+    //    _anim.speed = _animPaused ? 0f : (baseSpeed * _globalSpeedMult * _attackSpeedMult);
+    //}
+
+    /// <summary>Called by TurboModeManager</summary>
+    public void SetTurboAnimMode(bool on, float baselineSpeed = 1.1f, float attackSpeed = 1.5f)
+    {
+        if (_anim == null) return;
+
+        _turboAnimActive = on;
+        _turboBaselineSpeed = Mathf.Max(0.01f, baselineSpeed);
+        _turboAttackSpeed = Mathf.Max(0.01f, attackSpeed);
+
+        _anim.updateMode = on ? AnimatorUpdateMode.UnscaledTime : _defaultUpdateMode;
+
+        // baseline applies to locomotion/idle/etc
+        ApplyAnimSpeedAbs(on ? _turboBaselineSpeed : _defaultAnimSpeed);
+    }
+
+
+    
+    /// <summary>
+    /// Called by CombatController. This is an ABSOLUTE animator speed target in real-time.
+    /// During Turbo, CombatController will set 1.5x (or step multipliers * 1.5).
+    /// </summary>
+    public void SetAttackSpeed(float absoluteMultiplier)
+    {
+        absoluteMultiplier = Mathf.Max(0.01f, absoluteMultiplier);
+        ApplyAnimSpeedAbs(absoluteMultiplier);
+    }
+    private void ApplyAnimSpeedAbs(float absSpeed)
+    {
+        _requestedAnimSpeedAbs = Mathf.Max(0.01f, absSpeed);
+        if (_anim == null) return;
+
+        _anim.speed = _animPaused ? 0f : _requestedAnimSpeedAbs;
     }
 
     // This is called every frame _after_ animation is evaluated (if applyRootMotion = true)
@@ -209,11 +263,7 @@ public class PlayerAnimator : MonoBehaviour
     {
         _anim.SetBool(_hashDeadLoop, on);
     }
-    public void SetAttackSpeed(float multiplier)
-    {
-        _anim.speed = multiplier;
-    }
-
+  
     public void SetApplyRootMotion(bool on)
     {
         _anim.applyRootMotion = on;
@@ -221,14 +271,15 @@ public class PlayerAnimator : MonoBehaviour
 
     public void PauseAnimator()
     {
-        if (_anim) _anim.speed = 0f;
+        _animPaused = true;
+        ApplyAnimSpeedAbs(_requestedAnimSpeedAbs);
     }
 
     public void ResumeAnimator()
     {
-        if (_anim) _anim.speed = 1f;
+        _animPaused = false;
+        ApplyAnimSpeedAbs(_requestedAnimSpeedAbs);
     }
-
 
     public UniTask WaitForCurrentAnimationEnd(CancellationToken ct = default)
     {
@@ -236,6 +287,23 @@ public class PlayerAnimator : MonoBehaviour
             () => _anim.GetCurrentAnimatorStateInfo(0).normalizedTime >= 1f,
             cancellationToken: ct
         );
+    }
+
+    public void RestoreBaselineSpeed()
+    {
+        if (_turboAnimActive) ApplyAnimSpeedAbs(_turboBaselineSpeed);
+        else ApplyAnimSpeedAbs(_defaultAnimSpeed);
+    }
+
+    public void ResetTurboAnim()
+    {
+        if (_anim == null) return;
+
+        _turboAnimActive = false;
+        _anim.updateMode = _defaultUpdateMode;
+
+        ApplyAnimSpeedAbs(_defaultAnimSpeed);
+        _animPaused = false;
     }
 
     public void ResetForRespawn()
@@ -250,5 +318,7 @@ public class PlayerAnimator : MonoBehaviour
 
         // reset attack speed
         SetAttackSpeed(1f);
+
+        RestoreBaselineSpeed();
     }
 }

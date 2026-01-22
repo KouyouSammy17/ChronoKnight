@@ -66,8 +66,8 @@ public class CombatController : MonoBehaviour
     private float _speedBuff = 1f;
     private bool _finisherMode;
 
-    [Header("Turbo")]
-    [SerializeField] private float _turboAttackMultiplier = 1.5f; // real-time attack speed bonus during Turbo
+    //[Header("Turbo")]
+    //[SerializeField] private float _turboAttackMultiplier = 1.5f; // real-time attack speed bonus during Turbo
 
     private CancellationTokenSource _cts;
 
@@ -199,8 +199,8 @@ public class CombatController : MonoBehaviour
         var turbo = TurboModeManager.Instance;
         if (turbo != null && turbo.IsActive)
         {
-            // RealTimeComp cancels slow-mo; then apply your desired 1.5x
-            turboAttack = turbo.RealTimeComp * _turboAttackMultiplier;
+            // Use attack compensation (playerSpeedMult) only so attacks are 1.5x, not multiplied by slow-mo cancel.
+            turboAttack = turbo.AttackComp;
         }
         return turboAttack;
     }
@@ -249,7 +249,7 @@ public class CombatController : MonoBehaviour
             _airAttackMode = false;
 
             _playerAnim.SetApplyRootMotion(false);
-            _playerAnim.SetAttackSpeed(1f);
+            RestoreAnimBaseline();
 
             _motor.EnableInput();
             _motor.ClearBufferedMovement();
@@ -327,7 +327,7 @@ public class CombatController : MonoBehaviour
         finally
         {
             _playerAnim.SetApplyRootMotion(false);
-            _playerAnim.SetAttackSpeed(1f);
+            RestoreAnimBaseline();
 
             _motor.EnableInput();
             _motor.ClearBufferedMovement();
@@ -386,7 +386,7 @@ public class CombatController : MonoBehaviour
     {
         _weaponHitbox.DisableHitbox();
         _playerAnim.SetApplyRootMotion(false);
-        _playerAnim.SetAttackSpeed(1f);
+        RestoreAnimBaseline();
 
         _motor.EnableInput();
 
@@ -400,6 +400,16 @@ public class CombatController : MonoBehaviour
         }
     }
 
+    private void RestoreAnimBaseline()
+    {
+        if (_playerAnim == null) return;
+
+        var turbo = TurboModeManager.Instance;
+        if (turbo != null && turbo.IsActive)
+            _playerAnim.RestoreBaselineSpeed();   // 1.1 during turbo
+        else
+            _playerAnim.SetAttackSpeed(1f);       // normal
+    }
     private bool HasMaxMomentum()
     {
         var mm = MomentumManager.Instance;
