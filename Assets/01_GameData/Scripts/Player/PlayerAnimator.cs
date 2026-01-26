@@ -41,6 +41,7 @@ public class PlayerAnimator : MonoBehaviour
     private int _hashTurboStart;
     private int _hashDie;
     private int _hashDeadLoop;
+    private int _hashWin;
 
 
 
@@ -78,6 +79,7 @@ public class PlayerAnimator : MonoBehaviour
         _hashTurboStart = Animator.StringToHash("TurboStart");
         _hashDie = Animator.StringToHash("Die");
         _hashDeadLoop = Animator.StringToHash("IsDead");
+        _hashWin = Animator.StringToHash("Win");
         // 2) grab the Rigidbody up the hierarchy
         _rb = GetComponentInParent<Rigidbody>();
         if (_rb == null)
@@ -263,7 +265,13 @@ public class PlayerAnimator : MonoBehaviour
     {
         _anim.SetBool(_hashDeadLoop, on);
     }
+
+    public void TriggerWin()
+    {
+        _anim.SetTrigger(_hashWin);
+    }
   
+
     public void SetApplyRootMotion(bool on)
     {
         _anim.applyRootMotion = on;

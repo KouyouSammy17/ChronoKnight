@@ -485,7 +485,7 @@ public class PlayerMotor : MonoBehaviour
         if (_isDashing || !_inputEnabled) return;
         if (_postWallJumpTimer > 0f) return;
 
-        Vector3 moveDir = new Vector3(_moveInput.x, 0, _moveInput.y);
+        Vector3 moveDir = new Vector3(_moveInput.x, 0,0);
         float sign = Mathf.Sign(_moveInput.x);
 
         bool shouldBlock = _isTouchingWall && _moveInput.x != 0f && _isGrounded;

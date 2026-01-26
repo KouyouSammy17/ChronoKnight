@@ -49,6 +49,8 @@ MonoBehaviour:
   _titleFirstSelected: {fileID: 0}
   _titleFirstSelectedTag: FirstSelected
   _titleFirstSelectedName: Button_Title
+  _gameOverDelay: 2
+  _winClearDelay: 2
   _useAdditive: 0
   _feelLoadingScene: LoadingScreen
   _feelAdditiveLoadingScene: MMAdditiveLoadingScreen
@@ -60,6 +62,7 @@ MonoBehaviour:
   _fallDamage: 20
   _respawnFreeze: 0.1
   _respawnIFrames: 1
+  _fallRearmDelay: 0.35
   _playerPrefab: {fileID: 0}
   _pauseMenu: {fileID: 0}
   _pauseInputBuffer: 0.35

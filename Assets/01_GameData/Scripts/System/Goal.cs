@@ -11,7 +11,7 @@ public class Goal : MonoBehaviour
         // Make sure the playerfs collider has the tag gPlayerh (or whatever tag you use)
         if (other.CompareTag("Player"))
         {
-            GameManager.Instance.WinLevel();
+            GameManager.Instance.WinLevel(this);
         }
     }
 }

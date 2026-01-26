@@ -35,6 +35,16 @@ public class GameManager : MonoBehaviour
     [Header("Game Over")]
     [SerializeField] private float _gameOverDelay = 2f;
 
+    [Header("Win Result Delay")]
+    [SerializeField] private float _winClearDelay = 2f;
+
+    [Header("Win Flow Refs")]
+    private WinCinematicController _winCine;
+    private TeleportFadeSamplePlayer _teleFade;
+
+    [Header("Win Camera Zoom")]
+     private MMFeedbacks _winZoomFeedback;
+
     [Header("Feel MMSceneLoading")]
     [SerializeField] private bool _useAdditive = false;
     [SerializeField] private string _feelLoadingScene = "LoadingScreen";
@@ -75,9 +85,11 @@ public class GameManager : MonoBehaviour
     private bool _isRespawningFromFall = false;
     private Transform _spawnPoint;      // Tag: Respawn
     private MomentumGaugeUI _gauge; // auto-fetched from the Player
+    private Goal goal;                   // set by Goal when player wins
 
     private CancellationTokenSource _gameOverCts;
     private bool _gameOverSequenceRunning;
+    private bool _winRunning;
 
     private bool _pauseBlocked = false;
     private bool _isPaused = false;
@@ -201,15 +213,105 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    public void WinLevel()
+    public void WinLevel(Goal goal)
     {
         if (State != GameState.Playing) return;
-        TurboModeManager.Instance?.ForceReset(clearCooldown: true);
-        EnterResultMode(GameState.Clear, () =>
+        if (_winRunning) return;
+
+        // lock immediately so we can't re-enter
+        _winRunning = true;
+        State = GameState.Clear;
+        UIManager.Instance?.ShowPlayerUI(false);
+        _gauge?.TL_HideGauge();
+
+        // Goal-specific refs: fetch EVERY time (not only when null)
+        if (goal != null)
         {
-            UIManager.Instance?.ShowGameClearUI();
-        });
+            _teleFade = goal.GetComponentInChildren<TeleportFadeSamplePlayer>(true);
+
+            var tag = goal.GetComponentInChildren<WinZoomFeedbackTag>(true);
+            _winZoomFeedback = tag != null ? tag.GetComponentInChildren<MMFeedbacks>(true) : null;
+        }
+
+        // Scene-wide: fetch once
+        if (_winCine == null)
+        {
+#if UNITY_6000_0_OR_NEWER
+            _winCine = UnityEngine.Object.FindFirstObjectByType<WinCinematicController>(FindObjectsInactive.Include);
+#else
+        _winCine = UnityEngine.Object.FindObjectOfType<WinCinematicController>(true);
+#endif
+        }
+
+        WinSequenceAsync(this.GetCancellationTokenOnDestroy()).Forget();
     }
+
+    private async UniTaskVoid WinSequenceAsync(CancellationToken ct)
+    {
+        try
+        {
+            TurboModeManager.Instance?.ForceReset(clearCooldown: true);
+
+            var player = _player;
+            if (player == null) return;
+
+            var brain = player.GetComponent<PlayerStateMachineBrain>();
+            if (brain != null)
+            {
+                brain.ChangeState(PlayerStateID.Win, force: true);
+                brain.Motor?.DisableInput();
+                brain.Motor?.StopHorizontalInstant();
+                brain.Motor?.SetFrozen(true);
+            }
+
+            // camera zoom (goal-tagged)
+            if (_winZoomFeedback != null)
+            {
+                _winZoomFeedback.PlayFeedbacks();
+            }
+
+            // win cinematic (turn + win anim)
+            if (_winCine != null && brain != null)
+            {
+                Transform modelRoot = brain.Anim != null ? brain.Anim.transform : player.transform;
+                await _winCine.PlayWinCinematicAsync(brain, modelRoot, ct);
+            }
+
+            // goal fade (optional)
+            if (_teleFade != null)
+            {
+                _teleFade.SetFadeParams(speed: 1.2f, rise: 0.25f, twist: 3.5f, spread: 0.7f);
+                _teleFade.StartFadeOut();
+
+                await UniTask.Delay(
+                    TimeSpan.FromSeconds(_teleFade.GetTotalFadeSeconds()),
+                    DelayType.Realtime,
+                    cancellationToken: ct
+                );
+            }
+
+            try
+            {
+                if (_winClearDelay > 0f)
+                {
+                    await UniTask.Delay(TimeSpan.FromSeconds(_winClearDelay),
+                        DelayType.Realtime, PlayerLoopTiming.Update, ct);
+                }
+            }
+            catch (OperationCanceledException) { return; }
+
+            // result UI
+            EnterResultMode(GameState.Clear, () =>
+            {
+                UIManager.Instance?.ShowGameClearUI();
+            });
+        }
+        finally
+        {
+            _winRunning = false;
+        }
+    }
+
 
     public void GameOver()
     {
@@ -726,6 +828,7 @@ public class GameManager : MonoBehaviour
         // optionally freeze gameplay world (UI tweens should use SetUpdate(true))
         if (_freezeTimeOnResults) Time.timeScale = 0f;
 
+      
         // clear any leftover gameplay UI (tutorials, etc.)
         UIManager.Instance?.ResetAllUI();
 

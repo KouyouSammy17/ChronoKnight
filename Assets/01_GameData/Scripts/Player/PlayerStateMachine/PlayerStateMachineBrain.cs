@@ -64,6 +64,8 @@ public class PlayerStateMachineBrain : MonoBehaviour
         Register(new PlayerState_DashAttack());
         Register(new PlayerState_TurboStart());
         Register(new PlayerState_Dead());
+        Register(new PlayerState_Win());
+
 
         // Mode
         RegisterMode(new PlayerMode_Normal());
@@ -136,6 +138,8 @@ public class PlayerStateMachineBrain : MonoBehaviour
 
     private void EvaluateTransitions()
     {
+        if (_current == PlayerStateID.Win) return;
+
         // DEAD overrides everything — also stop turbo so timeScale resets
         if (_stats != null && _stats.CurrentHP <= 0)
         {

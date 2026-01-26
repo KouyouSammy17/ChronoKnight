@@ -9,5 +9,6 @@ public enum PlayerStateID
     Hurt,
     Knockdown,
     TurboStart,
-    Dead
+    Dead,
+    Win
 }
