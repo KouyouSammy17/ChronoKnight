@@ -394,7 +394,7 @@ public class GameManager : MonoBehaviour
         if (ct.IsCancellationRequested || this == null) return;
 
         
-        EnterResultMode(GameState.GameOver, () => UIManager.Instance?.ShowGameOverUI());
+        EnterResultMode(GameState.GameOver, () => UIManager.Instance?.ShowGameOverUI_Animated());
         _gameOverSequenceRunning = false;
     }
 
