@@ -139,11 +139,11 @@ public class TutorialManager : MonoBehaviour
     {
         if (!IsPlayingScene()) return;
 
-        ApplyMomentumAndTurboGateIfNeeded(IsFirstLevelActive());
+        ApplyMomentumAndTurboGateIfNeeded(IsTutorialLevelActive());
 
 
         // Match old behavior: show Move once per session on first level.
-        if (IsFirstLevelActive() && !_shownMoveThisSession)
+        if (IsTutorialLevelActive() && !_shownMoveThisSession)
         {
             _shownMoveThisSession = true;
             UIManager.Instance?.ShowTutorial(TutorialKey.Move);
@@ -153,7 +153,7 @@ public class TutorialManager : MonoBehaviour
     /// <summary>GameManager uses this when deciding whether to show the HUD gauge.</summary>
     public bool ShouldShowMomentumGauge()
     {
-        if (!IsFirstLevelActive()) return true;
+        if (!IsTutorialLevelActive()) return true;
         return TutorialProgress.IsLearned(TutorialKey.Momentum);
     }
 
@@ -243,7 +243,7 @@ public class TutorialManager : MonoBehaviour
 
         // Reset momentum and re-apply gate on first level (if supported)
         TryResetMomentum();
-        ApplyMomentumAndTurboGateIfNeeded(IsFirstLevelActive());
+        ApplyMomentumAndTurboGateIfNeeded(IsTutorialLevelActive());
 
         GameManager.Instance?.RestartLevel();
     }
@@ -513,7 +513,7 @@ public class TutorialManager : MonoBehaviour
     private void ResolveMomentumIntroFeedbacks()
     {
         _momentumIntroFeedbacks = null;
-        if (!IsFirstLevelActive()) return;
+        if (!IsTutorialLevelActive()) return;
         if (string.IsNullOrEmpty(_momentumIntroTag)) return;
 
         var obj = GameObject.FindWithTag(_momentumIntroTag);
@@ -778,11 +778,11 @@ public class TutorialManager : MonoBehaviour
     // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
     // State helpers
 
-    public bool IsFirstLevelActive()
+    public bool IsTutorialLevelActive()
     {
         // Prefer GameManager gate if available
         if (GameManager.Instance != null)
-            return GameManager.Instance.IsFirstLevelActive();
+            return GameManager.Instance.IsTutorialLevelActive();
 
         return SceneManager.GetActiveScene().name == _firstLevelName;
     }

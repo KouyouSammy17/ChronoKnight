@@ -33,7 +33,7 @@ public class TutorialStepTrigger : MonoBehaviour
 
         // Prefer GameManager gate if available
         if (GameManager.Instance != null)
-            return GameManager.Instance.IsFirstLevelActive();
+            return GameManager.Instance.IsTutorialLevelActive();
 
         // Fallback to name check
         return SceneManager.GetActiveScene().name == "Level_01";

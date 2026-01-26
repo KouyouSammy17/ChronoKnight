@@ -23,9 +23,10 @@ public class GameManager : MonoBehaviour
     const string MAP_PLAYER = "Player";
     const string MAP_UI = "UI";
 
-    [Header("Scene Names")]
+    [Header("Scene Names (3-scene flow)")]
     [SerializeField] private string _titleScene = "Title";
-    [SerializeField] private string _firstLevel = "Level_01";
+    [SerializeField] private string _tutorialLevel = "Level_01"; // Tutorial Stage
+    [SerializeField] private string _level02 = "Level_02";
 
     [Header("Title UI")]
     [SerializeField] private GameObject _titleFirstSelected;         // assign your Title button root
@@ -65,10 +66,23 @@ public class GameManager : MonoBehaviour
 
     [Header("Player Spawn")]
     [SerializeField] private PlayerMotor _playerPrefab;
+   
     // NEW: reference to PauseMenu (assign in Inspector or auto-resolve)
     [SerializeField] private PauseMenu _pauseMenu;
     [SerializeField] private float _pauseInputBuffer = 0.35f;
     [SerializeField] private bool _freezeTimeOnResults = true;
+
+    [Header("Tutorial Stage Flag")]
+    [SerializeField] private TutorialClearUI_Anim _tutorialClearAnim; // drag if you want, else auto-find
+    [SerializeField] private bool _forceTutorialStage = false; // for testing
+
+    [Header("Result UI First Selected")]
+    [SerializeField] private GameObject _tutorialClearFirstSelected; // Restart button GO
+    [SerializeField] private GameObject _gameClearFirstSelected;     // (optional) Next/Restart on normal clear
+    [SerializeField] private GameObject _gameOverFirstSelected;      // (optional)
+
+    public bool IsTutorialStage => _forceTutorialStage || SceneManager.GetActiveScene().name == _tutorialLevel;
+
 
     // HUD reveal is now owned by TutorialManager
 
@@ -182,7 +196,7 @@ public class GameManager : MonoBehaviour
         CancelGameOverSequence();
     }
 
-    public void StartNewGame() => LoadWithFeel(_firstLevel, GameState.Playing);
+    public void StartNewGame() => LoadWithFeel(_tutorialLevel, GameState.Playing);
 
     public void RestartLevel()
     {
@@ -200,18 +214,24 @@ public class GameManager : MonoBehaviour
 
     public void LoadNextLevel()
     {
-        int next = SceneManager.GetActiveScene().buildIndex + 1;
-        if (next < SceneManager.sceneCountInBuildSettings)
+        string current = SceneManager.GetActiveScene().name;
+
+        if (current == _titleScene)
         {
-            string path = SceneUtility.GetScenePathByBuildIndex(next);
-            string name = Path.GetFileNameWithoutExtension(path);
-            LoadWithFeel(name, GameState.Playing);
+            LoadWithFeel(_tutorialLevel, GameState.Playing);
+            return;
         }
-        else
+
+        if (current == _tutorialLevel)
         {
-            LoadTitle();
+            LoadWithFeel(_level02, GameState.Playing);
+            return;
         }
+
+        // Level_02 or anything else -> back to title
+        LoadTitle();
     }
+
 
     public void WinLevel(Goal goal)
     {
@@ -300,10 +320,22 @@ public class GameManager : MonoBehaviour
             }
             catch (OperationCanceledException) { return; }
 
-            // result UI
             EnterResultMode(GameState.Clear, () =>
             {
-                UIManager.Instance?.ShowGameClearUI();
+                if (IsTutorialStage)
+                {
+                    UIManager.Instance?.ShowTutorialClearUI(); // add this in UIManager
+                                                               // play anim
+                                                               // example: 0..3 stars
+                    int starsAchieved = 3;     // TODO: compute
+                    bool toggleAchieved = true;// TODO: compute
+                    ResolveTutorialClearUI();
+                    _tutorialClearAnim?.Show(starsAchieved, toggleAchieved);
+                }
+                else
+                {
+                    UIManager.Instance?.ShowGameClearUI();
+                }
             });
         }
         finally
@@ -495,10 +527,7 @@ public class GameManager : MonoBehaviour
         UIManager.Instance?.ShowTutorial(TutorialKey.Momentum);
 
         _ = ResetTutorialUnfreezeAsync(anim, cachedSpeed, this.GetCancellationTokenOnDestroy());
-        RestartLevel();
-    
-        // Notify TutorialManager to clear its session flags
-        TutorialManager.Instance?.ResetAllTutorialsAndRestart();
+        RestartFromClearUI();
     }
 
     private async UniTaskVoid ResetTutorialUnfreezeAsync(Animator anim, float cachedSpeed, CancellationToken ct)
@@ -507,6 +536,41 @@ public class GameManager : MonoBehaviour
         _player?.EnableInput();
         if (anim) anim.speed = Mathf.Approximately(cachedSpeed, 0f) ? 1f : cachedSpeed;
     }
+
+    // Called by the Restart button on Tutorial Clear / Clear UI
+    public void RestartFromClearUI()
+    {
+        // Results often run at timeScale 0
+        Time.timeScale = 1f;
+        _isPaused = false;
+
+        // Hide pause UI if it exists
+        ResolvePauseMenu();
+        _pauseMenu?.HideMenuInstant();
+
+        // Stop turbo/time effects
+        TurboModeManager.Instance?.ForceReset(clearCooldown: true);
+
+        // If we're restarting the tutorial stage, also reset tutorial session/progress
+        if (IsTutorialStage)
+        {
+            // This method already exists in your project (you call it elsewhere)
+            TutorialManager.Instance?.ResetAllTutorialsAndRestart();
+            // NOTE: If that method itself reloads the scene, you can early return.
+            // If it doesn't reload, we continue and reload below.
+        }
+
+        // Clear UI state before reloading
+        UIManager.Instance?.ResetAllUI();
+
+        // Reload current scene
+        string current = SceneManager.GetActiveScene().name;
+        LoadWithFeel(current, GameState.Playing);
+
+        UpdateCursorState();
+        CancelGameOverSequence();
+    }
+
 
     // ───────────────────────────────────────────────────────────────────────────────
     // FEEL scene loading wrapper
@@ -594,6 +658,7 @@ public class GameManager : MonoBehaviour
         }
 
         ResolvePauseMenu();
+        ResolveTutorialClearUI();
         UpdateCursorState();
     }
 
@@ -653,6 +718,17 @@ public class GameManager : MonoBehaviour
 #endif
     }
 
+    private void ResolveTutorialClearUI()
+    {
+        if (_tutorialClearAnim != null) return;
+
+#if UNITY_6000_0_OR_NEWER
+        _tutorialClearAnim = UnityEngine.Object.FindFirstObjectByType<TutorialClearUI_Anim>(FindObjectsInactive.Include);
+#else
+    _tutorialClearAnim = UnityEngine.Object.FindObjectOfType<TutorialClearUI_Anim>(true);
+#endif
+    }
+
     private void UnwireInput()
     {
         if (_pauseAction != null) { _pauseAction.started -= OnPauseStarted; _pauseAction = null; }
@@ -681,9 +757,9 @@ public class GameManager : MonoBehaviour
         Cursor.lockState = show ? CursorLockMode.None : CursorLockMode.Locked;
     }
 
-    public bool IsFirstLevelActive()
+    public bool IsTutorialLevelActive()
     {
-        return SceneManager.GetActiveScene().name == _firstLevel;
+        return SceneManager.GetActiveScene().name == _tutorialLevel;
     }
 
     private async UniTaskVoid FallRespawnAndDamageAsync()
@@ -834,6 +910,19 @@ public class GameManager : MonoBehaviour
 
         // show the specific result UI
         showUI?.Invoke();
+       
+        GameObject first = null;
+
+        if (newState == GameState.Clear)
+        {
+            first = IsTutorialStage ? _tutorialClearFirstSelected : _gameClearFirstSelected;
+        }
+        else if (newState == GameState.GameOver)
+        {
+            first = _gameOverFirstSelected;
+        }
+
+        FocusUIFirstSelectedAsync(first, this.GetCancellationTokenOnDestroy()).Forget();
 
         // show/unlock cursor for results
         UpdateCursorState();
@@ -857,4 +946,27 @@ public class GameManager : MonoBehaviour
             EventSystem.current.SetSelectedGameObject(target);
         }
     }
+
+    private async UniTaskVoid FocusUIFirstSelectedAsync(GameObject target, CancellationToken ct)
+    {
+        if (target == null) return;
+
+        // Let UI enable, rebuild layout, and InputSystemUIInputModule settle
+        await UniTask.Yield(PlayerLoopTiming.PostLateUpdate, ct);
+        await UniTask.NextFrame(ct);
+        await UniTask.Yield(PlayerLoopTiming.PostLateUpdate, ct);
+
+        if (ct.IsCancellationRequested) return;
+        if (EventSystem.current == null) return;
+        if (!target.activeInHierarchy) return;
+
+        // Must be a Selectable (Button). If it's a child Text, selection won't show.
+        var sel = target.GetComponent<UnityEngine.UI.Selectable>();
+        if (sel != null && !sel.IsInteractable()) return;
+
+        EventSystem.current.SetSelectedGameObject(null);
+        EventSystem.current.SetSelectedGameObject(target);
+        sel?.Select();
+    }
+
 }

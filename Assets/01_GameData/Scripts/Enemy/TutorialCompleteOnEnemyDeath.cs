@@ -26,7 +26,7 @@ public class TutorialCompleteOnEnemyDeath : MonoBehaviour
     private bool Allowed()
     {
         if (!onlyInFirstLevel) return true;
-        if (GameManager.Instance != null) return GameManager.Instance.IsFirstLevelActive();
+        if (GameManager.Instance != null) return GameManager.Instance.IsTutorialLevelActive();
         return UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == "Level_01";
     }
 
