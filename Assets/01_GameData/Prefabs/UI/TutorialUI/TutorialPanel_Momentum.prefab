@@ -423,6 +423,7 @@ MonoBehaviour:
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -559,6 +560,7 @@ MonoBehaviour:
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -868,7 +870,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &3593763584477455012
 RectTransform:
   m_ObjectHideFlags: 0
@@ -962,6 +964,7 @@ MonoBehaviour:
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -1405,6 +1408,9 @@ MonoBehaviour:
   RestoreInitialValuesOnDisable: 0
   StopFeedbacksOnDisable: 0
   PlayCount: 0
+  MMF_ChannelMode: 0
+  MMF_Channel: 0
+  MMF_ChannelDefinition: {fileID: 0}
   references:
     version: 2
     RefIds:
@@ -2284,6 +2290,7 @@ MonoBehaviour:
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -2480,6 +2487,7 @@ MonoBehaviour:
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -2616,6 +2624,7 @@ MonoBehaviour:
   m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -2919,6 +2928,9 @@ MonoBehaviour:
   RestoreInitialValuesOnDisable: 0
   StopFeedbacksOnDisable: 0
   PlayCount: 0
+  MMF_ChannelMode: 0
+  MMF_Channel: 0
+  MMF_ChannelDefinition: {fileID: 0}
   references:
     version: 2
     RefIds:
@@ -4014,6 +4026,9 @@ MonoBehaviour:
   RestoreInitialValuesOnDisable: 0
   StopFeedbacksOnDisable: 0
   PlayCount: 0
+  MMF_ChannelMode: 0
+  MMF_Channel: 0
+  MMF_ChannelDefinition: {fileID: 0}
   references:
     version: 2
     RefIds:
@@ -5060,6 +5075,7 @@ MonoBehaviour:
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
+  m_characterHorizontalScale: 1
   m_wordSpacing: 0
   m_lineSpacing: 0
   m_lineSpacingMax: 0
@@ -5243,6 +5259,9 @@ MonoBehaviour:
   RestoreInitialValuesOnDisable: 1
   StopFeedbacksOnDisable: 0
   PlayCount: 0
+  MMF_ChannelMode: 0
+  MMF_Channel: 0
+  MMF_ChannelDefinition: {fileID: 0}
   references:
     version: 2
     RefIds:
@@ -6778,6 +6797,38 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: -130
       objectReference: {fileID: 0}
+    - target: {fileID: 1381922569856649147, guid: 6e43aad1cda03ab429c93d6a4ab0cf50, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: -575
+      objectReference: {fileID: 0}
+    - target: {fileID: 1381922569856649147, guid: 6e43aad1cda03ab429c93d6a4ab0cf50, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 321
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501302276240815113, guid: 6e43aad1cda03ab429c93d6a4ab0cf50, type: 3}
+      propertyPath: m_text
+      value: "\u79FB\u52D5\u30FB\u30C0\u30C3\u30B7\u30E5\u30FB\u653B\u6483\u3092\u5F53\u3066\u3066\u300C\u30E2\u30E1\u30F3\u30BF\u30E0\u300D\u3092\u6E9C\u3081\u3088\u3046\u3002\n\u30E2\u30E1\u30F3\u30BF\u30E0\u304C\u9AD8\u3044\u307B\u3069\u3001\u30B9\u30D4\u30FC\u30C9\u3082\u30D1\u30EF\u30FC\u3082\u4E0A\u304C\u308B\u3002\n\u52D5\u304D\u3092\u6B62\u3081\u305F\u308A\u30C0\u30E1\u30FC\u30B8\u3092\u53D7\u3051\u308B\u3068\u3001\n\u30E2\u30E1\u30F3\u30BF\u30E0\u306F\u5C11\u3057\u305A\u3064\u6E1B\u3063\u3066\u3044\u304F\u3002"
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501302276240815113, guid: 6e43aad1cda03ab429c93d6a4ab0cf50, type: 3}
+      propertyPath: m_fontSize
+      value: 45
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501302276240815113, guid: 6e43aad1cda03ab429c93d6a4ab0cf50, type: 3}
+      propertyPath: m_margin.w
+      value: -329.0513
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501302276240815113, guid: 6e43aad1cda03ab429c93d6a4ab0cf50, type: 3}
+      propertyPath: m_margin.z
+      value: -1173.1143
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501302276240815113, guid: 6e43aad1cda03ab429c93d6a4ab0cf50, type: 3}
+      propertyPath: m_fontSizeBase
+      value: 45
+      objectReference: {fileID: 0}
+    - target: {fileID: 1501302276240815113, guid: 6e43aad1cda03ab429c93d6a4ab0cf50, type: 3}
+      propertyPath: m_HorizontalAlignment
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 1668100733493037046, guid: 6e43aad1cda03ab429c93d6a4ab0cf50, type: 3}
       propertyPath: m_AnchorMax.x
       value: 1
@@ -6824,6 +6875,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2520376591047121816, guid: 6e43aad1cda03ab429c93d6a4ab0cf50, type: 3}
       propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3013661862978427221, guid: 6e43aad1cda03ab429c93d6a4ab0cf50, type: 3}
+      propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4378003809512588330, guid: 6e43aad1cda03ab429c93d6a4ab0cf50, type: 3}
