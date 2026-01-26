@@ -42,6 +42,14 @@ public class CombatController : MonoBehaviour
     [SerializeField] private float _dashAttackMomentum = 10f;
     [SerializeField] private float _dashAttackKnockback = 10f;
 
+    [Header("Max Momentum 4th Hit (AOE Finisher)")]
+    [SerializeField] private bool _enableMaxFinisher = true;
+    [SerializeField] private float _finisherSpeedMult = 1.0f;
+    [SerializeField] private int _finisherDamage = 45;
+    [SerializeField] private float _finisherMomentumGain = 0f;
+    [SerializeField] private float _finisherKnockback = 14f;
+    [SerializeField] private WeaponHitbox _finisherHitbox; // assign AOEHitbox WeaponHitbox
+
     // runtime
     private int _comboIndex;
     private bool _canBuffer;
@@ -56,9 +64,10 @@ public class CombatController : MonoBehaviour
     private bool _isActive;
     private float _damageMul = 1f;
     private float _speedBuff = 1f;
+    private bool _finisherMode;
 
-    [Header("Turbo")]
-    [SerializeField] private float _turboAttackMultiplier = 1.5f; // real-time attack speed bonus during Turbo
+    //[Header("Turbo")]
+    //[SerializeField] private float _turboAttackMultiplier = 1.5f; // real-time attack speed bonus during Turbo
 
     private CancellationTokenSource _cts;
 
@@ -134,7 +143,18 @@ public class CombatController : MonoBehaviour
     {
         _canBuffer = true;
 
-        // Dash attack hitbox
+        // 0) FINISHER FIRST (AOE hitbox)
+        if (_finisherMode)
+        {
+            int dmg = Mathf.RoundToInt(_finisherDamage * _damageMul);
+            float mom = _finisherMomentumGain * _damageMul;
+
+            var hb = (_finisherHitbox != null) ? _finisherHitbox : _weaponHitbox;
+            hb.EnableHitbox(dmg, mom, _finisherKnockback);
+            return;
+        }
+
+        // 1) Dash attack
         if (_dashAttackMode)
         {
             int dmg = Mathf.RoundToInt(_dashAttackDamage * _damageMul);
@@ -143,7 +163,7 @@ public class CombatController : MonoBehaviour
             return;
         }
 
-        // Air attack hitbox
+        // 2) Air attack
         if (_airAttackMode)
         {
             int dmg = Mathf.RoundToInt(_airAttackDamage * _damageMul);
@@ -152,7 +172,7 @@ public class CombatController : MonoBehaviour
             return;
         }
 
-        // Ground combo hitbox
+        // 3) Ground combo
         if (_comboSteps == null || _comboSteps.Count == 0) return;
         if (_comboIndex < 0 || _comboIndex >= _comboSteps.Count) return;
 
@@ -165,10 +185,12 @@ public class CombatController : MonoBehaviour
         _weaponHitbox.EnableHitbox(finalDamage, finalMomentum, finalKnockback);
     }
 
+
     public void OnCloseComboWindow()
     {
         _canBuffer = false;
         _weaponHitbox.DisableHitbox();
+        if (_finisherHitbox != null) _finisherHitbox.DisableHitbox();
     }
 
     private float ComputeTurboAttackComp()
@@ -177,8 +199,8 @@ public class CombatController : MonoBehaviour
         var turbo = TurboModeManager.Instance;
         if (turbo != null && turbo.IsActive)
         {
-            // RealTimeComp cancels slow-mo; then apply your desired 1.5x
-            turboAttack = turbo.RealTimeComp * _turboAttackMultiplier;
+            // Use attack compensation (playerSpeedMult) only so attacks are 1.5x, not multiplied by slow-mo cancel.
+            turboAttack = turbo.AttackComp;
         }
         return turboAttack;
     }
@@ -227,7 +249,7 @@ public class CombatController : MonoBehaviour
             _airAttackMode = false;
 
             _playerAnim.SetApplyRootMotion(false);
-            _playerAnim.SetAttackSpeed(1f);
+            RestoreAnimBaseline();
 
             _motor.EnableInput();
             _motor.ClearBufferedMovement();
@@ -282,6 +304,18 @@ public class CombatController : MonoBehaviour
 
                 if (_bufferedAttack)
                 {
+                    bool isLastNormalHit = (_comboIndex >= _comboSteps.Count - 1);
+
+                    // If player tries to chain after Attack3
+                    if (isLastNormalHit)
+                    {
+                        if (HasMaxMomentum())
+                        {
+                            await PlayFinisherAsync(token); // 4th AOE hit
+                        }
+                        break; // combo ends after finisher attempt
+                    }
+
                     _comboIndex++;
                     continue;
                 }
@@ -293,7 +327,7 @@ public class CombatController : MonoBehaviour
         finally
         {
             _playerAnim.SetApplyRootMotion(false);
-            _playerAnim.SetAttackSpeed(1f);
+            RestoreAnimBaseline();
 
             _motor.EnableInput();
             _motor.ClearBufferedMovement();
@@ -304,6 +338,28 @@ public class CombatController : MonoBehaviour
             _bufferedAttack = false;
             _weaponHitbox?.DisableHitbox();
         }
+    }
+
+    private async UniTask PlayFinisherAsync(CancellationToken token)
+    {
+        _finisherMode = true;
+
+        // stop horizontal drift (keep Y)
+        var rb = _motor.GetRigidbody();
+        if (rb != null)
+            rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f);
+
+        float turboAttack = ComputeTurboAttackComp();
+        _playerAnim.SetAttackSpeed(_finisherSpeedMult * _speedBuff * turboAttack);
+
+        // Attack4 trigger
+        _playerAnim.TriggerAttack(3);
+
+        await UniTask.WaitUntil(() => _canBuffer, cancellationToken: token);
+        await UniTask.WaitUntil(() => !_canBuffer, cancellationToken: token);
+
+        _finisherMode = false;
+
     }
 
     // -----------------------
@@ -321,7 +377,8 @@ public class CombatController : MonoBehaviour
         _motor.DisableInput();
 
         _playerAnim.SetApplyRootMotion(true);
-        _playerAnim.SetAttackSpeed(_dashAttackSpeedMult);
+        float turboAttack = ComputeTurboAttackComp();
+        _playerAnim.SetAttackSpeed(_dashAttackSpeedMult * _speedBuff * turboAttack);
         _playerAnim.TriggerDashAttack();
     }
 
@@ -329,7 +386,7 @@ public class CombatController : MonoBehaviour
     {
         _weaponHitbox.DisableHitbox();
         _playerAnim.SetApplyRootMotion(false);
-        _playerAnim.SetAttackSpeed(1f);
+        RestoreAnimBaseline();
 
         _motor.EnableInput();
 
@@ -341,6 +398,22 @@ public class CombatController : MonoBehaviour
             _dashAttackChainBuffered = false;
             RequestAttack();
         }
+    }
+
+    private void RestoreAnimBaseline()
+    {
+        if (_playerAnim == null) return;
+
+        var turbo = TurboModeManager.Instance;
+        if (turbo != null && turbo.IsActive)
+            _playerAnim.RestoreBaselineSpeed();   // 1.1 during turbo
+        else
+            _playerAnim.SetAttackSpeed(1f);       // normal
+    }
+    private bool HasMaxMomentum()
+    {
+        var mm = MomentumManager.Instance;
+        return _enableMaxFinisher && mm != null && mm.CurrentState == MomentumState.Max;
     }
 
     private void Update()

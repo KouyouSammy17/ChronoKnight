@@ -8,5 +8,7 @@ public enum PlayerStateID
     DashAttack,
     Hurt,
     Knockdown,
-    Dead
+    TurboStart,
+    Dead,
+    Win
 }
