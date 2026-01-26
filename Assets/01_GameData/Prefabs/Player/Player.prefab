@@ -606,19 +606,19 @@ MonoBehaviour:
     speedMultiplier: 1.1
     damage: 7
     momentumGain: 5
-    knockbackForce: 0
+    knockbackForce: 5
   - stepName: Attack2
     inputWindow: 0.12
     speedMultiplier: 1.1
     damage: 10
     momentumGain: 7
-    knockbackForce: 0
+    knockbackForce: 5
   - stepName: Attack3
     inputWindow: 0.2
     speedMultiplier: 1.1
     damage: 20
     momentumGain: 10
-    knockbackForce: 0
+    knockbackForce: 7
   _airAttackSpeedMult: 1
   _airAttackDamage: 15
   _airAttackMomentum: 8
@@ -636,7 +636,7 @@ MonoBehaviour:
   _finisherDamage: 45
   _finisherMomentumGain: 0
   _finisherKnockback: 14
-  _finisherHitbox: {fileID: 0}
+  _finisherHitbox: {fileID: 3836916834006099128}
 --- !u!114 &3471398806271338333
 MonoBehaviour:
   m_ObjectHideFlags: 0
