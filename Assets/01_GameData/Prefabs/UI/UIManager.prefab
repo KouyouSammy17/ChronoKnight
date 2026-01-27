@@ -139,6 +139,7 @@ MonoBehaviour:
   _gameClearUI: {fileID: 8657075929062128489}
   _gameOverUI: {fileID: 8974654550539437689}
   _tutorialClearUI: {fileID: 3987582177458391685}
+  _gameOverAnim: {fileID: 0}
   _playerUIRoot: {fileID: 8016246824864125357}
   _titleUIRoot: {fileID: 4214777949199610718}
   _tutorials:
@@ -1977,22 +1978,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 8056266626176276908}
     m_Modifications:
-    - target: {fileID: 352619763595450335, guid: 7d317ddfaa57dc34984385ae12f06b83, type: 3}
-      propertyPath: m_IsActive
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 2108134262084468092, guid: 7d317ddfaa57dc34984385ae12f06b83, type: 3}
-      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
-      value: 
-      objectReference: {fileID: 3033668416332840457}
-    - target: {fileID: 2108134262084468092, guid: 7d317ddfaa57dc34984385ae12f06b83, type: 3}
-      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
-      value: OnClickContinue
-      objectReference: {fileID: 0}
-    - target: {fileID: 2108134262084468092, guid: 7d317ddfaa57dc34984385ae12f06b83, type: 3}
-      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
-      value: TurboTutorialUI, Assembly-CSharp
-      objectReference: {fileID: 0}
     - target: {fileID: 5430150005511261450, guid: 7d317ddfaa57dc34984385ae12f06b83, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -2077,9 +2062,9 @@ PrefabInstance:
       propertyPath: m_Name
       value: TutorialFrame
       objectReference: {fileID: 0}
-    - target: {fileID: 5501330107895283389, guid: 7d317ddfaa57dc34984385ae12f06b83, type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 1
+    - target: {fileID: 5848906357721606155, guid: 7d317ddfaa57dc34984385ae12f06b83, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -2124,17 +2109,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e3a0792c8af886a40858c23a18d196c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TutorialUIAnimator
---- !u!114 &3033668416332840457 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 7908737750618639727, guid: 7d317ddfaa57dc34984385ae12f06b83, type: 3}
-  m_PrefabInstance: {fileID: 5177092619969213286}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 507285033580ae54aa71151a964ccf0e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TurboTutorialUI
 --- !u!114 &4047630839539998443 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 9220179619108171149, guid: 7d317ddfaa57dc34984385ae12f06b83, type: 3}
