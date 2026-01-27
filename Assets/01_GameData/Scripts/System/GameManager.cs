@@ -196,7 +196,28 @@ public class GameManager : MonoBehaviour
         CancelGameOverSequence();
     }
 
-    public void StartNewGame() => LoadWithFeel(_tutorialLevel, GameState.Playing);
+    public void StartNewGame()
+    {
+        // make sure we start "clean"
+        Time.timeScale = 1f;
+        _isPaused = false;
+
+        ResolvePauseMenu();
+        _pauseMenu?.HideMenuInstant();
+
+        TurboModeManager.Instance?.ForceReset(clearCooldown: true);
+        MomentumManager.Instance?.ResetAll();
+        UIManager.Instance?.ResetAllUI();
+
+        // RESET ALL TUTORIALS (new game = fresh tutorial state)
+        TutorialProgress.ResetAll();
+
+        // load tutorial stage
+        LoadWithFeel(_tutorialLevel, GameState.Playing);
+
+        UpdateCursorState();
+        CancelGameOverSequence();
+    }
 
     public void RestartLevel()
     {
