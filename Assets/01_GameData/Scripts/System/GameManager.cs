@@ -38,13 +38,14 @@ public class GameManager : MonoBehaviour
 
     [Header("Win Result Delay")]
     [SerializeField] private float _winClearDelay = 2f;
+    private GameClearUI_Anim _gameClearAnim;
 
     [Header("Win Flow Refs")]
     private WinCinematicController _winCine;
     private TeleportFadeSamplePlayer _teleFade;
 
     [Header("Win Camera Zoom")]
-     private MMFeedbacks _winZoomFeedback;
+    private MMFeedbacks _winZoomFeedback;
 
     [Header("Feel MMSceneLoading")]
     [SerializeField] private bool _useAdditive = false;
@@ -66,14 +67,14 @@ public class GameManager : MonoBehaviour
 
     [Header("Player Spawn")]
     [SerializeField] private PlayerMotor _playerPrefab;
-   
+
     // NEW: reference to PauseMenu (assign in Inspector or auto-resolve)
     [SerializeField] private PauseMenu _pauseMenu;
     [SerializeField] private float _pauseInputBuffer = 0.35f;
     [SerializeField] private bool _freezeTimeOnResults = true;
 
     [Header("Tutorial Stage Flag")]
-    [SerializeField] private TutorialClearUI_Anim _tutorialClearAnim; // drag if you want, else auto-find
+    private TutorialClearUI_Anim _tutorialClearAnim; // drag if you want, else auto-find
     [SerializeField] private bool _forceTutorialStage = false; // for testing
 
     [Header("Result UI First Selected")]
@@ -108,7 +109,13 @@ public class GameManager : MonoBehaviour
     private bool _pauseBlocked = false;
     private bool _isPaused = false;
     private CancellationTokenSource _fallRespawnCts;
+
+    private GameClearTimeText _gameClearTimeText;
+    private const string TA_BEST_TIME_KEY = "TA_BestTime_Level02";
+    private const string TA_BEST_STARS_KEY = "TA_BestStars_Level02";
     public bool IsPaused => _isPaused;
+    public bool IsTimeAttackStage =>
+    SceneManager.GetActiveScene().name == _level02;
     public PlayerMotor Player => _player;
     public PlayerInput PlayerInput => _playerInput;
 
@@ -262,6 +269,8 @@ public class GameManager : MonoBehaviour
         // lock immediately so we can't re-enter
         _winRunning = true;
         State = GameState.Clear;
+        // remember the goal that triggered the win
+        this.goal = goal;
         UIManager.Instance?.ShowPlayerUI(false);
         _gauge?.TL_HideGauge();
 
@@ -345,19 +354,44 @@ public class GameManager : MonoBehaviour
             {
                 if (IsTutorialStage)
                 {
-                    UIManager.Instance?.ShowTutorialClearUI(); // add this in UIManager
-                                                               // play anim
-                                                               // example: 0..3 stars
-                    int starsAchieved = 3;     // TODO: compute
-                    bool toggleAchieved = true;// TODO: compute
+                    UIManager.Instance?.ShowTutorialClearUI();
                     ResolveTutorialClearUI();
+
+                    int starsAchieved = 3;      // tutorial fixed
+                    bool toggleAchieved = true; // tutorial fixed
                     _tutorialClearAnim?.Show(starsAchieved, toggleAchieved);
+                    return;
                 }
-                else
+
+                // Level_02 = Time Attack clear UI
+                UIManager.Instance?.ShowGameClearUI();
+
+                if (IsTimeAttackStage)
                 {
-                    UIManager.Instance?.ShowGameClearUI();
+                    ResolveGameClearUI();
+                    float elapsed = TimeAttackManager.Instance != null ? TimeAttackManager.Instance.Elapsed : 0f;
+
+                    bool reachedGoal = this.goal != null;
+                    bool clear120 = elapsed <= 120f;
+                    bool clear90 = elapsed <= 90f;
+
+                    bool[] checks = { reachedGoal, clear120, clear90 };
+                    int stars = (reachedGoal ? 1 : 0) + (clear120 ? 1 : 0) + (clear90 ? 1 : 0);
+
+                    // compute stars/checks...
+                    SaveTimeAttackResult(elapsed, stars);
+
+                    // read best AFTER saving
+                    float best = PlayerPrefs.GetFloat(TA_BEST_TIME_KEY, float.MaxValue);
+
+                    // update text
+                    _gameClearTimeText?.OnGameClearUIShown(elapsed, best);
+
+                    // animate checks/stars
+                    _gameClearAnim?.Show(stars, checks);
                 }
             });
+
         }
         finally
         {
@@ -414,7 +448,7 @@ public class GameManager : MonoBehaviour
 
         if (ct.IsCancellationRequested || this == null) return;
 
-        
+
         EnterResultMode(GameState.GameOver, () => UIManager.Instance?.ShowGameOverUI_Animated());
         _gameOverSequenceRunning = false;
     }
@@ -444,8 +478,8 @@ public class GameManager : MonoBehaviour
             _player.GetComponent<PlayerStats>()?.ResetStats();
             _player.GetComponent<PlayerStateMachineBrain>().ResetAfterRespawn();
         }
-            
-        
+
+
         // NEW: if Turbo is active when we fall, stop it and start cooldown
         var turbo = TurboModeManager.Instance;
         if (turbo != null && turbo.IsActive)
@@ -496,6 +530,8 @@ public class GameManager : MonoBehaviour
             {
                 _playerInput.defaultActionMap = MAP_UI;
                 _playerInput.SwitchCurrentActionMap(MAP_UI);
+                if (IsTimeAttackStage)
+                    TimeAttackManager.Instance?.PauseRun();
             }
         }
 
@@ -522,6 +558,8 @@ public class GameManager : MonoBehaviour
             {
                 _playerInput.defaultActionMap = MAP_PLAYER;
                 _playerInput.SwitchCurrentActionMap(MAP_PLAYER);
+                if (IsTimeAttackStage)
+                    TimeAttackManager.Instance?.ResumeRun();
             }
         }
 
@@ -681,6 +719,10 @@ public class GameManager : MonoBehaviour
         ResolvePauseMenu();
         ResolveTutorialClearUI();
         UpdateCursorState();
+
+        bool timeAttack = SceneManager.GetActiveScene().name == _level02;
+        TimeAttackManager.Instance?.Configure(timeAttack);
+
     }
 
     private void BindSpawnAndPlayer()
@@ -750,6 +792,16 @@ public class GameManager : MonoBehaviour
 #endif
     }
 
+    private void ResolveGameClearUI()
+    {
+#if UNITY_6000_0_OR_NEWER
+        _gameClearAnim = UnityEngine.Object.FindFirstObjectByType<GameClearUI_Anim>(FindObjectsInactive.Include);
+        _gameClearTimeText = UnityEngine.Object.FindFirstObjectByType<GameClearTimeText>(FindObjectsInactive.Include);
+#else
+    _gameClearAnim = UnityEngine.Object.FindObjectOfType<GameClearUI_Anim>(true);
+    _gameClearTimeText = UnityEngine.Object.FindObjectOfType<GameClearTimeText>(true);
+#endif
+    }
     private void UnwireInput()
     {
         if (_pauseAction != null) { _pauseAction.started -= OnPauseStarted; _pauseAction = null; }
@@ -862,7 +914,7 @@ public class GameManager : MonoBehaviour
         }
         finally
         {
-           _isRespawningFromFall = false;
+            _isRespawningFromFall = false;
         }
     }
 
@@ -925,13 +977,13 @@ public class GameManager : MonoBehaviour
         // optionally freeze gameplay world (UI tweens should use SetUpdate(true))
         if (_freezeTimeOnResults) Time.timeScale = 0f;
 
-      
+
         // clear any leftover gameplay UI (tutorials, etc.)
         UIManager.Instance?.ResetAllUI();
 
         // show the specific result UI
         showUI?.Invoke();
-       
+
         GameObject first = null;
 
         if (newState == GameState.Clear)
@@ -947,6 +999,8 @@ public class GameManager : MonoBehaviour
 
         // show/unlock cursor for results
         UpdateCursorState();
+        TimeAttackManager.Instance?.StopRun();
+
     }
 
     private async UniTaskVoid FocusTitleFirstSelectedNextFrame()
@@ -990,4 +1044,32 @@ public class GameManager : MonoBehaviour
         sel?.Select();
     }
 
+    public void NotifyGameplayBegan()
+    {
+        if (State != GameState.Playing) return;
+
+        if (IsTimeAttackStage)
+        {
+            TimeAttackManager.Instance?.StartRun();
+        }
+    }
+
+    private void SaveTimeAttackResult(float elapsed, int stars)
+    {
+        float best = PlayerPrefs.GetFloat(TA_BEST_TIME_KEY, float.MaxValue);
+        int bestStars = PlayerPrefs.GetInt(TA_BEST_STARS_KEY, 0);
+
+        // Save better stars first, then time
+        if (stars > bestStars)
+        {
+            PlayerPrefs.SetInt(TA_BEST_STARS_KEY, stars);
+            PlayerPrefs.SetFloat(TA_BEST_TIME_KEY, elapsed);
+        }
+        else if (stars == bestStars && elapsed < best)
+        {
+            PlayerPrefs.SetFloat(TA_BEST_TIME_KEY, elapsed);
+        }
+
+        PlayerPrefs.Save();
+    }
 }

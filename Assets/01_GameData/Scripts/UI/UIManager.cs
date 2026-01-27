@@ -22,6 +22,7 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameOverUI_Anim _gameOverAnim;
 
 
+
     [Header("Player UI / HUD")]
     [SerializeField, Tooltip("HPバー、燃料、モメンタム等の親オブジェクト（HUD全体）")]
     private GameObject _playerUIRoot;
