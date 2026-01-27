@@ -131,6 +131,14 @@ public class TutorialManager : MonoBehaviour
         _playerInput = null;
         _gauge = null;
 
+        // Reset per-session flags when entering tutorial level (fresh start)
+        if (scene.name == _firstLevelName)
+        {
+            _shownMoveThisSession = false;
+            _shownMomentumThisSession = false;
+            _shownTurboThisSession = false;
+        }
+
         ResolveSceneReferences();
     }
 
