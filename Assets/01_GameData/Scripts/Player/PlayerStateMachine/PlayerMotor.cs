@@ -63,6 +63,8 @@ public class PlayerMotor : MonoBehaviour
     [SerializeField] private Rigidbody _rb;
     [SerializeField] private PlayerAnimator _playerAnim;
 
+
+
     // inputs (fed by brain)
     private Vector2 _moveInput = Vector2.zero;
     private bool _inputEnabled = true;
@@ -159,6 +161,24 @@ public class PlayerMotor : MonoBehaviour
     // “Should we be in WallSlide state right now?”
     public bool ShouldWallSlide => _allowWallSlide && _isTouchingWall && !_isGrounded && _rb.linearVelocity.y < 0f;
     private bool isTapWallJump => _isWallJumpLerping || _isWallJumping;
+
+
+    // ───────────────────────────────────────────────────────────────
+    // Platform carry (for super-fast moving platforms)
+    // ───────────────────────────────────────────────────────────────
+    private Vector3 _platformCarryVel = Vector3.zero; // world-space velocity to add (x/z)
+    public void SetPlatformCarryVelocity(Vector3 vel) => _platformCarryVel = vel;
+    public void ClearPlatformCarryVelocity() => _platformCarryVel = Vector3.zero;
+
+    public float GetAnimMovementSpeedNormalized()
+    {
+        // Ignore platform carry so standing on moving platforms stays Idle
+        Vector3 v = _rb.linearVelocity - _platformCarryVel;
+        v.y = 0f;
+        float speed = v.magnitude;
+        return Mathf.Clamp01(speed / _moveSpeed);
+    }
+
 
     public Rigidbody GetRigidbody() => _rb;
 
@@ -473,6 +493,14 @@ public class PlayerMotor : MonoBehaviour
 
         HandleDash();
         HandleVerticalMotion();
+
+        if (_platformCarryVel != Vector3.zero)
+        {
+            var v = _rb.linearVelocity;
+            v.x += _platformCarryVel.x;
+            v.z += _platformCarryVel.z;
+            _rb.linearVelocity = v;
+        }
     }
 
 

@@ -1,4 +1,4 @@
-using Cysharp.Threading.Tasks;
+ï»¿using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using MoreMountains.Feedbacks;
 using System;
@@ -38,7 +38,7 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private GameObject _momentumFirstSelected; // optional: explicit first selected for Momentum tutorial
     [SerializeField] private GameObject _turboFirstSelected; // optional: explicit first selected for Turbo tutorial
 
-    // „Ÿ„Ÿ HUD delayed reveal (moved from GameManager)
+    // â”€â”€ HUD delayed reveal (moved from GameManager)
     [SerializeField] private float _hudRevealDelay = 5f;              // tweak as needed
     // CTS for scheduling reveal    
     private CancellationTokenSource _hudRevealCts;
@@ -68,6 +68,9 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private string _turboTrapCamTag = "TurboTrapCam";
 #endif
 
+    [Header("Ready / Go UI")]
+    [SerializeField] private ReadyGoUI_Anim _readyGoUI;
+    
     [Header("Debug")]
     [SerializeField] private bool _log;
 
@@ -87,7 +90,7 @@ public class TutorialManager : MonoBehaviour
 
     private CancellationToken _destroyToken;
 
-    // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Unity lifecycle
 
     private void Awake()
@@ -128,10 +131,18 @@ public class TutorialManager : MonoBehaviour
         _playerInput = null;
         _gauge = null;
 
+        // Reset per-session flags when entering tutorial level (fresh start)
+        if (scene.name == _firstLevelName)
+        {
+            _shownMoveThisSession = false;
+            _shownMomentumThisSession = false;
+            _shownTurboThisSession = false;
+        }
+
         ResolveSceneReferences();
     }
 
-    // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Public API (called by GameManager / triggers / UI)
 
     /// <summary>GameManager should call this after intro/HUD reveal when actual gameplay starts.</summary>
@@ -139,11 +150,11 @@ public class TutorialManager : MonoBehaviour
     {
         if (!IsPlayingScene()) return;
 
-        ApplyMomentumAndTurboGateIfNeeded(IsFirstLevelActive());
+        ApplyMomentumAndTurboGateIfNeeded(IsTutorialLevelActive());
 
 
         // Match old behavior: show Move once per session on first level.
-        if (IsFirstLevelActive() && !_shownMoveThisSession)
+        if (IsTutorialLevelActive() && !_shownMoveThisSession)
         {
             _shownMoveThisSession = true;
             UIManager.Instance?.ShowTutorial(TutorialKey.Move);
@@ -153,7 +164,7 @@ public class TutorialManager : MonoBehaviour
     /// <summary>GameManager uses this when deciding whether to show the HUD gauge.</summary>
     public bool ShouldShowMomentumGauge()
     {
-        if (!IsFirstLevelActive()) return true;
+        if (!IsTutorialLevelActive()) return true;
         return TutorialProgress.IsLearned(TutorialKey.Momentum);
     }
 
@@ -163,6 +174,16 @@ public class TutorialManager : MonoBehaviour
         ResolvePlayerAndInput();
         ResolveGauge();
         ResolveMomentumIntroFeedbacks();
+
+        // Resolve Ready/Go UI in scene (TutorialManager is persistent, UI may be scene-local)
+        if (_readyGoUI == null)
+        {
+#if UNITY_6000_0_OR_NEWER
+            _readyGoUI = UnityEngine.Object.FindFirstObjectByType<ReadyGoUI_Anim>(FindObjectsInactive.Include);
+#else
+            _readyGoUI = UnityEngine.Object.FindObjectOfType<ReadyGoUI_Anim>(true);
+#endif
+        }
 
 #if CINEMACHINE
         // Clear invalid cams (scene changed)
@@ -243,12 +264,12 @@ public class TutorialManager : MonoBehaviour
 
         // Reset momentum and re-apply gate on first level (if supported)
         TryResetMomentum();
-        ApplyMomentumAndTurboGateIfNeeded(IsFirstLevelActive());
+        ApplyMomentumAndTurboGateIfNeeded(IsTutorialLevelActive());
 
         GameManager.Instance?.RestartLevel();
     }
 
-    // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Momentum Tutorial (special)
 
     private void ShowMomentumTutorial()
@@ -308,7 +329,7 @@ public class TutorialManager : MonoBehaviour
         ResumeWorldToGameplay();
     }
 
-    // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Turbo Tutorial (special)
 
     private void ShowTurboTutorial()
@@ -321,7 +342,7 @@ public class TutorialManager : MonoBehaviour
 
         ResolvePlayerAndInput();
 
-        // UI map (so tutorial UI buttons work) but DONfT freeze yet (camera blends)
+        // UI map (so tutorial UI buttons work) but DONâ€™T freeze yet (camera blends)
         SwitchToUIMapNoFreeze();
 
         RunTurboTutorialSequence().Forget();
@@ -465,7 +486,7 @@ public class TutorialManager : MonoBehaviour
     }
 #endif
 
-    // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Scene resolving
 
     private void ResolvePlayerAndInput()
@@ -513,14 +534,14 @@ public class TutorialManager : MonoBehaviour
     private void ResolveMomentumIntroFeedbacks()
     {
         _momentumIntroFeedbacks = null;
-        if (!IsFirstLevelActive()) return;
+        if (!IsTutorialLevelActive()) return;
         if (string.IsNullOrEmpty(_momentumIntroTag)) return;
 
         var obj = GameObject.FindWithTag(_momentumIntroTag);
         if (obj != null) _momentumIntroFeedbacks = obj.GetComponent<MMF_Player>();
     }
 
-    // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Input + pause helpers
 
     private void SwitchToUIMapAndFreezeWorld()
@@ -635,20 +656,58 @@ public class TutorialManager : MonoBehaviour
         if (ct.IsCancellationRequested || !IsPlayingScene())
             return;
 
-        // 2) Reveal HUD (HP/SP bars, gauge, etc.)
-        SetGameplayUIVisible(true);
+        // 2) Reveal HUD (HP/SP bars, gauge, etc.) â€” but check if Time Attack first
+        bool isTimeAttack = GameManager.Instance != null && GameManager.Instance.IsTimeAttackStage;
+        
+        // For Time Attack, delay HUD reveal until after Ready/Go
+        if (!isTimeAttack)
+        {
+            SetGameplayUIVisible(true);
+        }
+
+        // 2.5) READY? GO! (ONLY on Level_02)
+        bool shouldPlayReadyGo = _readyGoUI != null && isTimeAttack;
+
+        if (shouldPlayReadyGo)
+        {
+            // Ensure TimeAttack is configured so the timer UI will show when we start the run
+            TimeAttackManager.Instance?.Configure(true);
+
+            _readyGoUI.Play();
+
+            await UniTask.Delay(TimeSpan.FromSeconds(_readyGoUI.TotalDuration),
+                                DelayType.Realtime,
+                                PlayerLoopTiming.Update,
+                                ct);
+            if (ct.IsCancellationRequested) return;
+
+            // NOW reveal HUD (time UI will activate) and start the timer
+            SetGameplayUIVisible(true);
+            
+            // Explicitly ensure timer UI is visible
+            var timerUI = FindFirstObjectByType<TimeAttackTimerUI>(FindObjectsInactive.Include);
+            if (timerUI != null)
+                timerUI.EnsureVisible();
+            
+            TimeAttackManager.Instance?.StartRun();
+        }
+        else if (!shouldPlayReadyGo && isTimeAttack)
+        {
+            // Fallback: if Ready/Go UI not found, still show HUD on Time Attack
+            SetGameplayUIVisible(true);
+        }
 
         // 3) Start gameplay normally (resume world + player input)
         ResumeWorldToGameplay();
-
+       
         // Delegate first-level momentum gating & first-move tutorial
         OnGameplayBegan();
-
+        GameManager.Instance?.NotifyGameplayBegan();
         // cursor should be hidden during gameplay
         SetCursorForGameplay();
     }
 
-    // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Mask helpers
 
     private static void FadeMaskIn(CanvasGroup cg, float duration)
@@ -680,7 +739,7 @@ public class TutorialManager : MonoBehaviour
         cg.gameObject.SetActive(false);
     }
 
-    // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // First-level gating
 
     private void ApplyMomentumAndTurboGateIfNeeded(bool isFirstLevel)
@@ -696,7 +755,7 @@ public class TutorialManager : MonoBehaviour
         SetTurboTutorialGate(!turboGate);
     }
 
-    // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Compatibility helpers (reflection / SendMessage)
 
     private void TrySetGainPaused(bool paused)
@@ -775,14 +834,14 @@ public class TutorialManager : MonoBehaviour
         else _gauge.gameObject.SendMessage("TL_HideGauge", SendMessageOptions.DontRequireReceiver);
     }
 
-    // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // State helpers
 
-    public bool IsFirstLevelActive()
+    public bool IsTutorialLevelActive()
     {
         // Prefer GameManager gate if available
         if (GameManager.Instance != null)
-            return GameManager.Instance.IsFirstLevelActive();
+            return GameManager.Instance.IsTutorialLevelActive();
 
         return SceneManager.GetActiveScene().name == _firstLevelName;
     }

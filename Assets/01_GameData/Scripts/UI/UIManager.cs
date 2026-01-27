@@ -16,6 +16,12 @@ public class UIManager : MonoBehaviour
     [Header("Result UIs")]
     [SerializeField] private GameObject _gameClearUI;
     [SerializeField] private GameObject _gameOverUI;
+    [SerializeField] private GameObject _tutorialClearUI; // new
+
+    // Anim controllers (optional but recommended)
+    [SerializeField] private GameOverUI_Anim _gameOverAnim;
+
+
 
     [Header("Player UI / HUD")]
     [SerializeField, Tooltip("HPバー、燃料、モメンタム等の親オブジェクト（HUD全体）")]
@@ -61,6 +67,8 @@ public class UIManager : MonoBehaviour
         // 初期状態
         if (_gameClearUI != null) _gameClearUI.SetActive(false);
         if (_gameOverUI != null) _gameOverUI.SetActive(false);
+        if (_gameOverAnim != null) _gameOverAnim.HardHideInstant();
+        if (_tutorialClearUI != null) _tutorialClearUI.SetActive(false);
         if (_playerUIRoot != null) _playerUIRoot.SetActive(false);
         if (_titleUIRoot != null) _titleUIRoot.SetActive(false); // 最初は Titleシーンで GameManager が true にする
     }
@@ -88,11 +96,18 @@ public class UIManager : MonoBehaviour
         if (_gameOverUI != null) _gameOverUI.SetActive(true);
     }
 
+    public void ShowTutorialClearUI()
+    {
+        if (_tutorialClearUI != null) _tutorialClearUI.SetActive(true);
+    }
+
     public void ResetAllUI()
     {
         // Result overlays
         if (_gameClearUI != null) _gameClearUI.SetActive(false);
-        if (_gameOverUI != null) _gameOverUI.SetActive(false);
+        if (_gameOverAnim != null) _gameOverAnim.HardHideInstant();
+        if (_tutorialClearUI != null) _tutorialClearUI.SetActive(false);
+
 
         // Tutorials (hide all panels)
         HideAllTutorials();
@@ -102,6 +117,17 @@ public class UIManager : MonoBehaviour
         if (_playerUIRoot != null) _playerUIRoot.SetActive(false);
         if (_titleUIRoot != null) _titleUIRoot.SetActive(false);
     }
+
+    public void ShowGameOverUI_Animated()
+    {
+        if (_gameOverUI != null) _gameOverUI.SetActive(true);
+
+        if (_gameOverAnim == null && _gameOverUI != null)
+            _gameOverAnim = _gameOverUI.GetComponent<GameOverUI_Anim>();
+
+        _gameOverAnim?.Show();
+    }
+
 
     // ─── Player HUD ─────────────────────────────
     public void ShowPlayerUI(bool active)

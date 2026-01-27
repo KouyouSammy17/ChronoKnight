@@ -90,7 +90,7 @@ public class PlayerAnimator : MonoBehaviour
     {
         if (_player == null || _anim == null) return;
 
-        float currentSpeed = _player.GetCurrentMovementSpeedNormalized();
+        float currentSpeed = _player.GetAnimMovementSpeedNormalized();
         float vSpeed = _player.VerticalSpeed;
         bool isWallSliding = _player.IsWallSliding;
 
