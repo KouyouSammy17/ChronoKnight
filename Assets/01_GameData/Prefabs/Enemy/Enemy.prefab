@@ -135,6 +135,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _maxHP: 100
+  _deathDelay: 1.5
+  OnDied:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!54 &7057440980754588876
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -142,10 +146,10 @@ Rigidbody:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8968128531443315009}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
+  serializedVersion: 5
+  m_Mass: 5
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
@@ -379,5 +383,8 @@ MonoBehaviour:
   attackRange: 10
   chaseSpeed: 4
   patrolSpeed: 2
+  minCombatDistance: 3
+  staggerDuration: 0.5
+  shootInterval: 1
   pointA: {fileID: 3303859585707446668}
   pointB: {fileID: 7355377831767322773}

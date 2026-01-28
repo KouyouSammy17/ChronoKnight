@@ -80,7 +80,6 @@ public class TutorialManager : MonoBehaviour
     private MomentumGaugeUI _gauge;
 
     // Per-session flags
-    private bool _shownMoveThisSession;
     private bool _shownMomentumThisSession;
     private bool _shownTurboThisSession;
 
@@ -131,14 +130,6 @@ public class TutorialManager : MonoBehaviour
         _playerInput = null;
         _gauge = null;
 
-        // Reset per-session flags when entering tutorial level (fresh start)
-        if (scene.name == _firstLevelName)
-        {
-            _shownMoveThisSession = false;
-            _shownMomentumThisSession = false;
-            _shownTurboThisSession = false;
-        }
-
         ResolveSceneReferences();
     }
 
@@ -152,11 +143,9 @@ public class TutorialManager : MonoBehaviour
 
         ApplyMomentumAndTurboGateIfNeeded(IsTutorialLevelActive());
 
-
-        // Match old behavior: show Move once per session on first level.
-        if (IsTutorialLevelActive() && !_shownMoveThisSession)
+        // Show Move tutorial on first level if not already learned
+        if (IsTutorialLevelActive() && !TutorialProgress.IsLearned(TutorialKey.Move))
         {
-            _shownMoveThisSession = true;
             UIManager.Instance?.ShowTutorial(TutorialKey.Move);
         }
     }
@@ -256,7 +245,6 @@ public class TutorialManager : MonoBehaviour
 
         TutorialProgress.ResetAll();
 
-        _shownMoveThisSession = false;
         _shownMomentumThisSession = false;
         _shownTurboThisSession = false;
         _momentumSequenceRunning = false;
@@ -265,6 +253,9 @@ public class TutorialManager : MonoBehaviour
         // Reset momentum and re-apply gate on first level (if supported)
         TryResetMomentum();
         ApplyMomentumAndTurboGateIfNeeded(IsTutorialLevelActive());
+
+        // Show Move tutorial when reset is triggered
+        UIManager.Instance?.ShowTutorial(TutorialKey.Move);
 
         GameManager.Instance?.RestartLevel();
     }
