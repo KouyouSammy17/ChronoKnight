@@ -81,8 +81,6 @@ public class PlayerDamageReceiver : MonoBehaviour
     {
         if (_motor == null || _rb == null) return;
         if (_invuln) return;
-        var stats = GetComponent<PlayerStats>();
-        if (stats != null && stats.CurrentHP <= 0) return;
 
         // cancel previous reaction
         _hitCts?.Cancel();
@@ -96,19 +94,13 @@ public class PlayerDamageReceiver : MonoBehaviour
 
         // lock control
         _motor.DisableInput();
-
-        // IMPORTANT: cancel combat, but do NOT allow it to re-enable control mid-hit
-        _combat?.CancelCombo(); // if your CancelCombo enables input in finally, fix it (see note below)
-
-        _anim?.SetApplyRootMotion(false);
-        _anim?.RestoreBaselineSpeed();
-
-        // also clear input buffers so we don't gauto attackh on recovery
+        _combat?.CancelCombo();
         _motor.GetComponent<PlayerStateMachineBrain>()?.Input?.ClearPressedBuffers();
 
         try
         {
-            bool inAir = !_motor.IsGrounded;
+            // IMPORTANT: use RAW grounded (no coyote) for damage logic
+            bool inAir = !_motor.IsGroundedRaw;
 
             if (_airDamageKnockdown && inAir)
             {
@@ -135,10 +127,6 @@ public class PlayerDamageReceiver : MonoBehaviour
         finally
         {
             // cleanup state
-            _anim?.SetHurt(false);
-
-            if (!IsKnockedDown) _motor?.EnableInput();
-
             IsInHitStun = false;
             _invuln = false;
 
@@ -155,13 +143,13 @@ public class PlayerDamageReceiver : MonoBehaviour
 
         if (_faceAttackerOnHit)
         {
-            // Face the attacker, then get knocked back away from them.
-            float yaw = (attackerSideX >= 0f) ? 90f : -90f;
-            _motor.ForceFacingYaw(yaw, snap: true);
+            float yaw = (attackerSideX > 0f) ? 90f : -90f;
+            _motor.ForceFacingYaw(yaw);
         }
 
-        // Launch away in air (X + Y)
-        ApplyKnockbackFromSide(attackerSideX, extraForce, _airLaunchUp, _airLaunchHorizontalMultiplier);
+        ApplyKnockback(sourceWorldPos, extraForce,
+            verticalLaunch: _airLaunchUp,
+            horizontalMultiplier: _airLaunchHorizontalMultiplier);
 
         _anim?.SetHurt(true);
         _anim?.TriggerDamage();
@@ -169,7 +157,6 @@ public class PlayerDamageReceiver : MonoBehaviour
         // minimum gtumble timeh
         await DelaySeconds(_minAirTumbleTime, ct);
 
-        // optional slam-down to force the gpushed to groundh feel
         if (_useSlamDown)
         {
             await DelaySeconds(_slamDelay, ct);
@@ -177,31 +164,29 @@ public class PlayerDamageReceiver : MonoBehaviour
             {
                 float slamAccel = _slamDownAccel;
 
+                // Acceleration DOES get weaker under timeScale, so compensate only for slow-mo.
                 var turbo = TurboModeManager.Instance;
                 if (turbo != null && turbo.IsActive)
-                {
-                    // cancel slow-mo + apply "others = 1.1 real-time"
-                    slamAccel *= turbo.RealTimeComp * turbo.OtherAnimComp;
-                    _rb.AddForce(Vector3.down * _slamDownAccel, ForceMode.Acceleration);
-                }
+                    slamAccel *= turbo.RealTimeComp; // = 1/slowFactor
+
+                _rb.AddForce(Vector3.down * slamAccel, ForceMode.Acceleration);
             }
         }
 
-        // wait until grounded
-        await UniTask.WaitUntil(() => _motor.IsGrounded, PlayerLoopTiming.Update, ct);
-       
-        //  stop sliding immediately on impact
+        // IMPORTANT: wait for RAW grounded so coyote doesn't instantly trigger
+        await UniTask.WaitUntil(() => _motor.IsGroundedRaw, PlayerLoopTiming.Update, ct);
+
+        // When we truly land: stop sliding
+        _motor.StopHorizontalInstant();
         var v = _rb.linearVelocity;
-        v.x = 0f; v.z = 0f; v.y = 0f;
+        v.x = 0f;
+        v.z = 0f;
         _rb.linearVelocity = v;
 
-        _motor.StopHorizontalInstant(); // also clears cached motor velocity
-
-        // IMPACT (pushed to ground)
+        // DamageLand / Knockdown
         _anim?.TriggerKnockdown();
         await DelaySeconds(_impactToDownDelay, ct);
 
-        // RECOVER (stand up)
         _anim?.TriggerRecover();
         await DelaySeconds(_recoverTime, ct);
 
@@ -212,6 +197,21 @@ public class PlayerDamageReceiver : MonoBehaviour
 
         _motor.EnableInput();
     }
+
+    // Call this when you respawn/teleport the player so the pending WaitUntil doesn't fire later.
+    public void CancelForRespawn()
+    {
+        _hitCts?.Cancel();
+        _hitCts?.Dispose();
+        _hitCts = null;
+
+        _invuln = false;
+        IsInHitStun = false;
+        IsKnockedDown = false;
+
+        _anim?.SetHurt(false);
+    }
+
 
     private void ApplyKnockback(Vector3? sourceWorldPos, float extraForce, float verticalLaunch, float horizontalMultiplier)
     {
@@ -234,28 +234,6 @@ public class PlayerDamageReceiver : MonoBehaviour
 
         _rb.AddForce(new Vector3(knockDirX * force, verticalLaunch, 0f), ForceMode.VelocityChange);
     }
-
-    private void ApplyKnockbackFromSide(float attackerSideX, float extraForce, float verticalLaunch, float horizontalMultiplier)
-    {
-        float knockDirX = -attackerSideX;
-        float force = (_knockback + Mathf.Max(0f, extraForce)) * horizontalMultiplier;
-
-        // Compensate for Turbo slow-mo so airborne knockback feels normal speed
-        var turbo = TurboModeManager.Instance;
-        if (turbo != null && turbo.IsActive)
-        {
-            force *= turbo.KnockbackComp;
-            verticalLaunch *= turbo.KnockbackComp;
-        }
-
-        Vector3 v = _rb.linearVelocity;
-        if (_cancelHorizontalVelocityOnHit) v.x = 0f;
-        if (_keepUpwardVelocity) v.y = Mathf.Max(v.y, 0f);
-        _rb.linearVelocity = v;
-
-        _rb.AddForce(new Vector3(knockDirX * force, verticalLaunch, 0f), ForceMode.VelocityChange);
-    }
-
 
     private float GetAttackerSideX(Vector3? sourceWorldPos)
     {

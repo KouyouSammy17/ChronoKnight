@@ -258,6 +258,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
         Motor?.SetFrozen(false);
         Motor?.CancelDash();
         Motor?.StopHorizontalInstant();
+        GetComponent<PlayerDamageReceiver>()?.CancelForRespawn();
 
         // 4) Reset animator flags (hurt/down/rootmotion/attack speed/etc.)
         Anim?.ResetForRespawn();

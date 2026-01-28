@@ -101,7 +101,7 @@ public class GameManager : MonoBehaviour
     private Transform _spawnPoint;      // Tag: Respawn
     private MomentumGaugeUI _gauge; // auto-fetched from the Player
     private Goal goal;                   // set by Goal when player wins
-
+    private Transform _checkpoint; // runtime current checkpoint
     private CancellationTokenSource _gameOverCts;
     private bool _gameOverSequenceRunning;
     private bool _winRunning;
@@ -233,6 +233,7 @@ public class GameManager : MonoBehaviour
         LoadWithFeel(current, GameState.Playing);
         _player?.EnableInput();
         _isPaused = false;
+        _checkpoint = null;
 
         ResolvePauseMenu();
         _pauseMenu?.HideMenu();  // <-- direct call
@@ -273,6 +274,9 @@ public class GameManager : MonoBehaviour
         this.goal = goal;
         UIManager.Instance?.ShowPlayerUI(false);
         _gauge?.TL_HideGauge();
+
+        // Stop the timer when goal is touched
+        TimeAttackManager.Instance?.StopRun();
 
         // Goal-specific refs: fetch EVERY time (not only when null)
         if (goal != null)
@@ -455,14 +459,14 @@ public class GameManager : MonoBehaviour
 
     public PlayerMotor GetPlayer() => _player;
 
-    // GameManager.cs
     public void RespawnPlayer(bool resetStats = true)
     {
         if (_player == null) return;
 
-        // 1) snap & stop
-        if (_spawnPoint != null)
-            _player.transform.position = _spawnPoint.position;
+        Transform target = _checkpoint != null ? _checkpoint : _spawnPoint;
+
+        if (target != null)
+            _player.transform.position = target.position;
 
         var rb = _player.GetRigidbody();
         if (rb != null) rb.linearVelocity = Vector3.zero;
@@ -508,14 +512,6 @@ public class GameManager : MonoBehaviour
         await UniTask.Delay(TimeSpan.FromSeconds(_pauseInputBuffer), DelayType.Realtime, PlayerLoopTiming.Update, ct);
         _pauseBlocked = false;
     }
-
-    // ───────────────────────────────────────────────────────────────────────────────
-    // Forwarding helpers — removed heavy tutorial logic from GameManager.
-    // Update existing code to call TutorialManager directly.
-    public void ShowMomentumTutorial() => TutorialManager.Instance?.RequestShow(TutorialKey.Momentum);
-    public void CompleteMomentumTutorial() => TutorialManager.Instance?.CompleteTutorial(TutorialKey.Momentum);
-    public void ShowTurboTutorial() => TutorialManager.Instance?.RequestShow(TutorialKey.Turbo);
-    public void CompleteTurboTutorial() => TutorialManager.Instance?.CompleteTutorial(TutorialKey.Turbo);
 
     public void PauseGame()
     {
@@ -583,7 +579,7 @@ public class GameManager : MonoBehaviour
         if (anim) anim.speed = 0f;
 
         TutorialProgress.ResetAll();
-        UIManager.Instance?.ShowTutorial(TutorialKey.Momentum);
+        UIManager.Instance?.ShowTutorial(TutorialKey.Move);
 
         _ = ResetTutorialUnfreezeAsync(anim, cachedSpeed, this.GetCancellationTokenOnDestroy());
         RestartFromClearUI();
@@ -929,6 +925,11 @@ public class GameManager : MonoBehaviour
     }
 
 
+    public void SetCheckpoint(Transform checkpoint)
+    {
+        _checkpoint = checkpoint;
+    }
+
     private void EnsureSpawnPoint()
     {
         if (_spawnPoint != null) return;
@@ -999,8 +1000,6 @@ public class GameManager : MonoBehaviour
 
         // show/unlock cursor for results
         UpdateCursorState();
-        TimeAttackManager.Instance?.StopRun();
-
     }
 
     private async UniTaskVoid FocusTitleFirstSelectedNextFrame()
