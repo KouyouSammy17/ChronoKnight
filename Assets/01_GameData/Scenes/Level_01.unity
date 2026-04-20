@@ -5732,8 +5732,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WinCinematicController
   _brain: {fileID: 3423174374003225699}
-  _anim: {fileID: 3423174374003225698}
-  _modelRoot: {fileID: 3423174374003225697}
+  _anim: {fileID: 0}
+  _modelRoot: {fileID: 0}
 --- !u!4 &1673442871
 Transform:
   m_ObjectHideFlags: 0
@@ -7157,6 +7157,10 @@ PrefabInstance:
       propertyPath: _enemyHitFeedback
       value: 
       objectReference: {fileID: 726417222}
+    - target: {fileID: 4531590044569225031, guid: 84129217bffe70b4487c36a58e4b0a03, type: 3}
+      propertyPath: _enemyHitFeedback
+      value: 
+      objectReference: {fileID: 726417222}
     - target: {fileID: 4611536082353829108, guid: 84129217bffe70b4487c36a58e4b0a03, type: 3}
       propertyPath: PositionMode
       value: 0
@@ -7174,22 +7178,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 84129217bffe70b4487c36a58e4b0a03, type: 3}
---- !u!4 &3423174374003225697 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 2910877235355749603, guid: 84129217bffe70b4487c36a58e4b0a03, type: 3}
-  m_PrefabInstance: {fileID: 3423174374003225695}
-  m_PrefabAsset: {fileID: 0}
---- !u!114 &3423174374003225698 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 806295723654692614, guid: 84129217bffe70b4487c36a58e4b0a03, type: 3}
-  m_PrefabInstance: {fileID: 3423174374003225695}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1462041dba017ea499b881fb7d764d8b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerAnimator
 --- !u!114 &3423174374003225699 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8960479336214151246, guid: 84129217bffe70b4487c36a58e4b0a03, type: 3}
