@@ -1,22 +1,36 @@
 ﻿using UnityEngine;
 using System;
 
+/// <summary>
+/// Core physics and movement controller for the player.
+/// Handles ground/air movement, jumping, wall sliding, dashing, and momentum accumulation.
+/// Integrates with PlayerStateMachineBrain for state transitions and PlayerAnimator for animation feedback.
+/// Uses Rigidbody for physics and performs velocity calculations with turbo mode scaling.
+/// </summary>
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerMotor : MonoBehaviour
 {
 
+    /// <summary>Base movement speed (units/second)</summary>
     [Header("Movement Settings")]
     [SerializeField] private float _moveSpeed = 6f;
+    /// <summary>Acceleration rate for smooth speed-up</summary>
     [SerializeField] private float _acceleration = 10f;
+    /// <summary>Deceleration rate for smooth slow-down</summary>
     [SerializeField] private float _deceleration = 10f;
 
+    /// <summary>Rotation speed toward movement direction</summary>
     [Header("Rotation")]
     [SerializeField] private float _rotateSpeed = 10f;
+    /// <summary>Target rotation quaternion for smooth rotation</summary>
     private Quaternion _targetRotation;
 
+    /// <summary>Forward distance for edge detection (prevents walking off cliffs)</summary>
     [Header("Edge Detection")]
     [SerializeField] private float _edgeCheckForward = 0.5f;
+    /// <summary>Down distance for ground raycast</summary>
     [SerializeField] private float _edgeCheckDown = 1.0f;
+    /// <summary>Layer mask for ground detection</summary>
     [SerializeField] private LayerMask _groundLayer;
 
     [Header("Jump Settings")]
@@ -193,6 +207,8 @@ public class PlayerMotor : MonoBehaviour
     {
         _moveInputBuffer = Vector2.zero;
         _moveBufferCounter = 0f;
+        // Re-sync _currentVelocity from rigidbody when buffer is cleared
+        _currentVelocity = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
     }
 
     public void PreloadMovementBufferFromHold()
@@ -905,6 +921,12 @@ public class PlayerMotor : MonoBehaviour
         Vector3 moveDir = new Vector3(bufferedInput.x, 0, bufferedInput.y).normalized;
         Vector3 targetVelocity = moveDir * _moveSpeed;
 
+        // Initialize _currentVelocity from rigidbody if not already set
+        if (_currentVelocity == Vector3.zero && targetVelocity != Vector3.zero)
+        {
+            _currentVelocity = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
+        }
+
         if (blend)
         {
             _currentVelocity = Vector3.Lerp(_currentVelocity, targetVelocity, _acceleration * PlayerDT);
@@ -912,8 +934,8 @@ public class PlayerMotor : MonoBehaviour
         }
         else
         {
-            _rb.linearVelocity = new Vector3(targetVelocity.x, _rb.linearVelocity.y, targetVelocity.z);
             _currentVelocity = targetVelocity;
+            _rb.linearVelocity = new Vector3(targetVelocity.x, _rb.linearVelocity.y, targetVelocity.z);
         }
     }
 

@@ -3,51 +3,83 @@ using System;
 using System.Threading;
 using UnityEngine;
 
+/// <summary>
+/// Handles all player damage reception and hit reactions.
+/// Manages invulnerability frames, knockback application, and knockdown sequences.
+/// Supports air and ground damage with customizable reactions and turbo compensation.
+/// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(PlayerMotor), typeof(PlayerStats))]
 public class PlayerDamageReceiver : MonoBehaviour
 {
+    /// <summary>Duration of hitstun on ground hit</summary>
     [Header("Ground Hit Reaction")]
     [SerializeField] private float _hitStun = 0.25f;
+    /// <summary>Knockback force applied on ground hit</summary>
     [SerializeField] private float _knockback = 8f;
+    /// <summary>Invulnerability frame duration after hit</summary>
     [SerializeField] private float _iframes = 0.5f;
+    /// <summary>Whether invulnerability frame timing ignores TimeScale (Turbo mode)</summary>
     [SerializeField] private bool _ignoreTimeScale = true;
 
+    /// <summary>Whether to cancel horizontal velocity on hit</summary>
     [Header("Velocity Handling")]
     [SerializeField] private bool _cancelHorizontalVelocityOnHit = true;
+    /// <summary>Whether to preserve upward velocity on hit</summary>
     [SerializeField] private bool _keepUpwardVelocity = true;
 
+    /// <summary>Whether being hit in the air triggers knockdown sequence</summary>
     [Header("Air Hit (Kirby / Smash style)")]
     [SerializeField] private bool _airDamageKnockdown = true;
+    /// <summary>Upward launch force when hit in air</summary>
     [SerializeField] private float _airLaunchUp = 6f;
+    /// <summary>Horizontal knockback multiplier for air hits</summary>
     [SerializeField] private float _airLaunchHorizontalMultiplier = 1.0f;
 
+    /// <summary>Whether to apply additional downward acceleration during air knockdown</summary>
     [Header("Optional Slam Down")]
     [SerializeField] private bool _useSlamDown = true;
+    /// <summary>Delay before slam-down acceleration applies</summary>
     [SerializeField] private float _slamDelay = 0.08f;
+    /// <summary>Downward acceleration force during slam</summary>
     [SerializeField] private float _slamDownAccel = 45f;
 
+    /// <summary>Minimum tumble time in air before landing sequence</summary>
     [Header("Landing Knockdown Sequence")]
     [SerializeField] private float _minAirTumbleTime = 0.10f;
+    /// <summary>Delay between impact and knockdown trigger</summary>
     [SerializeField] private float _impactToDownDelay = 0.12f;
+    /// <summary>Recovery animation duration after knockdown</summary>
     [SerializeField] private float _recoverTime = 0.5f;
 
+    /// <summary>Whether player should face the attacker on hit</summary>
     [Header("Facing")]
     [SerializeField] private bool _faceAttackerOnHit = true;
 
+    /// <summary>Reference to player motor component</summary>
     private PlayerMotor _motor;
+    /// <summary>Reference to player animator component</summary>
     private PlayerAnimator _anim;
+    /// <summary>Reference to rigidbody for physics</summary>
     private Rigidbody _rb;
+    /// <summary>Reference to combat controller for cancellation</summary>
     private CombatController _combat;
 
+    /// <summary>Cancellation token for hit reaction sequences</summary>
     private CancellationTokenSource _hitCts;
+    /// <summary>Cancellation token for invulnerability timing</summary>
     private CancellationTokenSource _invulnCts;
 
+    /// <summary>Whether player is currently invulnerable</summary>
     private bool _invuln;
+    /// <summary>Whether player is currently invulnerable</summary>
     public bool IsInvulnerable => _invuln;
+    /// <summary>Whether player is in active hitstun from a hit</summary>
     public bool IsInHitStun { get; private set; }
+    /// <summary>Whether player is in knockdown state (air-to-ground sequence)</summary>
     public bool IsKnockedDown { get; private set; }
 
+    /// <summary>Initializes component references from the player hierarchy</summary>
     private void Awake()
     {
         _motor = GetComponent<PlayerMotor>();
@@ -56,12 +88,13 @@ public class PlayerDamageReceiver : MonoBehaviour
         _rb = _motor != null ? _motor.GetRigidbody() : GetComponent<Rigidbody>();
     }
 
+    /// <summary>Cleanup on component disable to cancel pending async tasks</summary>
     private void OnDisable()
     {
         _hitCts?.Cancel();
         _hitCts?.Dispose();
         _hitCts = null;
-        
+
         _invulnCts?.Cancel();
         _invulnCts?.Dispose();
         _invulnCts = null;
@@ -75,8 +108,15 @@ public class PlayerDamageReceiver : MonoBehaviour
         _motor?.EnableInput();
     }
 
+    /// <summary>Sets the invulnerability state manually</summary>
     public void SetInvulnerable(bool v) => _invuln = v;
 
+    /// <summary>
+    /// Plays the hit reaction sequence.
+    /// Handles both ground and air knockdown, applies knockback, and manages invulnerability.
+    /// </summary>
+    /// <param name="sourceWorldPos">Optional world position of the attacker for knockback direction</param>
+    /// <param name="extraForce">Additional force multiplier for knockback (from damage, buffs, etc.)</param>
     public async UniTaskVoid PlayHitReact(Vector3? sourceWorldPos = null, float extraForce = 0f)
     {
         if (_motor == null || _rb == null) return;
@@ -135,6 +175,9 @@ public class PlayerDamageReceiver : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Plays the air knockdown sequence: launch up, slam down, then knockdown on landing.
+    /// </summary>
     private async UniTask PlayAirKnockdownSequence(Vector3? sourceWorldPos, float extraForce, CancellationToken ct)
     {
         IsKnockedDown = true;

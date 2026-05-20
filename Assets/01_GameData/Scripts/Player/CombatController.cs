@@ -5,78 +5,113 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
+/// <summary>
+/// Manages player combat mechanics including ground combos, air attacks, dash attacks, and finishers.
+/// Handles attack buffering, momentum scaling, and turbo mode integration.
+/// </summary>
 [RequireComponent(typeof(Collider))]
 public class CombatController : MonoBehaviour
 {
+    /// <summary>
+    /// Defines a single step in a ground combo sequence with timing and damage properties.
+    /// </summary>
     [Serializable]
     public struct ComboStep
     {
+        /// <summary>Name identifier for this combo step</summary>
         public string stepName;
+        /// <summary>Time window during which the next attack can be buffered</summary>
         public float inputWindow;
+        /// <summary>Animation speed multiplier for this attack</summary>
         public float speedMultiplier;
+        /// <summary>Base damage dealt by this attack</summary>
         public int damage;
+        /// <summary>Momentum points gained from hitting with this attack</summary>
         public float momentumGain;
+        /// <summary>Knockback force applied to enemies</summary>
         public float knockbackForce;
     }
 
+    // ==================== SERIALIZED CONFIGURATION ====================
+
+    /// <summary>Sequence of attacks that form the ground combo chain</summary>
     [Header("Ground Combo Definition")]
     [SerializeField] private List<ComboStep> _comboSteps = new List<ComboStep>();
 
+    /// <summary>Speed and damage configuration for air attacks</summary>
     [Header("Air Attack (Single)")]
     [SerializeField] private float _airAttackSpeedMult = 1.0f;
     [SerializeField] private int _airAttackDamage = 15;
     [SerializeField] private float _airAttackMomentum = 8f;
     [SerializeField] private float _airAttackKnockback = 8f;
 
+    /// <summary>If enabled, limits air attacks to once per airtime (resets when landing)</summary>
     [Tooltip("If ON, you can only do 1 air attack per airtime (resets on landing).")]
     [SerializeField] private bool _airAttackOncePerAirtime = true;
 
+    /// <summary>References to other player components (auto-assigned at runtime)</summary>
     [Header("References (auto-assigned)")]
     [SerializeField] private PlayerMotor _motor;
     [SerializeField] private PlayerAnimator _playerAnim;
     [SerializeField] private WeaponHitbox _weaponHitbox;
 
+    /// <summary>Configuration for dash attack mechanics</summary>
     [Header("Dash Attack")]
     [SerializeField] private float _dashAttackSpeedMult = 1.0f;
     [SerializeField] private int _dashAttackDamage = 20;
     [SerializeField] private float _dashAttackMomentum = 10f;
     [SerializeField] private float _dashAttackKnockback = 10f;
 
+    /// <summary>Settings for the maximum momentum AOE finisher attack (4th hit)</summary>
     [Header("Max Momentum 4th Hit (AOE Finisher)")]
     [SerializeField] private bool _enableMaxFinisher = true;
     [SerializeField] private float _finisherSpeedMult = 1.0f;
     [SerializeField] private int _finisherDamage = 45;
     [SerializeField] private float _finisherMomentumGain = 0f;
     [SerializeField] private float _finisherKnockback = 14f;
-    [SerializeField] private WeaponHitbox _finisherHitbox; // assign AOEHitbox WeaponHitbox
+    /// <summary>Separate hitbox for AOE finisher effect (if null, uses weapon hitbox)</summary>
+    [SerializeField] private WeaponHitbox _finisherHitbox;
 
-    // runtime
+    // ==================== RUNTIME STATE ====================
+
+    /// <summary>Current position in the combo sequence</summary>
     private int _comboIndex;
+    /// <summary>Whether the combo window is open for buffering next attack</summary>
     private bool _canBuffer;
+    /// <summary>Whether an attack input was buffered during combo window</summary>
     private bool _bufferedAttack;
 
+    /// <summary>Whether a dash attack is currently active</summary>
     private bool _dashAttackActive;
+    /// <summary>Whether an attack was buffered while dash attack was playing</summary>
     private bool _dashAttackChainBuffered;
+    /// <summary>Whether current attack mode is dash attack</summary>
     private bool _dashAttackMode;
 
+    /// <summary>Whether current attack mode is air attack</summary>
     private bool _airAttackMode;
 
+    /// <summary>Whether any attack sequence is currently active</summary>
     private bool _isActive;
+    /// <summary>Damage multiplier applied to all attacks (from buffs/debuffs)</summary>
     private float _damageMul = 1f;
+    /// <summary>Attack speed multiplier applied to animations</summary>
     private float _speedBuff = 1f;
+    /// <summary>Whether the finisher attack is currently playing</summary>
     private bool _finisherMode;
 
-    //[Header("Turbo")]
-    //[SerializeField] private float _turboAttackMultiplier = 1.5f; // real-time attack speed bonus during Turbo
-
+    /// <summary>Cancellation token for async attack tasks</summary>
     private CancellationTokenSource _cts;
 
-    // once-per-airtime gate (local, resets when grounded)
+    /// <summary>Gate to ensure only one air attack per airtime session</summary>
     private bool _airAttackUsedThisAirtime;
 
+    /// <summary>Whether the active combo is currently playing</summary>
     public bool IsComboActive => _isActive;
+    /// <summary>Whether a dash attack is currently executing</summary>
     public bool IsDashAttackActive => _dashAttackActive;
 
+    /// <summary>Initializes component references from the player hierarchy</summary>
     private void Awake()
     {
         _motor = _motor ?? GetComponent<PlayerMotor>();
@@ -84,13 +119,20 @@ public class CombatController : MonoBehaviour
         _weaponHitbox = _weaponHitbox ?? GetComponentInChildren<WeaponHitbox>();
     }
 
-    // Optional: keep input callback compatibility
+    /// <summary>
+    /// Input callback for attack command from input system.
+    /// Only responds to started input events.
+    /// </summary>
     public void OnAttack(InputAction.CallbackContext ctx)
     {
         if (!ctx.started) return;
         RequestAttack();
     }
 
+    /// <summary>
+    /// Processes an attack request and initiates the appropriate attack type.
+    /// Handles buffering, dash attack chaining, and distinguishes between air/ground attacks.
+    /// </summary>
     public void RequestAttack()
     {
         if (_motor == null || _playerAnim == null) return;
@@ -130,15 +172,23 @@ public class CombatController : MonoBehaviour
         StartComboAsync().Forget();
     }
 
+    /// <summary>Immediately cancels the current attack sequence</summary>
     public void CancelCombo()
     {
         _cts?.Cancel();
         _weaponHitbox?.DisableHitbox();
     }
 
+    /// <summary>Sets the damage multiplier for all subsequent attacks</summary>
     public void SetDamageMultiplier(float m) => _damageMul = m;
+
+    /// <summary>Sets the attack speed multiplier for animations</summary>
     public void SetAttackSpeedBuff(float b) => _speedBuff = b;
 
+    /// <summary>
+    /// Called when the attack animation opens its hitbox window.
+    /// Enables the appropriate hitbox based on current attack mode and applies multipliers.
+    /// </summary>
     public void OnOpenComboWindow()
     {
         _canBuffer = true;
@@ -185,7 +235,10 @@ public class CombatController : MonoBehaviour
         _weaponHitbox.EnableHitbox(finalDamage, finalMomentum, finalKnockback);
     }
 
-
+    /// <summary>
+    /// Called when the attack animation closes its hitbox window.
+    /// Disables all active hitboxes and finalizes buffering logic.
+    /// </summary>
     public void OnCloseComboWindow()
     {
         _canBuffer = false;
@@ -193,6 +246,10 @@ public class CombatController : MonoBehaviour
         if (_finisherHitbox != null) _finisherHitbox.DisableHitbox();
     }
 
+    /// <summary>
+    /// Computes the attack speed compensation factor based on turbo mode status.
+    /// Returns 1.5x multiplier during turbo, 1x otherwise.
+    /// </summary>
     private float ComputeTurboAttackComp()
     {
         float turboAttack = 1f;
@@ -208,6 +265,10 @@ public class CombatController : MonoBehaviour
     // -----------------------
     // AIR ATTACK (single)
     // -----------------------
+    /// <summary>
+    /// Initiates a single air attack. Locks player control, applies root motion,
+    /// and prevents multiple air attacks per airtime (if configured).
+    /// </summary>
     private async UniTaskVoid StartAirAttackAsync()
     {
         _cts?.Cancel();
@@ -265,6 +326,10 @@ public class CombatController : MonoBehaviour
     // -----------------------
     // GROUND COMBO
     // -----------------------
+    /// <summary>
+    /// Starts the ground combo sequence. Loops through combo steps with input buffering
+    /// between each attack. Triggers finisher if maximum momentum is reached after the last hit.
+    /// </summary>
     private async UniTaskVoid StartComboAsync()
     {
         _cts?.Cancel();
@@ -340,6 +405,10 @@ public class CombatController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Plays the finisher attack (4th hit AOE) when maximum momentum is reached.
+    /// Waits for hitbox window before returning control.
+    /// </summary>
     private async UniTask PlayFinisherAsync(CancellationToken token)
     {
         _finisherMode = true;
@@ -363,8 +432,12 @@ public class CombatController : MonoBehaviour
     }
 
     // -----------------------
-    // Dash Attack (unchanged)
+    // Dash Attack
     // -----------------------
+    /// <summary>
+    /// Initiates a dash attack. Only executes if no other attack is active.
+    /// Applies root motion and locks player input during the attack.
+    /// </summary>
     public void StartDashAttack()
     {
         if (_isActive) return;
@@ -382,6 +455,10 @@ public class CombatController : MonoBehaviour
         _playerAnim.TriggerDashAttack();
     }
 
+    /// <summary>
+    /// Called when the dash attack animation completes.
+    /// Re-enables player control and processes any buffered attack input.
+    /// </summary>
     public void OnDashAttackEnd()
     {
         _weaponHitbox.DisableHitbox();
@@ -400,6 +477,9 @@ public class CombatController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Restores animation speed to baseline state (accounting for turbo mode if active).
+    /// </summary>
     private void RestoreAnimBaseline()
     {
         if (_playerAnim == null) return;
@@ -410,12 +490,15 @@ public class CombatController : MonoBehaviour
         else
             _playerAnim.SetAttackSpeed(1f);       // normal
     }
+
+    /// <summary>Checks if the player currently has maximum momentum level</summary>
     private bool HasMaxMomentum()
     {
         var mm = MomentumManager.Instance;
         return _enableMaxFinisher && mm != null && mm.CurrentState == MomentumState.Max;
     }
 
+    /// <summary>Resets the per-airtime air attack gate when player returns to ground</summary>
     private void Update()
     {
         // reset once-per-airtime gate when grounded again

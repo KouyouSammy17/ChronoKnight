@@ -3,10 +3,18 @@ using System;
 using System.Threading;
 using UnityEngine;
 
+/// <summary>
+/// Manages all player animation state and triggers.
+/// Handles locomotion, combat animations, turbo mode integration, and root motion.
+/// Communicates with PlayerMotor and CombatController for state synchronization.
+/// </summary>
 public class PlayerAnimator : MonoBehaviour
 {
-    [SerializeField] private Animator _anim;           // Your Animator component
+    /// <summary>Reference to the Animator component</summary>
+    [SerializeField] private Animator _anim;
+    /// <summary>Reference to the player motor for movement data</summary>
     [SerializeField] private PlayerMotor _player;
+    /// <summary>Reference to combat controller for hitbox window callbacks</summary>
     [SerializeField] private CombatController _combat;
 
     private bool _animPaused;
