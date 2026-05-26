@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+// プレイヤーのHPバーとスタミナバーの表示・アニメーションを管理するスクリプト
+using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
 using UnityEngine.SceneManagement;
@@ -11,36 +12,36 @@ public class UIPlayerBars : MonoBehaviour
 
     [Header("Intro HP Slider (only for animation)")]
     [SerializeField] private Slider _hpIntroSlider;     // overlay HP slider just for intro
-    [SerializeField] private float _hpIntroDuration = 0.4f;
+    [SerializeField] private float _hpIntroDuration = 0.4f; // HPイントロアニメーションの時間
 
     [Header("Stamina (Simple Slider)")]
-    [SerializeField] private Slider _staminaSlider;
-    [SerializeField] private float _tweenDuration = 0.3f;
+    [SerializeField] private Slider _staminaSlider;         // スタミナを表示するスライダー
+    [SerializeField] private float _tweenDuration = 0.3f;   // スタミナ変動時のTween時間
 
     [Header("Intro Fill")]
     [SerializeField, Tooltip("If true, stamina starts at 0 and waits for PlayIntroAnimation()")]
-    private bool _useIntroFill = true;
+    private bool _useIntroFill = true; // イントロアニメーションを使用するかどうか
 
     [SerializeField, Tooltip("How long the stamina intro tween takes")]
-    private float _introFillDuration = 0.7f;
+    private float _introFillDuration = 0.7f; // スタミナイントロTweenの時間
 
-    private PlayerStats _stats;
-    private bool _introPlayed = false;
+    private PlayerStats _stats;        // 現在バインドされているPlayerStats
+    private bool _introPlayed = false; // イントロアニメーションが再生済みかどうか
 
-    private Tween _hpIntroTween;
-    private Tween _staminaIntroTween;
+    private Tween _hpIntroTween;      // HPイントロ用Tween
+    private Tween _staminaIntroTween; // スタミナイントロ用Tween
 
     // ─────────────────────────────────────────────────────────────────────
     private void OnEnable()
     {
-        SceneManager.sceneLoaded += OnSceneLoaded;
+        SceneManager.sceneLoaded += OnSceneLoaded; // シーンロード時に再バインド
         BindToStats();
     }
 
     private void OnDisable()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
-        Unsubscribe();
+        Unsubscribe(); // イベントリスナーを解除してリークを防ぐ
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -52,11 +53,11 @@ public class UIPlayerBars : MonoBehaviour
     // ─────────────────────────────────────────────────────────────────────
     private void BindToStats()
     {
-        Unsubscribe();
+        Unsubscribe(); // 既存のバインドを解除してから再接続
 
         // find current PlayerStats in the scene
         _stats = Object.FindFirstObjectByType<PlayerStats>();
-        if (_stats == null) return;
+        if (_stats == null) return; // PlayerStatsが見つからなければ何もしない
 
         // initialize UI to current values (or 0 if using intro)
         InitBars();
@@ -83,13 +84,13 @@ public class UIPlayerBars : MonoBehaviour
         if (_hpBar != null)
         {
             // Always show real HP bar at current value
-            _hpBar.SetBar(_stats.CurrentHP, 0f, _stats.MaxHP);
+            _hpBar.SetBar(_stats.CurrentHP, 0f, _stats.MaxHP); // HPバーを現在値で初期化
         }
 
         // ── Intro HP Slider (overlay) ────────────────────────────────
         if (_hpIntroSlider != null)
         {
-            _hpIntroSlider.maxValue = _stats.MaxHP;
+            _hpIntroSlider.maxValue = _stats.MaxHP; // スライダーの最大値をHPに合わせる
 
             if (_useIntroFill && !_introPlayed)
             {
@@ -107,15 +108,15 @@ public class UIPlayerBars : MonoBehaviour
         // ── Stamina ──────────────────────────────
         if (_staminaSlider != null)
         {
-            _staminaSlider.maxValue = _stats.MaxStamina;
+            _staminaSlider.maxValue = _stats.MaxStamina; // スタミナスライダーの最大値を設定
 
             if (_useIntroFill && !_introPlayed)
             {
-                _staminaSlider.value = 0f;
+                _staminaSlider.value = 0f; // イントロ前は0から始める
             }
             else
             {
-                _staminaSlider.value = _stats.CurrentStamina;
+                _staminaSlider.value = _stats.CurrentStamina; // イントロ済みなら現在値を表示
             }
         }
     }
@@ -127,7 +128,7 @@ public class UIPlayerBars : MonoBehaviour
         if (_stats == null || _hpBar == null) return;
 
         // FEEL handles delayed bar / bump / easing.
-        _hpBar.UpdateBar(hp, 0f, _stats.MaxHP);
+        _hpBar.UpdateBar(hp, 0f, _stats.MaxHP); // FEELのMMProgressBarにHP変化を通知
     }
 
     private void UpdateStamina(int sta)
@@ -135,7 +136,7 @@ public class UIPlayerBars : MonoBehaviour
         if (_staminaSlider == null) return;
 
         // Simple DOTween for stamina, no delayed bar
-        _staminaSlider.DOValue(sta, _tweenDuration).SetEase(Ease.OutQuad);
+        _staminaSlider.DOValue(sta, _tweenDuration).SetEase(Ease.OutQuad); // スタミナ変化をDOTweenでアニメーション
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -145,14 +146,14 @@ public class UIPlayerBars : MonoBehaviour
     {
         if (_stats == null) return;
 
-        _introPlayed = true;
+        _introPlayed = true; // 以降のInitBarsでイントロスライダーを非表示にするためのフラグ
 
         // ── HP intro overlay: 0 → full HP, then disable ──────────────
         if (_hpIntroSlider != null)
         {
             _hpIntroSlider.gameObject.SetActive(true);
             _hpIntroSlider.maxValue = _stats.MaxHP;
-            _hpIntroSlider.value = 0f;
+            _hpIntroSlider.value = 0f; // 0から最大HPへアニメーションするため初期値を0にする
 
             _hpIntroTween?.Kill();
             _hpIntroTween = _hpIntroSlider
@@ -161,7 +162,7 @@ public class UIPlayerBars : MonoBehaviour
                 .OnComplete(() =>
                 {
                     // hide the intro slider after it finishes
-                    _hpIntroSlider.gameObject.SetActive(false);
+                    _hpIntroSlider.gameObject.SetActive(false); // アニメーション完了後にオーバーレイスライダーを非表示
                 });
         }
 
@@ -169,13 +170,13 @@ public class UIPlayerBars : MonoBehaviour
         if (_staminaSlider != null)
         {
             _staminaSlider.maxValue = _stats.MaxStamina;
-            _staminaSlider.DOKill();
+            _staminaSlider.DOKill(); // 既存のスタミナTweenを停止
             _staminaSlider.value = 0f;
 
             _staminaIntroTween?.Kill();
             _staminaIntroTween = _staminaSlider
                 .DOValue(_stats.CurrentStamina, _introFillDuration)
-                .SetEase(Ease.OutQuad);
+                .SetEase(Ease.OutQuad); // 0から現在スタミナへ滑らかに表示
         }
     }
 }

@@ -1,3 +1,4 @@
+// ãƒãƒ¼ã‚ºãƒ¡ãƒ‹ãƒ¥ãƒ¼ã®è¡¨ç¤ºãƒ»éè¡¨ç¤ºã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã¨ãƒœã‚¿ãƒ³ã‚¤ãƒ™ãƒ³ãƒˆã‚’ç®¡ç†ã™ã‚‹ã‚¹ã‚¯ãƒªãƒ—ãƒˆ
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using System;
@@ -8,38 +9,38 @@ using UnityEngine.EventSystems;
 public class PauseMenu : MonoBehaviour
 {
     [Header("UI")]
-    [SerializeField] GameObject _contentRoot;
-    [SerializeField] CanvasGroup _panelGroup;
-    [SerializeField] RectTransform _panelRect;
-    [SerializeField] float _fadeTime = 0.22f;
-    [SerializeField] float _scaleTime = 0.22f;
-    [SerializeField] GameObject _firstSelectedOnOpen;
+    [SerializeField] GameObject _contentRoot;         // ãƒ¡ãƒ‹ãƒ¥ãƒ¼å…¨ä½“ã®ãƒ«ãƒ¼ãƒˆã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆ
+    [SerializeField] CanvasGroup _panelGroup;         // ãƒ•ã‚§ãƒ¼ãƒ‰åˆ¶å¾¡ç”¨CanvasGroup
+    [SerializeField] RectTransform _panelRect;        // ã‚¹ã‚±ãƒ¼ãƒ«ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ç”¨RectTransform
+    [SerializeField] float _fadeTime = 0.22f;         // ãƒ•ã‚§ãƒ¼ãƒ‰ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã®æ™‚é–“
+    [SerializeField] float _scaleTime = 0.22f;        // ã‚¹ã‚±ãƒ¼ãƒ«ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã®æ™‚é–“
+    [SerializeField] GameObject _firstSelectedOnOpen; // ãƒ¡ãƒ‹ãƒ¥ãƒ¼è¡¨ç¤ºæ™‚ã«æœ€åˆã«ãƒ•ã‚©ãƒ¼ã‚«ã‚¹ã™ã‚‹ãƒœã‚¿ãƒ³
 
-    private Sequence _showSeq, _hideSeq;
+    private Sequence _showSeq, _hideSeq; // è¡¨ç¤ºãƒ»éè¡¨ç¤ºã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã®Sequence
 
     void Awake()
     {
-        if (_contentRoot) _contentRoot.SetActive(false);
+        if (_contentRoot) _contentRoot.SetActive(false); // èµ·å‹•æ™‚ã¯ãƒ¡ãƒ‹ãƒ¥ãƒ¼ã‚’éè¡¨ç¤ºã«ã™ã‚‹
         if (_panelGroup)
         {
             _panelGroup.alpha = 0f;
             _panelGroup.interactable = false;
             _panelGroup.blocksRaycasts = false;
         }
-        if (_panelRect) _panelRect.localScale = Vector3.zero;
+        if (_panelRect) _panelRect.localScale = Vector3.zero; // ãƒ‘ãƒãƒ«ã‚’ã‚¹ã‚±ãƒ¼ãƒ«0ã§åˆæœŸåŒ–
     }
 
-    // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // CALLED BY GAMEMANAGER
     public void ShowMenu()
     {
-        _hideSeq?.Kill();
+        _hideSeq?.Kill(); // éè¡¨ç¤ºã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ä¸­ãªã‚‰åœæ­¢
         _showSeq?.Kill();
 
         if (_contentRoot)
         {
             _contentRoot.SetActive(true);
-            _contentRoot.transform.SetAsLastSibling();
+            _contentRoot.transform.SetAsLastSibling(); // æœ€å‰é¢ã«è¡¨ç¤º
         }
 
         if (_panelGroup)
@@ -53,19 +54,19 @@ public class PauseMenu : MonoBehaviour
         _showSeq = DOTween.Sequence()
             .SetUpdate(true) // unscaled time (works while paused)
             .SetLink(gameObject, LinkBehaviour.KillOnDestroy)
-            .Join(_panelGroup.DOFade(1f, _fadeTime).SetEase(Ease.OutQuad))
-            .Join(_panelRect.DOScale(1.1f, _scaleTime).SetEase(Ease.OutBack))
+            .Join(_panelGroup.DOFade(1f, _fadeTime).SetEase(Ease.OutQuad))         // ãƒ•ã‚§ãƒ¼ãƒ‰ã‚¤ãƒ³
+            .Join(_panelRect.DOScale(1.1f, _scaleTime).SetEase(Ease.OutBack))      // ã‚¹ã‚±ãƒ¼ãƒ«ãƒãƒƒãƒ—ã‚¤ãƒ³
             .OnComplete(() =>
             {
                 if (_panelGroup)
                 {
-                    _panelGroup.interactable = true;
+                    _panelGroup.interactable = true;      // ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³å®Œäº†å¾Œã«ã‚¤ãƒ³ã‚¿ãƒ©ã‚¯ã‚·ãƒ§ãƒ³æœ‰åŠ¹åŒ–
                     _panelGroup.blocksRaycasts = true;
                 }
             });
 
         _showSeq.Play();
-        FocusNextFrameAsync(this.GetCancellationTokenOnDestroy()).Forget();
+        FocusNextFrameAsync(this.GetCancellationTokenOnDestroy()).Forget(); // æ¬¡ãƒ•ãƒ¬ãƒ¼ãƒ ã«ãƒ•ã‚©ãƒ¼ã‚«ã‚¹ã‚’è¨­å®š
     }
 
     public void HideMenu()
@@ -75,19 +76,19 @@ public class PauseMenu : MonoBehaviour
 
         if (_panelGroup)
         {
-            _panelGroup.interactable = false;
+            _panelGroup.interactable = false;   // éè¡¨ç¤ºä¸­ã¯ã‚¤ãƒ³ã‚¿ãƒ©ã‚¯ã‚·ãƒ§ãƒ³ç„¡åŠ¹
             _panelGroup.blocksRaycasts = false;
         }
 
         _hideSeq = DOTween.Sequence()
             .SetUpdate(true) // unscaled time
             .SetLink(gameObject, LinkBehaviour.KillOnDestroy)
-            .Join(_panelGroup.DOFade(0f, _fadeTime).SetEase(Ease.InQuad))
-            .Join(_panelRect.DOScale(0f, _scaleTime).SetEase(Ease.InBack))
+            .Join(_panelGroup.DOFade(0f, _fadeTime).SetEase(Ease.InQuad))     // ãƒ•ã‚§ãƒ¼ãƒ‰ã‚¢ã‚¦ãƒˆ
+            .Join(_panelRect.DOScale(0f, _scaleTime).SetEase(Ease.InBack))    // ã‚¹ã‚±ãƒ¼ãƒ«ã‚¢ã‚¦ãƒˆ
             .OnComplete(() =>
             {
-                ResetSelectionState();
-                if (_contentRoot) _contentRoot.SetActive(false);
+                ResetSelectionState(); // é¸æŠçŠ¶æ…‹ã‚’ãƒªã‚»ãƒƒãƒˆ
+                if (_contentRoot) _contentRoot.SetActive(false); // éè¡¨ç¤ºå®Œäº†å¾Œã«ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’ç„¡åŠ¹åŒ–
             });
         _hideSeq.Play();
     }
@@ -99,14 +100,14 @@ public class PauseMenu : MonoBehaviour
         _hideSeq?.Kill();
 
         if (_panelGroup)
-        { 
+        {
             _panelGroup.alpha = 0f;
             _panelGroup.interactable = false;
             _panelGroup.blocksRaycasts = false;
         }
 
         if (_panelRect)
-            _panelRect.localScale = Vector3.zero;
+            _panelRect.localScale = Vector3.zero; // ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ãªã—ã§å³åº§ã«ã‚¹ã‚±ãƒ¼ãƒ«ã‚’ã‚¼ãƒ­ã«ã™ã‚‹
 
         ResetSelectionState();
 
@@ -115,15 +116,15 @@ public class PauseMenu : MonoBehaviour
     }
 
 
-    // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Helpers
     private async UniTaskVoid FocusNextFrameAsync(CancellationToken ct)
     {
-        await UniTask.NextFrame(ct);
+        await UniTask.NextFrame(ct); // æ¬¡ãƒ•ãƒ¬ãƒ¼ãƒ ã¾ã§å¾…æ©Ÿï¼ˆUIã®åˆæœŸåŒ–ãŒå®Œäº†ã—ã¦ã‹ã‚‰é¸æŠã™ã‚‹ï¼‰
         if (_firstSelectedOnOpen)
         {
             EventSystem.current?.SetSelectedGameObject(null);
-            EventSystem.current?.SetSelectedGameObject(_firstSelectedOnOpen);
+            EventSystem.current?.SetSelectedGameObject(_firstSelectedOnOpen); // æœ€åˆã®ãƒœã‚¿ãƒ³ã«ãƒ•ã‚©ãƒ¼ã‚«ã‚¹ã‚’å½“ã¦ã‚‹
         }
     }
 
@@ -134,7 +135,7 @@ public class PauseMenu : MonoBehaviour
         if (EventSystem.current != null &&
             EventSystem.current.currentSelectedGameObject != null)
         {
-            EventSystem.current.SetSelectedGameObject(null);
+            EventSystem.current.SetSelectedGameObject(null); // é¸æŠä¸­ã®ãƒœã‚¿ãƒ³ã‚’ã‚¯ãƒªã‚¢
         }
 
         if (_contentRoot == null) return;
@@ -143,17 +144,17 @@ public class PauseMenu : MonoBehaviour
         var swaps = _contentRoot.GetComponentsInChildren<SelectSwap>(true);
         foreach (var s in swaps)
         {
-            s.ForceUnselectImmediate();
+            s.ForceUnselectImmediate(); // å­è¦ç´ ã®SelectSwapã‚’å…¨ã¦éé¸æŠçŠ¶æ…‹ã«æˆ»ã™
         }
     }
 
-    // „Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ„Ÿ
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Buttons
-    public void OnClick_Resume() => GameManager.Instance?.ResumeGame();
-    public void OnClick_RestartLevel() { GameManager.Instance?.ResumeGame(); GameManager.Instance?.RestartLevel(); }
+    public void OnClick_Resume() => GameManager.Instance?.ResumeGame(); // å†é–‹ãƒœã‚¿ãƒ³
+    public void OnClick_RestartLevel() { GameManager.Instance?.ResumeGame(); GameManager.Instance?.RestartLevel(); } // ãƒªã‚¹ã‚¿ãƒ¼ãƒˆãƒœã‚¿ãƒ³
     public void OnClick_QuitToTitle()
     {
-        GameManager.Instance?.LoadTitle();
+        GameManager.Instance?.LoadTitle(); // ã‚¿ã‚¤ãƒˆãƒ«ã¸æˆ»ã‚‹ãƒœã‚¿ãƒ³
     }
-    public void OnClick_ResetTutorial() { GameManager.Instance?.ResetTutorial(); }
+    public void OnClick_ResetTutorial() { GameManager.Instance?.ResetTutorial(); } // ãƒãƒ¥ãƒ¼ãƒˆãƒªã‚¢ãƒ«ãƒªã‚»ãƒƒãƒˆãƒœã‚¿ãƒ³
 }

@@ -1,4 +1,5 @@
-﻿/// <summary>
+// プレイヤーのモメンタム段階を定義する列挙型
+/// <summary>
 /// Represents the current momentum level of the player.
 /// Used for unlocking abilities, applying buffs, and triggering effects.
 /// </summary>
@@ -10,4 +11,3 @@ public enum MomentumState
     Tier3,     // ≥75% (air dash, dash extension)
     Max        // 100% (combo finisher, max buffs)
 }
-

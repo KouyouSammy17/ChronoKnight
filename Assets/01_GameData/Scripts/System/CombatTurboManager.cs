@@ -1,3 +1,4 @@
+// ターボモード中の戦闘アニメーション速度をプレイヤーアニメーターに反映するスクリプト
 using UnityEngine;
 
 /// <summary>
@@ -11,15 +12,15 @@ using UnityEngine;
 [RequireComponent(typeof(CombatController))]
 public class CombatTurboManager : MonoBehaviour
 {
-    private CombatController _combat;
-    private PlayerAnimator _playerAnim;
+    private CombatController _combat;    // 同じオブジェクトのCombatControllerへの参照
+    private PlayerAnimator _playerAnim;  // アニメーション速度を制御するPlayerAnimator
 
     private void Awake()
     {
         _combat = GetComponent<CombatController>();
         // Try to get the PlayerAnimator from this GameObject or its children
         _playerAnim = GetComponent<PlayerAnimator>() ?? GetComponentInChildren<PlayerAnimator>();
-     
+
     }
 
     private void Update()
@@ -28,10 +29,12 @@ public class CombatTurboManager : MonoBehaviour
         var turbo = TurboModeManager.Instance;
 
         // Animator is UnscaledTime during Turbo, so we set REAL-TIME multipliers directly:
+        // ターボ中はリアルタイム倍率を適用し、非アクティブ時は1倍（通常速度）に戻す
         float comp = (turbo != null && turbo.IsActive) ? turbo.OtherAnimComp : 1f;
 
         if (_playerAnim == null) return;
 
+        // コンボ実行中でなければロコモーション用の速度を設定する
         bool inCombo = (_combat != null) && _combat.IsComboActive;
         if (!inCombo)
         {

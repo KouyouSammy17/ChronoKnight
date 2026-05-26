@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+// ボタンのホバー・選択・プレス時にスケールやテキストスライドのアニメーションを行うスクリプト
+using UnityEngine;
 using UnityEngine.EventSystems;
 using TMPro;
 using DG.Tweening;
@@ -15,40 +16,40 @@ public class SquareTextButtonAnimator :
     [Header("References")]
     [SerializeField] private RectTransform _root;     // button root (scale)
     [SerializeField] private RectTransform _text;     // TMP text rect (optional)
-    [SerializeField] private CanvasGroup _canvasGroup;
+    [SerializeField] private CanvasGroup _canvasGroup; // 透明度制御用CanvasGroup
 
     [Header("Time")]
     [SerializeField] private bool _ignoreTimeScale = true; //  unscaled time for DOTween
 
     [Header("Scale")]
-    [SerializeField] private float _hoverScale = 1.08f;
-    [SerializeField] private float _scaleTime = 0.12f;
+    [SerializeField] private float _hoverScale = 1.08f;  // ホバー時のスケール
+    [SerializeField] private float _scaleTime = 0.12f;   // スケールアニメーション時間
 
     [Header("Press Punch")]
-    [SerializeField] private float _punchStrength = 0.08f;
-    [SerializeField] private float _punchDuration = 0.15f;
+    [SerializeField] private float _punchStrength = 0.08f;  // プレス時のパンチ強さ
+    [SerializeField] private float _punchDuration = 0.15f;  // パンチアニメーション時間
 
     [Header("Text Slide (optional)")]
-    [SerializeField] private float _textSlideX = 6f;
-    [SerializeField] private float _textSlideTime = 0.08f;
+    [SerializeField] private float _textSlideX = 6f;      // テキストのスライド距離（ピクセル）
+    [SerializeField] private float _textSlideTime = 0.08f; // テキストスライド時間
 
     [Header("Disabled")]
-    [SerializeField] private float _disabledAlpha = 0.5f;
-    [SerializeField] private float _disabledScale = 0.95f;
+    [SerializeField] private float _disabledAlpha = 0.5f;  // 無効時のアルファ値
+    [SerializeField] private float _disabledScale = 0.95f; // 無効時のスケール
 
-    private bool _interactable = true;
+    private bool _interactable = true; // インタラクト可能かどうかのフラグ
 
     private void Reset()
     {
         _root = transform as RectTransform;
-        _text = GetComponentInChildren<TMP_Text>()?.rectTransform;
+        _text = GetComponentInChildren<TMP_Text>()?.rectTransform; // 子のTMPテキストを自動取得
         _canvasGroup = GetComponent<CanvasGroup>();
     }
 
     private void Awake()
     {
         if (_root == null) _root = transform as RectTransform;
-        if (_canvasGroup == null) _canvasGroup = gameObject.AddComponent<CanvasGroup>();
+        if (_canvasGroup == null) _canvasGroup = gameObject.AddComponent<CanvasGroup>(); // なければ追加
     }
 
     private Tween U(Tween t) => t.SetUpdate(_ignoreTimeScale); // helper
@@ -59,20 +60,20 @@ public class SquareTextButtonAnimator :
 
     public void SetInteractable(bool value)
     {
-        _interactable = value;
+        _interactable = value; // インタラクト状態を更新
 
         _root.DOKill();
         _canvasGroup.DOKill();
 
         if (value)
         {
-            U(_canvasGroup.DOFade(1f, 0.15f));
-            U(_root.DOScale(1f, 0.2f).SetEase(Ease.OutBack));
+            U(_canvasGroup.DOFade(1f, 0.15f));                      // インタラクト有効時はフェードイン
+            U(_root.DOScale(1f, 0.2f).SetEase(Ease.OutBack));       // 通常スケールへポップイン
         }
         else
         {
-            U(_canvasGroup.DOFade(_disabledAlpha, 0.15f));
-            U(_root.DOScale(_disabledScale, 0.15f).SetEase(Ease.InQuad));
+            U(_canvasGroup.DOFade(_disabledAlpha, 0.15f));           // 無効時は半透明にフェードアウト
+            U(_root.DOScale(_disabledScale, 0.15f).SetEase(Ease.InQuad)); // 無効時はわずかに縮小
         }
     }
 
@@ -82,7 +83,7 @@ public class SquareTextButtonAnimator :
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (!_interactable) return;
+        if (!_interactable) return; // インタラクト不可なら無視
         HoverIn();
     }
 
@@ -95,7 +96,7 @@ public class SquareTextButtonAnimator :
     public void OnSelect(BaseEventData eventData)
     {
         if (!_interactable) return;
-        HoverIn();
+        HoverIn(); // キーボード・ゲームパッドの選択もホバーと同じ演出
     }
 
     public void OnDeselect(BaseEventData eventData)
@@ -106,14 +107,14 @@ public class SquareTextButtonAnimator :
 
     private void HoverIn()
     {
-        _root.DOKill();
-        U(_root.DOScale(_hoverScale, _scaleTime).SetEase(Ease.OutCubic));
+        _root.DOKill(); // 前のTweenをキャンセル
+        U(_root.DOScale(_hoverScale, _scaleTime).SetEase(Ease.OutCubic)); // ホバースケールへアニメーション
     }
 
     private void HoverOut()
     {
         _root.DOKill();
-        U(_root.DOScale(1f, _scaleTime).SetEase(Ease.OutCubic));
+        U(_root.DOScale(1f, _scaleTime).SetEase(Ease.OutCubic)); // 通常スケールへ戻す
     }
 
     // ─────────────────────────────────────────────
@@ -123,13 +124,13 @@ public class SquareTextButtonAnimator :
     public void OnPointerDown(PointerEventData eventData)
     {
         if (!_interactable) return;
-        Press();
+        Press(); // マウスクリック時にプレスアニメーションを再生
     }
 
     public void OnSubmit(BaseEventData eventData)
     {
         if (!_interactable) return;
-        Press();
+        Press(); // キーボード・ゲームパッドの決定ボタンでもプレスアニメーションを再生
     }
 
     private void Press()
@@ -139,7 +140,7 @@ public class SquareTextButtonAnimator :
             Vector3.one * _punchStrength,
             _punchDuration,
             vibrato: 10,
-            elasticity: 0.8f
+            elasticity: 0.8f // 弾力性で跳ね返り感を演出
         ));
 
         if (_text != null)
@@ -147,7 +148,7 @@ public class SquareTextButtonAnimator :
             _text.DOKill();
             U(_text.DOLocalMoveX(_textSlideX, _textSlideTime)
                 .SetEase(Ease.OutQuad)
-                .OnComplete(() => U(_text.DOLocalMoveX(0f, _textSlideTime))));
+                .OnComplete(() => U(_text.DOLocalMoveX(0f, _textSlideTime)))); // テキストを右へスライドして元に戻す
         }
     }
 }

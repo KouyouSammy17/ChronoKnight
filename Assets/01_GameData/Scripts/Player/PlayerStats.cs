@@ -1,3 +1,4 @@
+// プレイヤーのHP・スタミナなどのステータスを管理するスクリプト
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -13,32 +14,32 @@ public class PlayerStats : MonoBehaviour
 {
     /// <summary>Maximum health points the player can have</summary>
     [Header("Health Settings")]
-    [SerializeField] private int _maxHP = 100;
+    [SerializeField] private int _maxHP = 100; // HPの最大値
     /// <summary>Starting health for new scenes/levels</summary>
-    [SerializeField] private int _startingHP = 100;
+    [SerializeField] private int _startingHP = 100; // シーン開始時の初期HP
 
     /// <summary>Maximum stamina points the player can have</summary>
     [Header("Stamina Settings")]
-    [SerializeField] private int _maxStamina = 100;
+    [SerializeField] private int _maxStamina = 100; // スタミナの最大値
     /// <summary>Starting stamina for new scenes/levels</summary>
-    [SerializeField] private int _startingStamina = 100;
+    [SerializeField] private int _startingStamina = 100; // シーン開始時の初期スタミナ
     /// <summary>Stamina regeneration rate in points per second</summary>
-    [SerializeField] private float _staminaRegenRate = 10f;
+    [SerializeField] private float _staminaRegenRate = 10f; // スタミナの毎秒回復量
 
     /// <summary>Event fired when health changes (passes new HP value)</summary>
-    public IntEvent onHealthChanged;
+    public IntEvent onHealthChanged; // HP変化時に発火するイベント（新しいHP値を渡す）
     /// <summary>Event fired when stamina changes (passes new stamina value)</summary>
-    public IntEvent onStaminaChanged;
+    public IntEvent onStaminaChanged; // スタミナ変化時に発火するイベント
 
     /// <summary>Current health points</summary>
-    private int _currentHP;
+    private int _currentHP; // 現在のHP
     /// <summary>Current stamina points</summary>
-    private int _currentStamina;
+    private int _currentStamina; // 現在のスタミナ
     /// <summary>Accumulator for smooth stamina regeneration</summary>
-    private float _staminaRegenAccumulator;
+    private float _staminaRegenAccumulator; // スタミナ回復の端数蓄積用アキュムレータ
 
     /// <summary>Unscaled time until which damage is blocked (no-damage immunity window)</summary>
-    private float _noDamageUntilTime;
+    private float _noDamageUntilTime; // ノーダメージ免疫期間の終了時刻（UnscaledTime基準）
 
     /// <summary>Current health points</summary>
     public int CurrentHP => _currentHP;
@@ -53,9 +54,9 @@ public class PlayerStats : MonoBehaviour
     private void Awake()
     {
         // make sure events exist
-        onHealthChanged ??= new IntEvent();
-        onStaminaChanged ??= new IntEvent();
-        ResetStats();
+        onHealthChanged ??= new IntEvent(); // イベントが未初期化なら生成
+        onStaminaChanged ??= new IntEvent(); // イベントが未初期化なら生成
+        ResetStats(); // ステータスを初期値にリセット
     }
 
     /// <summary>Updates stamina regeneration each frame</summary>
@@ -120,28 +121,28 @@ public class PlayerStats : MonoBehaviour
     private bool TakeDamageInternal(int amount, Vector3? sourceWorldPos, float extraKnockback,
                                   bool ignoreGates, bool triggerHitReact)
     {
-        if (amount <= 0 || _currentHP <= 0) return false;
+        if (amount <= 0 || _currentHP <= 0) return false; // ダメージが0以下またはすでに死亡中なら無効
 
         var recv = GetComponent<PlayerDamageReceiver>();
 
         if (!ignoreGates)
         {
-            if (Time.unscaledTime < _noDamageUntilTime) return false;
-            if (recv != null && recv.IsInvulnerable) return false;
+            if (Time.unscaledTime < _noDamageUntilTime) return false; // ノーダメージ期間中はブロック
+            if (recv != null && recv.IsInvulnerable) return false; // 無敵状態中はブロック
         }
 
-        _currentHP = Mathf.Max(_currentHP - amount, 0);
-        onHealthChanged?.Invoke(_currentHP);
+        _currentHP = Mathf.Max(_currentHP - amount, 0); // HPをダメージ分減算（最低0まで）
+        onHealthChanged?.Invoke(_currentHP); // HP変化イベントを発火
 
         // Damage penalty to momentum system
-        MomentumManager.Instance?.AddMomentum(-20f);
-        MomentumManager.Instance?.BreakMaxLock();
-        GetComponent<MomentumBuffsManager>()?.RemoveMaxBuffIfActive();
+        MomentumManager.Instance?.AddMomentum(-20f); // ダメージによるモメンタムペナルティ
+        MomentumManager.Instance?.BreakMaxLock(); // モメンタム最大ロックを解除
+        GetComponent<MomentumBuffsManager>()?.RemoveMaxBuffIfActive(); // 最大バフをアクティブなら除去
 
         if (triggerHitReact && recv != null)
-            recv.PlayHitReact(sourceWorldPos, extraKnockback).Forget();
+            recv.PlayHitReact(sourceWorldPos, extraKnockback).Forget(); // ヒットリアクションを非同期再生
 
-        if (_currentHP == 0) Die();
+        if (_currentHP == 0) Die(); // HPが0になったら死亡処理
         return true;
     }
 
@@ -167,18 +168,18 @@ public class PlayerStats : MonoBehaviour
     {
         if (_currentStamina < _maxStamina)
         {
-            _staminaRegenAccumulator += _staminaRegenRate * Time.deltaTime;
-            int regenPoints = Mathf.FloorToInt(_staminaRegenAccumulator);
+            _staminaRegenAccumulator += _staminaRegenRate * Time.deltaTime; // 経過時間に応じてアキュムレータを加算
+            int regenPoints = Mathf.FloorToInt(_staminaRegenAccumulator); // 整数部分を回復ポイントとして取得
             if (regenPoints > 0)
             {
-                _staminaRegenAccumulator -= regenPoints;
-                _currentStamina = Mathf.Min(_currentStamina + regenPoints, _maxStamina);
-                onStaminaChanged?.Invoke(_currentStamina);
+                _staminaRegenAccumulator -= regenPoints; // 使用した分だけアキュムレータを減らす
+                _currentStamina = Mathf.Min(_currentStamina + regenPoints, _maxStamina); // スタミナを回復（最大値を超えない）
+                onStaminaChanged?.Invoke(_currentStamina); // スタミナ変化イベントを発火
             }
         }
         else
         {
-            _staminaRegenAccumulator = 0f;
+            _staminaRegenAccumulator = 0f; // スタミナが最大値の場合はアキュムレータをリセット
         }
     }
 

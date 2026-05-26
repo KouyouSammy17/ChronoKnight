@@ -1,3 +1,4 @@
+// チュートリアルクリアUIのパネル・スター・チェックアイコンをアニメーション表示するスクリプト
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using System.Threading;
@@ -8,7 +9,7 @@ using UnityEngine.UI;
 public class TutorialClearUI_Anim : MonoBehaviour
 {
     [Header("Auto Find (by name)")]
-    [SerializeField] private bool _autoFindOnAwake = true;
+    [SerializeField] private bool _autoFindOnAwake = true; // Awake時に子オブジェクトを自動検索するか
 
     [Header("Root")]
     [SerializeField] private RectTransform _rootPanel;     // TutorialClearUI (this) or a child panel
@@ -33,31 +34,31 @@ public class TutorialClearUI_Anim : MonoBehaviour
     [SerializeField] private RectTransform _toggleOn;      // Toggle_Check/On (the check image)
 
     [Header("Timing")]
-    [SerializeField] private float _fadeIn = 0.18f;
-    [SerializeField] private float _panelPop = 0.22f;
-    [SerializeField] private float _titleDelay = 0.05f;
-    [SerializeField] private float _starStagger = 0.12f;
+    [SerializeField] private float _fadeIn = 0.18f;        // フェードイン時間
+    [SerializeField] private float _panelPop = 0.22f;      // パネルポップアニメーション時間
+    [SerializeField] private float _titleDelay = 0.05f;    // タイトル表示までの遅延
+    [SerializeField] private float _starStagger = 0.12f;   // スターアイコン間の時間差
 
     [Header("Scale")]
-    [SerializeField] private float _panelPopScale = 1.08f;
-    [SerializeField] private float _titlePopScale = 1.06f;
-    [SerializeField] private float _starPopScale = 1.25f;
-    [SerializeField] private float _togglePopScale = 1.2f;
-    
+    [SerializeField] private float _panelPopScale = 1.08f;  // パネルのポップスケール
+    [SerializeField] private float _titlePopScale = 1.06f;  // タイトルのポップスケール
+    [SerializeField] private float _starPopScale = 1.25f;   // スターのポップスケール
+    [SerializeField] private float _togglePopScale = 1.2f;  // チェックアイコンのポップスケール
+
     [Header("Navigation")]
-    [SerializeField] private GameObject _firstSelectedOnOpen;
+    [SerializeField] private GameObject _firstSelectedOnOpen; // 表示時に最初にフォーカスするオブジェクト
 
-    private RectTransform[] _starOffIcons;
-    private RectTransform[] _starOnIcons;
+    private RectTransform[] _starOffIcons; // Star_Off配下の各スターアイコン
+    private RectTransform[] _starOnIcons;  // Star_On配下の各スターアイコン
 
-    private Sequence _seq;
+    private Sequence _seq; // 全体アニメーションのSequence
 
     private void Awake()
     {
-        if (_autoFindOnAwake) AutoFind();
+        if (_autoFindOnAwake) AutoFind(); // 名前ベースで子オブジェクトを自動取得
 
-        EnsureArrays();
-        HardHideInstant();
+        EnsureArrays(); // スターアイコン配列を初期化
+        HardHideInstant(); // 起動時は非表示にする
     }
 
     [ContextMenu("AutoFind")]
@@ -76,10 +77,10 @@ public class TutorialClearUI_Anim : MonoBehaviour
         _textBoxStage = _textBoxStage != null ? _textBoxStage : FindRect("TextBox Stage");
         _buttons = _buttons != null ? _buttons : FindRect("Buttons");
 
-        if (_starOffRoot == null) _starOffRoot = FindTransform("StarStage/Star_Off");
-        if (_starOnRoot == null) _starOnRoot = FindTransform("StarStage/Star_On");
+        if (_starOffRoot == null) _starOffRoot = FindTransform("StarStage/Star_Off"); // OFFスターのルートを取得
+        if (_starOnRoot == null) _starOnRoot = FindTransform("StarStage/Star_On");    // ONスターのルートを取得
 
-        if (_toggleOn == null) _toggleOn = FindRect("Toggle_Check/On");
+        if (_toggleOn == null) _toggleOn = FindRect("Toggle_Check/On"); // チェックのON画像を取得
 
         EnsureArrays();
     }
@@ -92,14 +93,14 @@ public class TutorialClearUI_Anim : MonoBehaviour
 
     private Transform FindTransform(string path)
     {
-        return transform.Find(path);
+        return transform.Find(path); // パスで子Transformを検索
     }
 
     private CanvasGroup FindCanvasGroup(string path)
     {
         var t = transform.Find(path);
         if (!t) return null;
-        return t.GetComponent<CanvasGroup>() ?? t.gameObject.AddComponent<CanvasGroup>();
+        return t.GetComponent<CanvasGroup>() ?? t.gameObject.AddComponent<CanvasGroup>(); // なければ追加
     }
 
     private void EnsureArrays()
@@ -108,39 +109,39 @@ public class TutorialClearUI_Anim : MonoBehaviour
         {
             int n = _starOffRoot.childCount;
             _starOffIcons = new RectTransform[n];
-            for (int i = 0; i < n; i++) _starOffIcons[i] = _starOffRoot.GetChild(i) as RectTransform;
+            for (int i = 0; i < n; i++) _starOffIcons[i] = _starOffRoot.GetChild(i) as RectTransform; // OFFスターを配列化
         }
 
         if (_starOnRoot != null)
         {
             int n = _starOnRoot.childCount;
             _starOnIcons = new RectTransform[n];
-            for (int i = 0; i < n; i++) _starOnIcons[i] = _starOnRoot.GetChild(i) as RectTransform;
+            for (int i = 0; i < n; i++) _starOnIcons[i] = _starOnRoot.GetChild(i) as RectTransform; // ONスターを配列化
         }
     }
 
-    // ��������������������������������������������������������������������������������������������������������������������������
+    // ─────────────────────────────────────────────────────────
 
     public void Show(int starsAchieved, bool toggleAchieved)
     {
-        _seq?.Kill();
+        _seq?.Kill(); // 既存のアニメーションを停止
         EnsureArrays();
 
         gameObject.SetActive(true);
-        transform.SetAsLastSibling();
+        transform.SetAsLastSibling(); // 最前面に表示
         ResetSelectionState();
-        EventSystem.current?.SetSelectedGameObject(null);
+        EventSystem.current?.SetSelectedGameObject(null); // フォーカスをクリア
 
         // setup visible state (instant setup)
-        SetStarsState(starsAchieved, instant: true);
-        SetToggleState(toggleAchieved, instant: true);
+        SetStarsState(starsAchieved, instant: true);  // スター表示状態を即座に設定
+        SetToggleState(toggleAchieved, instant: true); // チェック状態を即座に設定
 
         // panel start hidden
         _rootGroup.alpha = 0f;
         _rootGroup.blocksRaycasts = true;
         _rootGroup.interactable = true;
 
-        _rootPanel.localScale = Vector3.zero;
+        _rootPanel.localScale = Vector3.zero; // パネルをスケール0から開始
 
         if (_dimGroup != null) _dimGroup.alpha = 0f;
 
@@ -155,15 +156,15 @@ public class TutorialClearUI_Anim : MonoBehaviour
             .SetLink(gameObject, LinkBehaviour.KillOnDestroy);
 
         // dim fade
-        if (_dimGroup != null) _seq.Join(_dimGroup.DOFade(1f, _fadeIn).SetEase(Ease.OutQuad));
+        if (_dimGroup != null) _seq.Join(_dimGroup.DOFade(1f, _fadeIn).SetEase(Ease.OutQuad)); // 暗幕フェードイン
 
         // root fade + pop
-        _seq.Join(_rootGroup.DOFade(1f, _fadeIn).SetEase(Ease.OutQuad));
-        _seq.Join(_rootPanel.DOScale(_panelPopScale, _panelPop).SetEase(Ease.OutBack));
-        _seq.Append(_rootPanel.DOScale(1f, 0.10f).SetEase(Ease.OutQuad));
+        _seq.Join(_rootGroup.DOFade(1f, _fadeIn).SetEase(Ease.OutQuad));                          // ルートフェードイン
+        _seq.Join(_rootPanel.DOScale(_panelPopScale, _panelPop).SetEase(Ease.OutBack));            // パネルポップイン
+        _seq.Append(_rootPanel.DOScale(1f, 0.10f).SetEase(Ease.OutQuad));                         // 基準スケールへ収束
 
         // title
-        _seq.AppendInterval(_titleDelay);
+        _seq.AppendInterval(_titleDelay); // タイトル表示前に少し待つ
         if (_title != null)
         {
             _seq.Append(_title.DOScale(_titlePopScale, 0.18f).SetEase(Ease.OutBack));
@@ -175,29 +176,29 @@ public class TutorialClearUI_Anim : MonoBehaviour
             _seq.Append(_titleGlow.DOScale(1f, 0.12f).SetEase(Ease.OutQuad));
         }
 
-        // ��������������������������������������������������������������
+        // ────────────────────────────────────
         // 1) Toggle FIRST
-        _seq.AppendInterval(0.10f);
+        _seq.AppendInterval(0.10f); // チェック表示前に少し待つ
         if (toggleAchieved && _toggleOn != null)
         {
-            _seq.AppendCallback(RevealToggle);
-            _seq.Append(PlayToggleTween(_toggleOn));
+            _seq.AppendCallback(RevealToggle);          // チェックを表示状態にリセット
+            _seq.Append(PlayToggleTween(_toggleOn));    // チェックのポップアニメーション
         }
 
-        // ��������������������������������������������������������������
+        // ────────────────────────────────────
         // 2) Stars AFTER toggle
         int starSlots = Mathf.Min(_starOffIcons?.Length ?? 0, _starOnIcons?.Length ?? 0);
-        int clamped = Mathf.Clamp(starsAchieved, 0, starSlots);
+        int clamped = Mathf.Clamp(starsAchieved, 0, starSlots); // スター数を有効範囲にクランプ
 
         for (int i = 0; i < clamped; i++)
         {
             int idx = i;
-            _seq.AppendInterval(_starStagger);
-            _seq.AppendCallback(() => RevealStar(idx));
-            _seq.Append(PlayStarTween(_starOnIcons[idx]));
+            _seq.AppendInterval(_starStagger);                    // スター間に時間差を入れる
+            _seq.AppendCallback(() => RevealStar(idx));           // スターを表示状態にリセット
+            _seq.Append(PlayStarTween(_starOnIcons[idx]));        // スターのポップアニメーション
         }
         _seq.Play();
-        
+
     }
 
 
@@ -209,12 +210,12 @@ public class TutorialClearUI_Anim : MonoBehaviour
             .SetUpdate(true)
             .SetLink(gameObject, LinkBehaviour.KillOnDestroy);
 
-        if (_dimGroup != null) _seq.Join(_dimGroup.DOFade(0f, 0.14f).SetEase(Ease.InQuad));
-        _seq.Join(_rootGroup.DOFade(0f, 0.14f).SetEase(Ease.InQuad));
-        _seq.Join(_rootPanel.DOScale(0f, 0.18f).SetEase(Ease.InBack));
+        if (_dimGroup != null) _seq.Join(_dimGroup.DOFade(0f, 0.14f).SetEase(Ease.InQuad));    // 暗幕フェードアウト
+        _seq.Join(_rootGroup.DOFade(0f, 0.14f).SetEase(Ease.InQuad));                          // パネルフェードアウト
+        _seq.Join(_rootPanel.DOScale(0f, 0.18f).SetEase(Ease.InBack));                         // パネルスケールアウト
         _seq.OnComplete(() =>
         {
-            ResetSelectionState();
+            ResetSelectionState(); // 非表示完了後に選択状態をリセット
             _rootGroup.blocksRaycasts = false;
             _rootGroup.interactable = false;
             gameObject.SetActive(false);
@@ -225,7 +226,7 @@ public class TutorialClearUI_Anim : MonoBehaviour
 
     public void HardHideInstant()
     {
-        _seq?.Kill();
+        _seq?.Kill(); // アニメーションを即座に停止
 
         if (_dimGroup != null) _dimGroup.alpha = 0f;
 
@@ -238,15 +239,15 @@ public class TutorialClearUI_Anim : MonoBehaviour
 
         if (_rootPanel != null) _rootPanel.localScale = Vector3.zero;
 
-        SetStarsState(0, instant: true);
-        SetToggleState(false, instant: true);
+        SetStarsState(0, instant: true);        // スターを全て非表示にリセット
+        SetToggleState(false, instant: true);   // チェックを非表示にリセット
         ResetSelectionState();
         gameObject.SetActive(false);
     }
 
-    // ��������������������������������������������������������������������������������������������������������������������������
+    // ─────────────────────────────────────────────────────────
     // Stars / Toggle
-    // ��������������������������������������������������������������������������������������������������������������������������
+    // ─────────────────────────────────────────────────────────
 
     private void SetStarsState(int achieved, bool instant)
     {
@@ -255,15 +256,15 @@ public class TutorialClearUI_Anim : MonoBehaviour
 
         for (int i = 0; i < n; i++)
         {
-            bool on = i < achieved;
+            bool on = i < achieved; // 達成スター数以内であればON状態
 
-            if (_starOffIcons[i] != null) _starOffIcons[i].gameObject.SetActive(!on);
+            if (_starOffIcons[i] != null) _starOffIcons[i].gameObject.SetActive(!on); // OFFスターはON時非表示
             if (_starOnIcons[i] != null)
             {
                 _starOnIcons[i].gameObject.SetActive(on);
                 _starOnIcons[i].DOKill(true);
 
-                if (on && instant) _starOnIcons[i].localScale = Vector3.zero;
+                if (on && instant) _starOnIcons[i].localScale = Vector3.zero; // 即座に設定する場合はスケール0にしてポップ待機
                 else _starOnIcons[i].localScale = Vector3.one;
 
                 _starOnIcons[i].localRotation = Quaternion.identity;
@@ -274,13 +275,13 @@ public class TutorialClearUI_Anim : MonoBehaviour
     private void RevealStar(int i)
     {
         if (_starOffIcons == null || _starOnIcons == null) return;
-        if (i < 0 || i >= _starOnIcons.Length) return;
+        if (i < 0 || i >= _starOnIcons.Length) return; // 範囲外チェック
 
-        if (_starOffIcons[i] != null) _starOffIcons[i].gameObject.SetActive(false);
+        if (_starOffIcons[i] != null) _starOffIcons[i].gameObject.SetActive(false); // OFFスターを非表示
         if (_starOnIcons[i] != null)
         {
             _starOnIcons[i].gameObject.SetActive(true);
-            _starOnIcons[i].localScale = Vector3.zero;
+            _starOnIcons[i].localScale = Vector3.zero;  // スケール0から開始（ポップアニメーション準備）
             _starOnIcons[i].localRotation = Quaternion.identity;
         }
     }
@@ -290,11 +291,11 @@ public class TutorialClearUI_Anim : MonoBehaviour
         if (starOn == null) return DOTween.Sequence().SetUpdate(true);
 
         var seq = DOTween.Sequence().SetUpdate(true);
-        seq.Append(starOn.DOScale(_starPopScale, 0.20f).SetEase(Ease.OutBack));
-        seq.Join(starOn.DORotate(new Vector3(0, 0, -8f), 0.10f).SetEase(Ease.OutQuad));
-        seq.Append(starOn.DORotate(Vector3.zero, 0.12f).SetEase(Ease.OutQuad));
-        seq.Append(starOn.DOScale(1f, 0.10f).SetEase(Ease.OutQuad));
-        seq.Append(starOn.DOPunchScale(new Vector3(0.10f, 0.10f, 0f), 0.18f, 8, 0.6f));
+        seq.Append(starOn.DOScale(_starPopScale, 0.20f).SetEase(Ease.OutBack));             // ポップスケールアップ
+        seq.Join(starOn.DORotate(new Vector3(0, 0, -8f), 0.10f).SetEase(Ease.OutQuad));    // 少し傾ける
+        seq.Append(starOn.DORotate(Vector3.zero, 0.12f).SetEase(Ease.OutQuad));            // 元の向きへ戻す
+        seq.Append(starOn.DOScale(1f, 0.10f).SetEase(Ease.OutQuad));                       // 基準スケールへ収束
+        seq.Append(starOn.DOPunchScale(new Vector3(0.10f, 0.10f, 0f), 0.18f, 8, 0.6f));   // 微小パンチで締める
         return seq;
     }
 
@@ -302,10 +303,10 @@ public class TutorialClearUI_Anim : MonoBehaviour
     {
         if (_toggleOn == null) return;
 
-        _toggleOn.gameObject.SetActive(achieved);
+        _toggleOn.gameObject.SetActive(achieved); // 達成時のみ表示
         _toggleOn.DOKill(true);
 
-        if (achieved && instant) _toggleOn.localScale = Vector3.zero;
+        if (achieved && instant) _toggleOn.localScale = Vector3.zero; // 即座に設定する場合はスケール0にしてポップ待機
         else _toggleOn.localScale = Vector3.one;
 
         _toggleOn.localRotation = Quaternion.identity;
@@ -315,7 +316,7 @@ public class TutorialClearUI_Anim : MonoBehaviour
     {
         if (_toggleOn == null) return;
         _toggleOn.gameObject.SetActive(true);
-        _toggleOn.localScale = Vector3.zero;
+        _toggleOn.localScale = Vector3.zero;  // スケール0から開始（ポップアニメーション準備）
         _toggleOn.localRotation = Quaternion.identity;
     }
 
@@ -324,11 +325,11 @@ public class TutorialClearUI_Anim : MonoBehaviour
         if (checkOn == null) return DOTween.Sequence().SetUpdate(true);
 
         var seq = DOTween.Sequence().SetUpdate(true);
-        seq.Append(checkOn.DOScale(_togglePopScale, 0.18f).SetEase(Ease.OutBack));
-        seq.Join(checkOn.DORotate(new Vector3(0, 0, 6f), 0.10f).SetEase(Ease.OutQuad));
-        seq.Append(checkOn.DORotate(Vector3.zero, 0.10f).SetEase(Ease.OutQuad));
-        seq.Append(checkOn.DOScale(1f, 0.10f).SetEase(Ease.OutQuad));
-        seq.Append(checkOn.DOPunchScale(new Vector3(0.12f, 0.12f, 0f), 0.16f, 8, 0.6f));
+        seq.Append(checkOn.DOScale(_togglePopScale, 0.18f).SetEase(Ease.OutBack));         // ポップスケールアップ
+        seq.Join(checkOn.DORotate(new Vector3(0, 0, 6f), 0.10f).SetEase(Ease.OutQuad));   // 少し傾ける
+        seq.Append(checkOn.DORotate(Vector3.zero, 0.10f).SetEase(Ease.OutQuad));          // 元の向きへ戻す
+        seq.Append(checkOn.DOScale(1f, 0.10f).SetEase(Ease.OutQuad));                     // 基準スケールへ収束
+        seq.Append(checkOn.DOPunchScale(new Vector3(0.12f, 0.12f, 0f), 0.16f, 8, 0.6f)); // 微小パンチで締める
         return seq;
     }
 
@@ -337,24 +338,24 @@ public class TutorialClearUI_Anim : MonoBehaviour
         if (EventSystem.current != null &&
             EventSystem.current.currentSelectedGameObject != null)
         {
-            EventSystem.current.SetSelectedGameObject(null);
+            EventSystem.current.SetSelectedGameObject(null); // 選択中のオブジェクトをクリア
         }
 
         // Optional: reset your hover/select visuals if you use SelectSwap (same as PauseMenu)
         var swaps = GetComponentsInChildren<SelectSwap>(true);
         foreach (var s in swaps)
         {
-            s.ForceUnselectImmediate();
+            s.ForceUnselectImmediate(); // 子要素のSelectSwapを全て非選択状態に戻す
         }
     }
 
 
 #if UNITY_EDITOR
     [ContextMenu("DEBUG Show: 3 stars + toggle")]
-    private void DebugShowAll() => Show(3, true);
+    private void DebugShowAll() => Show(3, true); // スター3つ・チェックあり でデバッグ表示
 
     [ContextMenu("DEBUG Show: 1 star")]
-    private void DebugShowOne() => Show(1, false);
+    private void DebugShowOne() => Show(1, false); // スター1つ・チェックなし でデバッグ表示
 
     [ContextMenu("DEBUG Hide")]
     private void DebugHide() => Hide();

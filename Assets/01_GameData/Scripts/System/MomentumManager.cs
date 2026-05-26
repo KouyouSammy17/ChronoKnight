@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+// プレイヤーのモメンタム値を管理し、段階変化イベントを発行するシングルトン
+using UnityEngine;
 using UnityEngine.Events;
 
 [System.Serializable]
@@ -10,18 +11,18 @@ public class MomentumManager : MonoBehaviour
     public static MomentumManager Instance { get; private set; }
 
     [Header("Momentum Settings")]
-    [SerializeField] private float _maxMomentum = 100f;
-    [SerializeField] private float _decayRatePerSecond = 5f;
-    [SerializeField] private bool _pauseGain = false;
+    [SerializeField] private float _maxMomentum = 100f;       // モメンタムの最大値
+    [SerializeField] private float _decayRatePerSecond = 5f;  // 静止時の毎秒減衰量
+    [SerializeField] private bool _pauseGain = false;          // trueの間はモメンタム加算を停止する
 
     [Header("Events")]
     public FloatEvent onMomentumChanged;  // Sends currentMomentum [0–max]
     public UnityEvent onMaxReached;       // Called once when 100% reached
     public MomentumStateEvent onStateChanged; // NEW: fires only when tier/state changes
 
-    private float _currentMomentum;
+    private float _currentMomentum; // 現在のモメンタム値
 
-    private MomentumState _currentState = MomentumState.None;
+    private MomentumState _currentState = MomentumState.None; // 現在の段階
     public MomentumState CurrentState => _currentState;
 
     public void SetGainPaused(bool paused) => _pauseGain = paused;
@@ -32,6 +33,7 @@ public class MomentumManager : MonoBehaviour
 
     private void Awake()
     {
+        // シングルトンの初期化：既存のインスタンスがある場合は自身を破棄する
         if (Instance == null)
         {
             Instance = this;
@@ -54,9 +56,11 @@ public class MomentumManager : MonoBehaviour
 
     private void Update()
     {
+        // モメンタムが0またはMax固定中は減衰しない
         if (_currentMomentum <= 0f || _maxLock)
             return;
 
+        // プレイヤーが静止中のみ減衰させる
         if (!IsPlayerMoving())
         {
             _currentMomentum = Mathf.Max(0f, _currentMomentum - _decayRatePerSecond * Time.deltaTime);
@@ -66,6 +70,7 @@ public class MomentumManager : MonoBehaviour
 
     public void AddMomentum(float amount)
     {
+        // 加算停止フラグが立っている場合は正の加算を無視する
         if (_pauseGain && amount > 0f) return;
         _currentMomentum = Mathf.Clamp(_currentMomentum + amount, 0f, _maxMomentum);
         UpdateMomentumEvents();
@@ -76,12 +81,14 @@ public class MomentumManager : MonoBehaviour
     {
         // clamp 0–100 just to be safe
         float clamped = Mathf.Clamp(percent, 0f, 100f);
+        // パーセントから実際の値に換算して直接セットする
         _currentMomentum = _maxMomentum * (clamped / 100f);
         UpdateMomentumEvents();
     }
 
     public void ResetAll()
     {
+        // モメンタムと関連フラグをすべて初期状態に戻す
         _currentMomentum = 0f;
         _maxLock = false;
         _currentState = MomentumState.None;
@@ -90,8 +97,10 @@ public class MomentumManager : MonoBehaviour
 
     private void UpdateMomentumEvents()
     {
+        // 現在値を通知する
         onMomentumChanged.Invoke(_currentMomentum);
 
+        // 現在のパーセントから段階を算出する
         MomentumState newState = GetMomentumStateFromPercent((_currentMomentum / _maxMomentum) * 100f);
 
         if (newState != _currentState)
@@ -99,6 +108,7 @@ public class MomentumManager : MonoBehaviour
             // fire state changed FIRST (so listeners get the new tier immediately)
             onStateChanged?.Invoke(newState);
 
+            // 初めてMaxに到達した場合のみonMaxReachedを発火しロックをかける
             if (newState == MomentumState.Max && !_maxLock)
             {
                 _maxLock = true;
@@ -112,10 +122,12 @@ public class MomentumManager : MonoBehaviour
 
     public void BreakMaxLock()
     {
+        // Maxロックを解除し、減衰対象に戻す
         _maxLock = false;
         UpdateMomentumEvents(); // re-evaluate decay eligibility
     }
 
+    // パーセント値から対応するMomentumStateを返す
     private MomentumState GetMomentumStateFromPercent(float percent)
     {
         if (percent >= 100f) return MomentumState.Max;
@@ -125,6 +137,7 @@ public class MomentumManager : MonoBehaviour
         return MomentumState.None;
     }
 
+    // GameManagerを介してプレイヤーが移動中かどうかを確認する
     private bool IsPlayerMoving()
     {
         if (GameManager.Instance == null) return true;
@@ -132,6 +145,6 @@ public class MomentumManager : MonoBehaviour
         return player != null && player.IsMoving;
     }
 
-    public float CurrentMomentum => _currentMomentum;
-    public float MaxMomentum => _maxMomentum;
+    public float CurrentMomentum => _currentMomentum; // 現在のモメンタム値（読み取り専用）
+    public float MaxMomentum => _maxMomentum;          // モメンタムの上限値（読み取り専用）
 }

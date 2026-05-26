@@ -1,4 +1,5 @@
-﻿using Cysharp.Threading.Tasks;
+﻿// プレイヤーのアニメーション状態とトリガーを一元管理するスクリプト
+using Cysharp.Threading.Tasks;
 using System;
 using System.Threading;
 using UnityEngine;
@@ -11,58 +12,58 @@ using UnityEngine;
 public class PlayerAnimator : MonoBehaviour
 {
     /// <summary>Reference to the Animator component</summary>
-    [SerializeField] private Animator _anim;
+    [SerializeField] private Animator _anim; // Animatorコンポーネントの参照
     /// <summary>Reference to the player motor for movement data</summary>
-    [SerializeField] private PlayerMotor _player;
+    [SerializeField] private PlayerMotor _player; // 移動データ取得用のPlayerMotor参照
     /// <summary>Reference to combat controller for hitbox window callbacks</summary>
-    [SerializeField] private CombatController _combat;
+    [SerializeField] private CombatController _combat; // ヒットボックスウィンドウコールバック用の戦闘コントローラー
 
-    private bool _animPaused;
+    private bool _animPaused; // アニメーターが一時停止中か
     // ───────── Turbo anim control ─────────
-    private AnimatorUpdateMode _defaultUpdateMode;
-    private float _defaultAnimSpeed = 1f;
+    private AnimatorUpdateMode _defaultUpdateMode; // デフォルトのアニメーター更新モード
+    private float _defaultAnimSpeed = 1f; // デフォルトのアニメーション速度
 
-    private bool _turboAnimActive;
-    private float _turboBaselineSpeed = 1.1f; // others
-    private float _turboAttackSpeed = 1.5f;   // attacks
+    private bool _turboAnimActive; // ターボアニメーションモードが有効か
+    private float _turboBaselineSpeed = 1.1f; // others ターボ中の通常アニメーション速度（移動・待機など）
+    private float _turboAttackSpeed = 1.5f;   // attacks ターボ中の攻撃アニメーション速度
 
-    private float _requestedAnimSpeedAbs = 1f;
+    private float _requestedAnimSpeedAbs = 1f; // 要求された絶対アニメーション速度
     // Cached Animator parameter hashes
-    private int _hashSpeed;
-    private int _hashVerticalSpeed;
-    private int _hashIsGrounded;
-    private int _hashIsJumping;
-    private int _hashIsAirJumping;
-    private int _hashIsDashJumping;
-    private int _hashWallJump;
-    private int _hashDash;
-    private int _hashWallHangIn;    // Trigger for “hang-in” clip
-    private int _hashWallHangLoop;  // Bool for staying in WallHangLoop
-    private int[] _attackHashes;
-    private int _hashDashAttack;
-    private int _hashDamage;
-    private int _hashIsHurt; 
-    private bool _wasWallSliding = false;
-    private bool _justWallJumped = false;
-    private int _hashKnockdown;
-    private int _hashRecover;
-    private int _hashTurboStart;
-    private int _hashDie;
-    private int _hashDeadLoop;
-    private int _hashWin;
+    private int _hashSpeed; // 移動速度パラメータのハッシュ
+    private int _hashVerticalSpeed; // 垂直速度パラメータのハッシュ
+    private int _hashIsGrounded; // 接地判定パラメータのハッシュ
+    private int _hashIsJumping; // ジャンプトリガーのハッシュ
+    private int _hashIsAirJumping; // 空中ジャンプトリガーのハッシュ
+    private int _hashIsDashJumping; // ダッシュジャンプトリガーのハッシュ
+    private int _hashWallJump; // 壁ジャンプトリガーのハッシュ
+    private int _hashDash; // ダッシュトリガーのハッシュ
+    private int _hashWallHangIn;    // Trigger for “hang-in” clip 壁張り付き開始トリガーのハッシュ
+    private int _hashWallHangLoop;  // Bool for staying in WallHangLoop 壁張り付きループ継続フラグのハッシュ
+    private int[] _attackHashes; // 各攻撃アニメーショントリガーのハッシュ配列
+    private int _hashDashAttack; // ダッシュ攻撃トリガーのハッシュ
+    private int _hashDamage; // ダメージトリガーのハッシュ
+    private int _hashIsHurt; // ヒット状態フラグのハッシュ
+    private bool _wasWallSliding = false; // 前フレームの壁スライド状態
+    private bool _justWallJumped = false; // 直前のフレームで壁ジャンプしたか
+    private int _hashKnockdown; // ノックダウントリガーのハッシュ
+    private int _hashRecover; // 回復トリガーのハッシュ
+    private int _hashTurboStart; // ターボ開始トリガーのハッシュ
+    private int _hashDie; // 死亡トリガーのハッシュ
+    private int _hashDeadLoop; // 死亡ループフラグのハッシュ
+    private int _hashWin; // 勝利トリガーのハッシュ
 
 
 
     // NEW: cache the Rigidbody on your player parent
-    private Rigidbody _rb;
+    private Rigidbody _rb; // 親オブジェクトのRigidbodyをキャッシュ
 
     private void Awake()
     {
-        _defaultUpdateMode = _anim.updateMode;
-        _defaultAnimSpeed = _anim.speed;
+        _defaultUpdateMode = _anim.updateMode; // デフォルトの更新モードを保存
+        _defaultAnimSpeed = _anim.speed; // デフォルトの速度を保存
 
         // Names must match exactly your Animator parameters
-        _hashSpeed = Animator.StringToHash("Speed");
+        _hashSpeed = Animator.StringToHash("Speed"); // Animatorパラメータ名をハッシュ化してキャッシュ
         _hashVerticalSpeed = Animator.StringToHash("VerticalSpeed");
         _hashIsGrounded = Animator.StringToHash("IsGrounded");
         _hashIsJumping = Animator.StringToHash("IsJumping");
@@ -89,47 +90,48 @@ public class PlayerAnimator : MonoBehaviour
         _hashDeadLoop = Animator.StringToHash("IsDead");
         _hashWin = Animator.StringToHash("Win");
         // 2) grab the Rigidbody up the hierarchy
-        _rb = GetComponentInParent<Rigidbody>();
+        _rb = GetComponentInParent<Rigidbody>(); // 親階層からRigidbodyを取得
         if (_rb == null)
             Debug.LogError("PlayerAnimator: could not find a Rigidbody in parent!", this);
+        ApplyAnimSpeedAbs(_defaultAnimSpeed); // 初期アニメーション速度を適用
     }
 
     private void LateUpdate()
     {
         if (_player == null || _anim == null) return;
 
-        float currentSpeed = _player.GetAnimMovementSpeedNormalized();
-        float vSpeed = _player.VerticalSpeed;
-        bool isWallSliding = _player.IsWallSliding;
+        float currentSpeed = _player.GetAnimMovementSpeedNormalized(); // 正規化された移動速度を取得
+        float vSpeed = _player.VerticalSpeed; // 垂直速度を取得
+        bool isWallSliding = _player.IsWallSliding; // 壁スライド中か確認
 
         // Animator grounded should be RAW (raycast), not coyote
-        bool grounded = _player.IsGroundedRaw;
+        bool grounded = _player.IsGroundedRaw; // コヨーテタイムを含まない純粋な接地判定
 
         // Extra safety: if moving upward, never call it grounded
-        if (vSpeed > 0.1f) grounded = false;
+        if (vSpeed > 0.1f) grounded = false; // 上昇中は接地扱いにしない
 
         // wall hang transitions (same as you had)
         if (!_justWallJumped && !_wasWallSliding && isWallSliding)
         {
-            _anim.SetTrigger(_hashWallHangIn);
-            _anim.SetBool(_hashWallHangLoop, true);
+            _anim.SetTrigger(_hashWallHangIn); // 壁張り付き開始アニメーションをトリガー
+            _anim.SetBool(_hashWallHangLoop, true); // 壁張り付きループを有効化
         }
         else if (!_justWallJumped && _wasWallSliding && !isWallSliding)
         {
-            _anim.SetBool(_hashWallHangLoop, false);
+            _anim.SetBool(_hashWallHangLoop, false); // 壁から離れたらループを無効化
         }
 
         // IMPORTANT: use unscaled dt when animator is unscaled (Turbo)
         float dt = (_anim.updateMode == AnimatorUpdateMode.UnscaledTime)
-            ? Time.unscaledDeltaTime
+            ? Time.unscaledDeltaTime // ターボ中はUnscaled時間を使用
             : Time.deltaTime;
 
-        _anim.SetFloat(_hashSpeed, currentSpeed, 0.1f, dt);
-        _anim.SetFloat(_hashVerticalSpeed, vSpeed);
-        _anim.SetBool(_hashIsGrounded, grounded);
+        _anim.SetFloat(_hashSpeed, currentSpeed, 0.1f, dt); // 速度パラメータを滑らかに更新
+        _anim.SetFloat(_hashVerticalSpeed, vSpeed); // 垂直速度パラメータを更新
+        _anim.SetBool(_hashIsGrounded, grounded); // 接地フラグを更新
 
-        _justWallJumped = false;
-        _wasWallSliding = isWallSliding;
+        _justWallJumped = false; // 壁ジャンプフラグをフレーム末にリセット
+        _wasWallSliding = isWallSliding; // 今フレームの壁スライド状態を次フレーム比較用に保存
     }
 
     //private void ApplyAnimSpeed()
@@ -146,13 +148,13 @@ public class PlayerAnimator : MonoBehaviour
         if (_anim == null) return;
 
         _turboAnimActive = on;
-        _turboBaselineSpeed = Mathf.Max(0.01f, baselineSpeed);
-        _turboAttackSpeed = Mathf.Max(0.01f, attackSpeed);
+        _turboBaselineSpeed = Mathf.Max(0.01f, baselineSpeed); // ベースライン速度を設定（最小値0.01）
+        _turboAttackSpeed = Mathf.Max(0.01f, attackSpeed); // 攻撃速度を設定（最小値0.01）
 
-        _anim.updateMode = on ? AnimatorUpdateMode.UnscaledTime : _defaultUpdateMode;
+        _anim.updateMode = on ? AnimatorUpdateMode.UnscaledTime : _defaultUpdateMode; // ターボ中はUnscaledTimeモードに切替
 
         // baseline applies to locomotion/idle/etc
-        ApplyAnimSpeedAbs(on ? _turboBaselineSpeed : _defaultAnimSpeed);
+        ApplyAnimSpeedAbs(on ? _turboBaselineSpeed : _defaultAnimSpeed); // ターボ有無に応じた速度を適用
     }
 
 
@@ -182,14 +184,14 @@ public class PlayerAnimator : MonoBehaviour
 
 
         // grab the raw root-motion delta
-        Vector3 delta = _anim.deltaPosition;
+        Vector3 delta = _anim.deltaPosition; // アニメーションのルートモーション移動量を取得
 
         // kill any Z movement
-        delta.z = 0f;
+        delta.z = 0f; // 2.5D用にZ方向の移動を無効化
 
         // apply only X/Y
-        _rb.MovePosition(_rb.position + delta);
-        _rb.MoveRotation(_rb.rotation * _anim.deltaRotation);
+        _rb.MovePosition(_rb.position + delta); // X/Y方向のルートモーションを適用
+        _rb.MoveRotation(_rb.rotation * _anim.deltaRotation); // ルートモーションの回転を適用
     }
     /// <summary>
     /// Called by PlayerController for a normal ground/double jump.
@@ -215,14 +217,14 @@ public class PlayerAnimator : MonoBehaviour
     public void TriggerWallJump()
     {
         // 1) Exit the loop immediately
-        _anim.SetBool(_hashWallHangLoop, false);
+        _anim.SetBool(_hashWallHangLoop, false); // 壁張り付きループを即座に終了
 
         // 2) Fire the WallJump trigger to transition into the WallJump state
-        _anim.SetTrigger(_hashWallJump);
+        _anim.SetTrigger(_hashWallJump); // 壁ジャンプアニメーションをトリガー
 
         // 3) Prevent any “start/stop hang” logic this frame
-        _justWallJumped = true;
-        _wasWallSliding = false;
+        _justWallJumped = true; // このフレームで壁ジャンプしたフラグを立てる
+        _wasWallSliding = false; // 壁スライド状態をリセット
     }
 
     /// <summary>
@@ -251,8 +253,8 @@ public class PlayerAnimator : MonoBehaviour
     public void TriggerAttack(int idx)
     {
         if (idx < 0 || idx >= _attackHashes.Length)
-            throw new ArgumentOutOfRangeException(nameof(idx));
-        _anim.SetTrigger(_attackHashes[idx]);
+            throw new ArgumentOutOfRangeException(nameof(idx)); // インデックスが範囲外なら例外を投げる
+        _anim.SetTrigger(_attackHashes[idx]); // 対応する攻撃アニメーショントリガーを発火
     }
 
     public void TriggerDashAttack()
@@ -307,19 +309,19 @@ public class PlayerAnimator : MonoBehaviour
 
     public void RestoreBaselineSpeed()
     {
-        if (_turboAnimActive) ApplyAnimSpeedAbs(_turboBaselineSpeed);
-        else ApplyAnimSpeedAbs(_defaultAnimSpeed);
+        if (_turboAnimActive) ApplyAnimSpeedAbs(_turboBaselineSpeed); // ターボ中はターボ基準速度に戻す
+        else ApplyAnimSpeedAbs(_defaultAnimSpeed); // 通常時はデフォルト速度に戻す
     }
 
     public void ResetTurboAnim()
     {
         if (_anim == null) return;
 
-        _turboAnimActive = false;
-        _anim.updateMode = _defaultUpdateMode;
+        _turboAnimActive = false; // ターボアニメーションモードを解除
+        _anim.updateMode = _defaultUpdateMode; // 更新モードをデフォルトに戻す
 
-        ApplyAnimSpeedAbs(_defaultAnimSpeed);
-        _animPaused = false;
+        ApplyAnimSpeedAbs(_defaultAnimSpeed); // アニメーション速度をデフォルトに戻す
+        _animPaused = false; // 一時停止フラグをリセット
     }
 
     public void ResetForRespawn()

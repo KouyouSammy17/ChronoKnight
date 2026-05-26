@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿// プレイヤーの物理演算・移動・ジャンプ・ダッシュ・壁スライドなどを統括するコアモータースクリプト
+using UnityEngine;
 using System;
 
 /// <summary>
@@ -13,25 +14,25 @@ public class PlayerMotor : MonoBehaviour
 
     /// <summary>Base movement speed (units/second)</summary>
     [Header("Movement Settings")]
-    [SerializeField] private float _moveSpeed = 6f;
+    [SerializeField] private float _moveSpeed = 6f; // 基本移動速度（単位/秒）
     /// <summary>Acceleration rate for smooth speed-up</summary>
-    [SerializeField] private float _acceleration = 10f;
+    [SerializeField] private float _acceleration = 10f; // 加速率（移動開始時の速度上昇）
     /// <summary>Deceleration rate for smooth slow-down</summary>
-    [SerializeField] private float _deceleration = 10f;
+    [SerializeField] private float _deceleration = 10f; // 減速率（移動停止時の速度減少）
 
     /// <summary>Rotation speed toward movement direction</summary>
     [Header("Rotation")]
-    [SerializeField] private float _rotateSpeed = 10f;
+    [SerializeField] private float _rotateSpeed = 10f; // 移動方向への回転速度
     /// <summary>Target rotation quaternion for smooth rotation</summary>
-    private Quaternion _targetRotation;
+    private Quaternion _targetRotation; // スムーズ回転の目標クォータニオン
 
     /// <summary>Forward distance for edge detection (prevents walking off cliffs)</summary>
     [Header("Edge Detection")]
-    [SerializeField] private float _edgeCheckForward = 0.5f;
+    [SerializeField] private float _edgeCheckForward = 0.5f; // 崖検出用の前方レイキャスト距離
     /// <summary>Down distance for ground raycast</summary>
-    [SerializeField] private float _edgeCheckDown = 1.0f;
+    [SerializeField] private float _edgeCheckDown = 1.0f; // 崖検出用の下方レイキャスト距離
     /// <summary>Layer mask for ground detection</summary>
-    [SerializeField] private LayerMask _groundLayer;
+    [SerializeField] private LayerMask _groundLayer; // 接地判定に使用するレイヤーマスク
 
     [Header("Jump Settings")]
     [SerializeField] private float _jumpForce = 18f;
@@ -80,80 +81,81 @@ public class PlayerMotor : MonoBehaviour
 
 
     // inputs (fed by brain)
-    private Vector2 _moveInput = Vector2.zero;
-    private bool _inputEnabled = true;
-    private RigidbodyConstraints _savedConstraints;
-    private bool _frozen;
+    private Vector2 _moveInput = Vector2.zero; // ステートマシンから渡される移動入力
+    private bool _inputEnabled = true; // 入力が有効か（攻撃・ダメージ中はfalse）
+    private RigidbodyConstraints _savedConstraints; // フリーズ前のRigidbody制約を保存
+    private bool _frozen; // 完全フリーズ状態か
 
     // buffering (needed for combat buffering)
-    private Vector2 _moveInputBuffer = Vector2.zero;
-    private float _moveBufferTime = 0.2f;
-    private float _moveBufferCounter = 0f;
-    private bool _isHoldingMove = false;
+    private Vector2 _moveInputBuffer = Vector2.zero; // コンボ中の移動入力をバッファ
+    private float _moveBufferTime = 0.2f; // 移動バッファの有効時間
+    private float _moveBufferCounter = 0f; // 移動バッファのカウントダウン
+    private bool _isHoldingMove = false; // 移動入力を押し続けているか
 
-    private Vector2 _lastMoveInput = Vector2.right;
+    private Vector2 _lastMoveInput = Vector2.right; // 最後の移動入力（向き計算に使用）
 
-    private Vector3 _currentVelocity;
-    private Vector3 _dashDirection;
+    private Vector3 _currentVelocity; // 現在の制御速度（スムーズ補間用）
+    private Vector3 _dashDirection; // ダッシュの方向ベクトル
 
-    private float _movementMomentumTimer = 0f;
+    private float _movementMomentumTimer = 0f; // 移動によるモメンタム蓄積タイマー
 
-    private bool _isDashing = false;
-    private float _dashTimer = 0f;
-    private float _dashCooldownTimer = 0f;
+    private bool _isDashing = false; // ダッシュ中か
+    private float _dashTimer = 0f; // ダッシュ残り時間
+    private float _dashCooldownTimer = 0f; // ダッシュクールダウン残り時間
 
-    private bool _isDashJump = false;
-    private float _dashJumpBufferTime = 0.15f;
-    private float _dashJumpBufferCounter = 0f;
+    private bool _isDashJump = false; // ダッシュジャンプ中か
+    private float _dashJumpBufferTime = 0.15f; // ダッシュジャンプバッファの有効時間
+    private float _dashJumpBufferCounter = 0f; // ダッシュジャンプバッファのカウントダウン
 
-    private bool _isGrounded = false;
-    private float _groundIgnoreTimer = 0f;
+    private bool _isGrounded = false; // コヨーテタイムを含む接地フラグ
+    private float _groundIgnoreTimer = 0f; // ジャンプ直後に接地を無視するタイマー
 
-    private float _coyoteTimeCounter = 0f;
-    private float _jumpBufferCounter = 0f;
-    private bool _isJumpHeld = false;
-    private float _jumpStartY = 0f;
-    private bool _hasUsedCoyoteJump = false;
-    private int _extraJumpsUsed = 0;
+    private float _coyoteTimeCounter = 0f; // コヨーテタイムのカウントダウン（崖端での猶予ジャンプ）
+    private float _jumpBufferCounter = 0f; // ジャンプ入力バッファのカウントダウン
+    private bool _isJumpHeld = false; // ジャンプボタンを押し続けているか
+    private float _jumpStartY = 0f; // ジャンプ開始時のY座標（最大高さ制限に使用）
+    private bool _hasUsedCoyoteJump = false; // コヨーテジャンプを使用済みか
+    private int _extraJumpsUsed = 0; // 使用した追加ジャンプ回数
 
-    private bool _isTouchingWall = false;
-    private Vector3 _wallNormal = Vector3.zero;
-    private bool _isWallSliding = false;
-    private bool _allowWallSlide = true;
+    private bool _isTouchingWall = false; // 壁に触れているか
+    private Vector3 _wallNormal = Vector3.zero; // 接触している壁の法線ベクトル
+    private bool _isWallSliding = false; // 壁スライド中か
+    private bool _allowWallSlide = true; // 壁スライドを許可するか
 
-    private bool _isWallJumping = false;
-    private bool _hasWallJumped = false;
-    private readonly float _wallJumpDisableTime = 0.2f;
-    private float _wallJumpTimer = 0f;
+    private bool _isWallJumping = false; // 壁ジャンプの免疫時間中か
+    private bool _hasWallJumped = false; // 現在の壁で壁ジャンプ済みか
+    private readonly float _wallJumpDisableTime = 0.2f; // 壁ジャンプ後の入力免疫時間
+    private float _wallJumpTimer = 0f; // 壁ジャンプ免疫タイマー
 
-    private bool _isWallJumpLerping = false;
-    private readonly float _wallJumpLerpTime = 0.15f;
-    private float _wallJumpLerpTimer = 0f;
-    private Vector3 _wallJumpStartVelocity = Vector3.zero;
-    private Vector3 _wallJumpTargetVelocity = Vector3.zero;
+    private bool _isWallJumpLerping = false; // 壁ジャンプ後の速度補間中か
+    private readonly float _wallJumpLerpTime = 0.15f; // 壁ジャンプ速度補間の時間
+    private float _wallJumpLerpTimer = 0f; // 壁ジャンプ速度補間のタイマー
+    private Vector3 _wallJumpStartVelocity = Vector3.zero; // 壁ジャンプ補間の開始速度
+    private Vector3 _wallJumpTargetVelocity = Vector3.zero; // 壁ジャンプ補間の目標速度
 
-    private float _postWallJumpTimer = 0f;
+    private float _postWallJumpTimer = 0f; // 壁ジャンプ後に入力をロックするタイマー
 
-    private bool _airComboHang;
-    private bool _savedUseGravity;
+    private bool _airComboHang; // 空中コンボ中に重力を無効化するフラグ
+    private bool _savedUseGravity; // 空中コンボハング前の重力設定を保存
     // --- Hit React Lock (Smash/Kirby style) ---
-    private bool _hitReactLock = false;
+    private bool _hitReactLock = false; // ヒットリアクション中に物理制御をロックするフラグ
 
     // grounded (raw vs coyote)
-    private bool _isGroundedRaw = false;
+    private bool _isGroundedRaw = false; // コヨーテタイムを含まない純粋な接地判定
     public bool IsGroundedRaw => _isGroundedRaw;
 
 
 
+    // ターボ中はUnscaledDeltaTimeを使用してスロー影響を受けないようにする
     private float PlayerDT =>
       (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
-          ? Time.unscaledDeltaTime
-          : Time.deltaTime;
+          ? Time.unscaledDeltaTime // ターボ中：実時間ベース
+          : Time.deltaTime;        // 通常時：TimeScale依存
 
     private float PlayerFixedDT =>
         (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
-            ? Time.fixedUnscaledDeltaTime
-            : Time.fixedDeltaTime;
+            ? Time.fixedUnscaledDeltaTime // ターボ中：実時間ベース（物理）
+            : Time.fixedDeltaTime;        // 通常時：TimeScale依存（物理）
     // buffs
     public bool CanAirDash { get; private set; } = false;
     public int ExtraJumpCount { get; private set; } = 0;
@@ -187,10 +189,10 @@ public class PlayerMotor : MonoBehaviour
     public float GetAnimMovementSpeedNormalized()
     {
         // Ignore platform carry so standing on moving platforms stays Idle
-        Vector3 v = _rb.linearVelocity - _platformCarryVel;
-        v.y = 0f;
+        Vector3 v = _rb.linearVelocity - _platformCarryVel; // 足場の速度を除いた実際の移動速度を計算
+        v.y = 0f; // 垂直成分を除く
         float speed = v.magnitude;
-        return Mathf.Clamp01(speed / _moveSpeed);
+        return Mathf.Clamp01(speed / _moveSpeed); // 最大速度で正規化して0〜1に収める
     }
 
 
@@ -309,27 +311,27 @@ public class PlayerMotor : MonoBehaviour
     // Dash start is decided by states/brain
     public bool TryStartDash(Vector2 moveForDirection)
     {
-        if (!_inputEnabled) return false;
-        if (_isDashing) return false;
-        if (_dashCooldownTimer > 0f) return false;
+        if (!_inputEnabled) return false; // 入力が無効なら失敗
+        if (_isDashing) return false; // 既にダッシュ中なら失敗
+        if (_dashCooldownTimer > 0f) return false; // クールダウン中なら失敗
 
         // only allow if grounded or air-dash unlocked
-        if (!IsGroundedCheck() && !CanAirDash) return false;
+        if (!IsGroundedCheck() && !CanAirDash) return false; // 空中かつエアダッシュ未解放なら失敗
 
-        const int dashCost = 20;
+        const int dashCost = 20; // ダッシュに必要なスタミナコスト
         var stats = GetComponent<PlayerStats>();
-        if (stats != null && !stats.SpendStamina(dashCost)) return false;
+        if (stats != null && !stats.SpendStamina(dashCost)) return false; // スタミナ不足なら失敗
 
         _isDashing = true;
-        _dashTimer = _dashDuration;
-        _dashCooldownTimer = _dashCooldown;
+        _dashTimer = _dashDuration; // ダッシュ持続時間をセット
+        _dashCooldownTimer = _dashCooldown; // クールダウンタイマーをセット
 
-        Vector2 dashInput = (moveForDirection.sqrMagnitude > 0.01f) ? moveForDirection : _lastMoveInput;
-        _dashDirection = new Vector3(dashInput.x, 0, dashInput.y).normalized;
+        Vector2 dashInput = (moveForDirection.sqrMagnitude > 0.01f) ? moveForDirection : _lastMoveInput; // 入力がなければ最後の向きを使用
+        _dashDirection = new Vector3(dashInput.x, 0, dashInput.y).normalized; // ダッシュ方向を正規化
 
-        _playerAnim?.TriggerDash();
-        DashStarted?.Invoke(_dashCooldown);
-        MomentumManager.Instance?.AddMomentum(20);
+        _playerAnim?.TriggerDash(); // ダッシュアニメーションをトリガー
+        DashStarted?.Invoke(_dashCooldown); // ダッシュ開始イベントを発火（UI用）
+        MomentumManager.Instance?.AddMomentum(20); // ダッシュによるモメンタム獲得
 
         return true;
     }
@@ -417,10 +419,10 @@ public class PlayerMotor : MonoBehaviour
 
     public void MotorUpdate(bool allowJump, bool allowMomentumGain, bool allowWallSlide)
     {
-        _allowWallSlide = allowWallSlide;
+        _allowWallSlide = allowWallSlide; // 壁スライドの許可状態を更新
         // dash-jump buffer tracking
-        if (_isDashing) _dashJumpBufferCounter = _dashJumpBufferTime;
-        else _dashJumpBufferCounter -= PlayerDT;
+        if (_isDashing) _dashJumpBufferCounter = _dashJumpBufferTime; // ダッシュ中はバッファをリセット
+        else _dashJumpBufferCounter -= PlayerDT; // ダッシュ停止後にカウントダウン
 
         // wall detection
         CheckWall();
@@ -451,26 +453,26 @@ public class PlayerMotor : MonoBehaviour
         }
 
         // grounded + coyote + reset on land
-        bool rawGrounded = IsGroundedCheck();
+        bool rawGrounded = IsGroundedCheck(); // レイキャストによる純粋な接地確認
         _isGroundedRaw = rawGrounded;
 
         if (rawGrounded)
         {
-            if (!_isGrounded)
+            if (!_isGrounded) // 着地した瞬間のみ実行
             {
-                _coyoteTimeCounter = _coyoteTime;
-                _hasUsedCoyoteJump = false;
-                _extraJumpsUsed = 0;
-                _hasWallJumped = false;
-                _isDashJump = false;
+                _coyoteTimeCounter = _coyoteTime; // コヨーテタイムをリセット
+                _hasUsedCoyoteJump = false; // コヨーテジャンプフラグをリセット
+                _extraJumpsUsed = 0; // 追加ジャンプ使用回数をリセット
+                _hasWallJumped = false; // 壁ジャンプフラグをリセット
+                _isDashJump = false; // ダッシュジャンプフラグをリセット
             }
             _isGrounded = true;
         }
         else
         {
-            _coyoteTimeCounter -= PlayerDT;     // IMPORTANT: use PlayerDT
+            _coyoteTimeCounter -= PlayerDT;     // IMPORTANT: use PlayerDT コヨーテタイムをカウントダウン
             if (_coyoteTimeCounter <= 0f)
-                _isGrounded = false;
+                _isGrounded = false; // コヨーテタイム切れで空中扱いに移行
         }
 
         if (allowJump) HandleJump();
@@ -526,13 +528,13 @@ public class PlayerMotor : MonoBehaviour
 
     private void HandleMovement()
     {
-        if (_isDashing || !_inputEnabled) return;
-        if (_postWallJumpTimer > 0f) return;
+        if (_isDashing || !_inputEnabled) return; // ダッシュ中または入力無効時はスキップ
+        if (_postWallJumpTimer > 0f) return; // 壁ジャンプ後の入力ロック中はスキップ
 
-        Vector3 moveDir = new Vector3(_moveInput.x, 0,0);
-        float sign = Mathf.Sign(_moveInput.x);
+        Vector3 moveDir = new Vector3(_moveInput.x, 0,0); // 移動方向（X軸のみ使用）
+        float sign = Mathf.Sign(_moveInput.x); // 移動の左右方向を取得
 
-        bool shouldBlock = _isTouchingWall && _moveInput.x != 0f && _isGrounded;
+        bool shouldBlock = _isTouchingWall && _moveInput.x != 0f && _isGrounded; // 崖端で壁に当たっているか確認
 
         if (shouldBlock)
         {
@@ -540,34 +542,33 @@ public class PlayerMotor : MonoBehaviour
                          + Vector3.down * 0.1f
                          + transform.right * (_edgeCheckForward * sign);
 
-            bool groundAhead = Physics.Raycast(foot, Vector3.down, _edgeCheckDown, _groundLayer);
-            if (!groundAhead) shouldBlock = false;
+            bool groundAhead = Physics.Raycast(foot, Vector3.down, _edgeCheckDown, _groundLayer); // 前方に地面があるか確認
+            if (!groundAhead) shouldBlock = false; // 崖端でなければブロックしない
         }
 
         Vector3 targetVel;
         if (shouldBlock)
         {
-            targetVel = new Vector3(0f, _rb.linearVelocity.y, 0f);
+            targetVel = new Vector3(0f, _rb.linearVelocity.y, 0f); // 崖端でブロック：水平速度をゼロに
         }
         else
         {
             targetVel = new Vector3(
-                moveDir.x * _moveSpeed,
+                moveDir.x * _moveSpeed, // 目標速度を計算
                 _rb.linearVelocity.y,
                 moveDir.z * _moveSpeed
             );
         }
 
         float fdt = PlayerFixedDT;
-        float rate = (_moveInput == Vector2.zero ? _deceleration : _acceleration);
-        float t = Mathf.Clamp01(rate * fdt);
+        float rate = (_moveInput == Vector2.zero ? _deceleration : _acceleration); // 入力なしなら減速、入力ありなら加速
+        float t = Mathf.Clamp01(rate * fdt); // 補間係数を計算
 
-        _currentVelocity = Vector3.Lerp(_currentVelocity, targetVel, t
-            );
+        _currentVelocity = Vector3.Lerp(_currentVelocity, targetVel, t); // 現在の速度を目標速度に向けて補間
 
         _rb.linearVelocity = new Vector3(
             _currentVelocity.x,
-            _rb.linearVelocity.y,
+            _rb.linearVelocity.y, // Y速度は維持（重力に委ねる）
             _currentVelocity.z
         );
     }
@@ -618,19 +619,19 @@ public class PlayerMotor : MonoBehaviour
 
     private void HandleJump()
     {
-        bool buffered = _jumpBufferCounter > 0f;
-        bool canWallJump = _isTouchingWall && !_isGrounded && !_hasWallJumped;
-        bool canFirstJump = !_hasUsedCoyoteJump && (_isGrounded || _coyoteTimeCounter > 0f);
-        bool canExtraJump = _extraJumpsUsed < ExtraJumpCount;
+        bool buffered = _jumpBufferCounter > 0f; // ジャンプ入力がバッファされているか
+        bool canWallJump = _isTouchingWall && !_isGrounded && !_hasWallJumped; // 壁ジャンプが可能か
+        bool canFirstJump = !_hasUsedCoyoteJump && (_isGrounded || _coyoteTimeCounter > 0f); // 通常ジャンプが可能か
+        bool canExtraJump = _extraJumpsUsed < ExtraJumpCount; // 追加ジャンプが可能か
 
         if (_jumpBufferCounter > 0f)
-            _jumpBufferCounter -= PlayerDT;
+            _jumpBufferCounter -= PlayerDT; // ジャンプバッファをカウントダウン
 
         // Wall Jump
         if (buffered && canWallJump)
         {
-            Vector3 wallJumpDir = (_wallNormal * _wallJumpHorizontalForce) + (Vector3.up * _wallJumpForce);
-            RotateOnWallJump(wallJumpDir);
+            Vector3 wallJumpDir = (_wallNormal * _wallJumpHorizontalForce) + (Vector3.up * _wallJumpForce); // 壁ジャンプの方向ベクトルを計算
+            RotateOnWallJump(wallJumpDir); // 壁ジャンプ方向に向きを変える
 
 
             _rb.linearVelocity = Vector3.zero;
@@ -876,14 +877,14 @@ public class PlayerMotor : MonoBehaviour
     private void ApplyTurboGravityCompensation()
     {
         var turbo = TurboModeManager.Instance;
-        if (turbo == null || !turbo.IsActive) return;
-        if (IsGrounded) return;
+        if (turbo == null || !turbo.IsActive) return; // ターボが無効なら何もしない
+        if (IsGrounded) return; // 接地中は重力補正不要
 
         // Cancel the "slow-mo gravity" effect for THIS rigidbody only
-        float s = Mathf.Clamp(turbo.SlowFactor, 0.05f, 1f);
-        float extraAccel = Physics.gravity.y * (1f / s - 1f); // gravity.y is negative
+        float s = Mathf.Clamp(turbo.SlowFactor, 0.05f, 1f); // スロー係数を取得（最小0.05）
+        float extraAccel = Physics.gravity.y * (1f / s - 1f); // gravity.y is negative スロー分だけ弱くなった重力を補正する追加加速度
 
-        _rb.AddForce(Vector3.up * extraAccel, ForceMode.Acceleration);
+        _rb.AddForce(Vector3.up * extraAccel, ForceMode.Acceleration); // 上方向に補正力を加える
     }
 
 
@@ -943,15 +944,15 @@ public class PlayerMotor : MonoBehaviour
     public void SetFrozen(bool frozen)
     {
         if (_rb == null) return;
-        if (_frozen == frozen) return;
+        if (_frozen == frozen) return; // 既に同じ状態なら何もしない
 
         if (frozen)
         {
-            _savedConstraints = _rb.constraints;
-            _rb.constraints = RigidbodyConstraints.FreezeAll;
+            _savedConstraints = _rb.constraints; // 現在の制約を保存
+            _rb.constraints = RigidbodyConstraints.FreezeAll; // 全軸をフリーズ
 
-            _rb.linearVelocity = Vector3.zero;
-            _rb.angularVelocity = Vector3.zero;
+            _rb.linearVelocity = Vector3.zero; // 速度をゼロにリセット
+            _rb.angularVelocity = Vector3.zero; // 角速度をゼロにリセット
             _currentVelocity = Vector3.zero;
 
             _isDashing = false;
@@ -959,10 +960,10 @@ public class PlayerMotor : MonoBehaviour
         }
         else
         {
-            _rb.constraints = _savedConstraints;
+            _rb.constraints = _savedConstraints; // 保存していた制約を復元
 
             // avoid “unfreeze kick”
-            _rb.linearVelocity = Vector3.zero;
+            _rb.linearVelocity = Vector3.zero; // 解除時の「蹴り飛ばし」を防ぐために速度をゼロに
             _rb.angularVelocity = Vector3.zero;
             _currentVelocity = Vector3.zero;
         }
