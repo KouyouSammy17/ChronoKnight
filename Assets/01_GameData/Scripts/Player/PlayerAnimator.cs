@@ -94,6 +94,11 @@ public class PlayerAnimator : MonoBehaviour
         if (_rb == null)
             Debug.LogError("PlayerAnimator: could not find a Rigidbody in parent!", this);
         ApplyAnimSpeedAbs(_defaultAnimSpeed); // 初期アニメーション速度を適用
+
+        // 新モデルのAnimatorインスペクターで「Apply Root Motion」が有効になっていても
+        // 起動時に必ずfalseに初期化する。OnAnimatorMove内で攻撃中のみtrueに切り替えるため。
+        // これをしないと、ゲーム開始直後からルートモーションが誤適用されて移動が速くなる。
+        _anim.applyRootMotion = false;
     }
 
     private void LateUpdate()
