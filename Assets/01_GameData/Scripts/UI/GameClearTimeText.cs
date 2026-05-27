@@ -5,8 +5,8 @@ using DG.Tweening;
 
 public class GameClearTimeText : MonoBehaviour
 {
-    [Header("One TMP only (alternates TIME/BEST)")]
-    [SerializeField] private TMP_Text _timeText; // put your single TMP here
+    [Header("TMPを1つだけ使用（TIME/BESTを交互に表示）")]
+    [SerializeField] private TMP_Text _timeText; // ここに単一のTMPを割り当てる
 
     [Header("Blink Settings")]
     [SerializeField] private float _fadeIn = 0.12f;   // フェードイン時間
@@ -20,7 +20,7 @@ public class GameClearTimeText : MonoBehaviour
 
     private Sequence _seq; // 点滅アニメーションのSequence
 
-    /// <summary>Call on clear screen open. This will loop TIME -> BEST -> TIME...</summary>
+    /// <summary>クリア画面が開いたときに呼び出す。TIME → BEST → TIME... と無限ループする。</summary>
     public void PlayBlink(float runTime, float bestTime)
     {
         if (_timeText == null) return;
@@ -34,14 +34,14 @@ public class GameClearTimeText : MonoBehaviour
 
         _seq?.Kill(); // 既存のSequenceを停止してから新しいものを開始
 
-        // start visible
+        // 表示状態から開始する
         _timeText.alpha = 1f;
 
         _seq = DOTween.Sequence()
-            .SetUpdate(true) // unscaled
+            .SetUpdate(true) // 非スケール時間
             .SetLink(gameObject, LinkBehaviour.KillOnDestroy);
 
-        // loop forever
+        // 無限ループ
         _seq.AppendCallback(() => _timeText.text = timeStr); // クリアタイムのテキストを設定
         _seq.Append(_timeText.DOFade(1f, _fadeIn));          // フェードイン
         _seq.AppendInterval(_hold);                           // 表示を維持
@@ -69,7 +69,7 @@ public class GameClearTimeText : MonoBehaviour
         }
     }
 
-    /// <summary>Call this when game clear UI is displayed to start the blink animation</summary>
+    /// <summary>ゲームクリアUIが表示されたときに点滅アニメーションを開始するために呼び出す</summary>
     public void OnGameClearUIShown(float runTime, float bestTime)
     {
         PlayBlink(runTime, bestTime); // クリアUI表示時に点滅を開始
@@ -77,7 +77,7 @@ public class GameClearTimeText : MonoBehaviour
 
     private void OnDisable()
     {
-        // avoid tweens running on disabled object
+        // 無効化されたオブジェクトでTweenが動き続けないようにする
         StopBlink(); // 無効化時に点滅を確実に停止する
     }
 }

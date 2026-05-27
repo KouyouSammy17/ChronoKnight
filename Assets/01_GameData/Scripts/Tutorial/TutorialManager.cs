@@ -14,15 +14,15 @@ using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Tutorial orchestration (persistent singleton).
-/// - All tutorial logic lives here (NOT in GameManager).
-/// - Triggers / UI buttons should call RequestShow / RequestHide / CompleteTutorial.
-/// - Special tutorials:
-///   - Momentum: pause + mask + gauge highlight + (optional) intro feedbacks.
-///   - Turbo: camera tour (optional Cinemachine) then pause + mask + UI.
-/// - Owns first-level rules:
-///   - Momentum gain gated until Momentum tutorial learned (if your MomentumManager supports it).
-///   - Momentum gauge hidden until Momentum tutorial learned (GameManager uses ShouldShowMomentumGauge()).
+/// チュートリアルを統括する永続シングルトン。
+/// - チュートリアルに関するロジックはすべてここに集約する（GameManagerには書かない）。
+/// - トリガーやUIボタンはRequestShow / RequestHide / CompleteTutorialを呼び出すこと。
+/// - 特殊なチュートリアル：
+///   - モメンタム：一時停止 + 暗幕 + ゲージハイライト + （任意）イントロフィードバック。
+///   - ターボ：カメラツアー（任意でCinemachine使用）後に一時停止 + 暗幕 + UI表示。
+/// - 最初のレベル専用のルールを管理：
+///   - モメンタムチュートリアル学習済みになるまでモメンタム獲得をゲート（MomentumManagerが対応している場合）。
+///   - モメンタムチュートリアル学習済みになるまでゲージを非表示（GameManagerがShouldShowMomentumGauge()を使用）。
 /// </summary>
 public class TutorialManager : MonoBehaviour
 {
@@ -39,9 +39,9 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private GameObject _momentumFirstSelected;         // モメンタムチュートリアル専用の最初の選択オブジェクト
     [SerializeField] private GameObject _turboFirstSelected;            // ターボチュートリアル専用の最初の選択オブジェクト
 
-    // ── HUD delayed reveal (moved from GameManager)
+    // ── HUDの遅延表示（GameManagerから移動）
     [SerializeField] private float _hudRevealDelay = 5f;            // イントロ後にHUDを表示するまでの待機時間（秒）
-    // CTS for scheduling reveal
+    // 表示スケジュール用のキャンセルトークンソース
     private CancellationTokenSource _hudRevealCts;  // HUD表示スケジュールのキャンセルトークンソース
 
     [Header("Momentum Tutorial Reveal")]
@@ -75,23 +75,23 @@ public class TutorialManager : MonoBehaviour
     [Header("Debug")]
     [SerializeField] private bool _log;     // デバッグログを有効にするか
 
-    // Cached (scene-dependent)
+    // キャッシュ（シーンごとに変わる）
     private PlayerMotor _player;            // シーン内のプレイヤーモーター参照
     private PlayerInput _playerInput;       // プレイヤーの入力コンポーネント参照
     private MomentumGaugeUI _gauge;         // モメンタムゲージUIの参照
 
-    // Per-session flags
+    // セッションごとのフラグ
     private bool _shownMomentumThisSession; // 今セッションでモメンタムチュートリアルを表示したか
     private bool _shownTurboThisSession;    // 今セッションでターボチュートリアルを表示したか
 
-    // Guards
+    // 実行中ガード
     private bool _momentumSequenceRunning;  // モメンタムチュートリアルシーケンスが実行中か
     private bool _turboSequenceRunning;     // ターボチュートリアルシーケンスが実行中か
 
     private CancellationToken _destroyToken;    // オブジェクト破棄時にasyncを中断するトークン
 
     // ─────────────────────────────────────────────────────────────
-    // Unity lifecycle
+    // Unityライフサイクル
 
     private void Awake()
     {
@@ -126,7 +126,7 @@ public class TutorialManager : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // Clear scene refs
+        // シーン参照をクリア
         _player = null;
         _playerInput = null;
         _gauge = null;
@@ -135,37 +135,37 @@ public class TutorialManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────────
-    // Public API (called by GameManager / triggers / UI)
+    // 公開API（GameManager・トリガー・UIから呼び出す）
 
-    /// <summary>GameManager should call this after intro/HUD reveal when actual gameplay starts.</summary>
+    /// <summary>イントロ／HUD表示後、実際のゲームプレイ開始時にGameManagerから呼び出す。</summary>
     public void OnGameplayBegan()
     {
         if (!IsPlayingScene()) return;
 
         ApplyMomentumAndTurboGateIfNeeded(IsTutorialLevelActive()); // チュートリアルレベルならゲートを適用
 
-        // Show Move tutorial on first level if not already learned
+        // 最初のレベルで移動チュートリアルが未学習の場合は表示
         if (IsTutorialLevelActive() && !TutorialProgress.IsLearned(TutorialKey.Move))
         {
             UIManager.Instance?.ShowTutorial(TutorialKey.Move); // 移動チュートリアルをまだ見ていなければ表示
         }
     }
 
-    /// <summary>GameManager uses this when deciding whether to show the HUD gauge.</summary>
+    /// <summary>HUDゲージを表示するかどうかの判断にGameManagerが使用する。</summary>
     public bool ShouldShowMomentumGauge()
     {
         if (!IsTutorialLevelActive()) return true;          // チュートリアルレベルでなければ常に表示
         return TutorialProgress.IsLearned(TutorialKey.Momentum); // モメンタムチュートリアル済みなら表示
     }
 
-    /// <summary>Call this on every scene load (GameManager already calls it).</summary>
+    /// <summary>シーンロードのたびに呼び出す（GameManagerがすでに呼び出している）。</summary>
     public void ResolveSceneReferences()
     {
         ResolvePlayerAndInput();
         ResolveGauge();
         ResolveMomentumIntroFeedbacks();
 
-        // Resolve Ready/Go UI in scene (TutorialManager is persistent, UI may be scene-local)
+        // シーン内のReady/Go UIを取得（TutorialManagerは永続だがUIはシーンローカルの場合がある）
         if (_readyGoUI == null)
         {
 #if UNITY_6000_0_OR_NEWER
@@ -176,13 +176,13 @@ public class TutorialManager : MonoBehaviour
         }
 
 #if CINEMACHINE
-        // Clear invalid cams (scene changed)
+        // 無効なカメラをクリア（シーン変更時）
         if (_turboPlayerCam != null && !_turboPlayerCam.gameObject.scene.IsValid()) _turboPlayerCam = null;
         if (_turboTrapCam != null && !_turboTrapCam.gameObject.scene.IsValid()) _turboTrapCam = null;
 #endif
     }
 
-    /// <summary>Triggers should call this to show a tutorial.</summary>
+    /// <summary>チュートリアルを表示する際にトリガーから呼び出す。</summary>
     public void RequestShow(TutorialKey key)
     {
         if (!IsPlayingScene()) return;
@@ -204,7 +204,7 @@ public class TutorialManager : MonoBehaviour
         }
     }
 
-    /// <summary>Triggers should call this on exit to hide (Momentum/Turbo ignore hides because modal).</summary>
+    /// <summary>退出時にトリガーから非表示を要求する際に呼び出す（モーダル型のモメンタム・ターボは無視する）。</summary>
     public void RequestHide(TutorialKey key)
     {
         if (key == TutorialKey.Momentum || key == TutorialKey.Turbo) return; // モーダル型チュートリアルは退出では隠さない
@@ -212,8 +212,8 @@ public class TutorialManager : MonoBehaviour
     }
 
     /// <summary>
-    /// UI Continue buttons should call this.
-    /// Handles: SetLearned + success animation + special resume behavior.
+    /// UIの「続ける」ボタンから呼び出す。
+    /// SetLearned・成功アニメーション・特殊な再開処理を一括して行う。
     /// </summary>
     public void CompleteTutorial(TutorialKey key)
     {
@@ -234,10 +234,10 @@ public class TutorialManager : MonoBehaviour
         }
     }
 
-    /// <summary>Clear all learned flags and restart level (debug / dev menu).</summary>
+    /// <summary>すべての学習フラグをリセットしてレベルを再スタートする（デバッグ・開発メニュー用）。</summary>
     public void ResetAllTutorialsAndRestart()
     {
-        // Unfreeze (just in case we were paused)
+        // フリーズを解除（ポーズ中だった場合のために）
         Time.timeScale = 1f;
         SetCursorForGameplay();
 
@@ -251,18 +251,18 @@ public class TutorialManager : MonoBehaviour
         _momentumSequenceRunning = false;
         _turboSequenceRunning = false;
 
-        // Reset momentum and re-apply gate on first level (if supported)
+        // モメンタムをリセットして最初のレベルのゲートを再適用（対応している場合）
         TryResetMomentum();
         ApplyMomentumAndTurboGateIfNeeded(IsTutorialLevelActive());
 
-        // Show Move tutorial when reset is triggered
+        // リセット時に移動チュートリアルを表示
         UIManager.Instance?.ShowTutorial(TutorialKey.Move);
 
         GameManager.Instance?.RestartLevel();   // レベルを再スタート
     }
 
     // ─────────────────────────────────────────────────────────────
-    // Momentum Tutorial (special)
+    // モメンタムチュートリアル（特殊）
 
     private void ShowMomentumTutorial()
     {
@@ -275,10 +275,10 @@ public class TutorialManager : MonoBehaviour
         ResolvePlayerAndInput();
         ResolveGauge();
 
-        // Seed gauge to 50% for explanation (reflection-safe)
+        // 説明用にゲージを50%に設定（リフレクション安全）
         TrySetMomentumPercent(50f); // 説明のためにゲージを50%に設定
 
-        // Switch to UI + freeze world
+        // UIマップに切り替えてゲームを一時停止
         SwitchToUIMapAndFreezeWorld();
 
         RunMomentumTutorialSequence().Forget();
@@ -290,7 +290,7 @@ public class TutorialManager : MonoBehaviour
 
         ResolveGauge();
 
-        // Make sure gauge is visible + highlighted (calls are optional via SendMessage)
+        // ゲージを表示してハイライト（SendMessage経由でオプション呼び出し）
         TryGaugeShow(true);         // ゲージを表示
         TryGaugeHighlight(true);    // ゲージをハイライト表示
 
@@ -304,7 +304,7 @@ public class TutorialManager : MonoBehaviour
         if (ct.IsCancellationRequested) return;
 
         UIManager.Instance?.ShowTutorial(TutorialKey.Momentum);
-        // prefer explicit per-tutorial first selected, fallback to generic
+        // チュートリアル専用の選択オブジェクトを優先し、なければ汎用オブジェクトを使用
         FocusFirstSelectedNextFrame(_momentumFirstSelected ?? _firstTutorialFirstSelected).Forget(); // 次フレームで最初のUI要素にフォーカス
 
         _momentumSequenceRunning = false;
@@ -312,7 +312,7 @@ public class TutorialManager : MonoBehaviour
 
     private void FinishMomentumTutorial()
     {
-        // Un-gate momentum gain (reflection-safe)
+        // モメンタム獲得のゲートを解除（リフレクション安全）
         TrySetGainPaused(false);        // モメンタム獲得のゲートを解除
 
         TryGaugeHighlight(false);       // ゲージのハイライトを解除
@@ -322,7 +322,7 @@ public class TutorialManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────────
-    // Turbo Tutorial (special)
+    // ターボチュートリアル（特殊）
 
     private void ShowTurboTutorial()
     {
@@ -334,8 +334,8 @@ public class TutorialManager : MonoBehaviour
 
         ResolvePlayerAndInput();
 
-        // UI map (so tutorial UI buttons work) but DON'T freeze yet (camera blends)
-        SwitchToUIMapNoFreeze();    // UIマップに切り替えるが時間は止めない（カメラブレンドのため）
+        // UIマップに切り替えてチュートリアルUIボタンを有効化するが、まだ時間は止めない（カメラブレンドのため）
+        SwitchToUIMapNoFreeze();
 
         RunTurboTutorialSequence().Forget();
     }
@@ -344,7 +344,7 @@ public class TutorialManager : MonoBehaviour
     {
         var ct = _destroyToken;
 
-        // Ensure world running for blends
+        // ブレンドのためにゲームを実行状態にしておく
         Time.timeScale = 1f;
         SetCursorForGameplay();
 
@@ -360,31 +360,31 @@ public class TutorialManager : MonoBehaviour
             _turboPlayerCam.Priority = basePriority;
             _turboTrapCam.Priority = basePriority - 1;  // 最初はプレイヤーカメラが優先
 
-            // Blend to trap
+            // トラップカメラへブレンド
             _turboTrapCam.Priority = basePriority + 1;  // トラップカメラを優先度で上回る
             await UniTask.Delay(TimeSpan.FromSeconds(_turboToTrapBlendTime),
                 DelayType.DeltaTime, PlayerLoopTiming.Update, ct);
             if (ct.IsCancellationRequested) return;
 
-            // Hold
+            // 維持
             await UniTask.Delay(TimeSpan.FromSeconds(_turboTrapHoldTime),
                 DelayType.DeltaTime, PlayerLoopTiming.Update, ct);  // トラップを見せる時間を確保
             if (ct.IsCancellationRequested) return;
 
-            // Blend back
+            // プレイヤーカメラへ戻るブレンド
             _turboPlayerCam.Priority = basePriority + 2;    // プレイヤーカメラを最優先に戻す
             _turboTrapCam.Priority = basePriority - 1;
             await UniTask.Delay(TimeSpan.FromSeconds(_turboBackBlendTime),
                 DelayType.DeltaTime, PlayerLoopTiming.Update, ct);
             if (ct.IsCancellationRequested) return;
 
-            // Restore
+            // 優先度を元に戻す
             _turboPlayerCam.Priority = basePriority;        // 優先度を通常に戻す
             _turboTrapCam.Priority = basePriority - 1;
         }
 #endif
 
-        // Now pause + show UI
+        // 一時停止してUIを表示
         Time.timeScale = 0f;        // ゲームを一時停止
         SetCursorForUI();
 
@@ -396,7 +396,7 @@ public class TutorialManager : MonoBehaviour
         if (ct.IsCancellationRequested) return;
 
         UIManager.Instance?.ShowTutorial(TutorialKey.Turbo);
-        // prefer explicit per-tutorial first selected
+        // ターボ専用の選択オブジェクトを優先使用
         FocusFirstSelectedNextFrame(_turboFirstSelected).Forget();  // ターボUI専用の最初の選択にフォーカス
 
         _turboSequenceRunning = false;
@@ -417,7 +417,7 @@ public class TutorialManager : MonoBehaviour
         ResolvePlayerAndInput();
         var player = _player;
 
-        // Player cam
+        // プレイヤーカメラ
         if (_turboPlayerCam == null || !_turboPlayerCam.gameObject.scene.IsValid())
         {
             if (!string.IsNullOrEmpty(_turboPlayerCamTag))
@@ -448,7 +448,7 @@ public class TutorialManager : MonoBehaviour
                 Debug.LogWarning("[TutorialManager] Turbo player cam not found. Assign or tag it.");
         }
 
-        // Trap cam
+        // トラップカメラ
         if (_turboTrapCam == null || !_turboTrapCam.gameObject.scene.IsValid())
         {
             if (!string.IsNullOrEmpty(_turboTrapCamTag))
@@ -479,18 +479,18 @@ public class TutorialManager : MonoBehaviour
 #endif
 
     // ─────────────────────────────────────────────────────────────
-    // Scene resolving
+    // シーン参照の解決
 
     private void ResolvePlayerAndInput()
     {
-        // Prefer GameManager refs if available
+        // GameManagerの参照を優先使用
         if (GameManager.Instance != null)
         {
             _player = GameManager.Instance.Player;
             _playerInput = GameManager.Instance.PlayerInput;    // GameManagerからプレイヤー参照を優先取得
         }
 
-        // Fallbacks
+        // フォールバック
         if (_player == null)
         {
 #if UNITY_6000_0_OR_NEWER
@@ -508,11 +508,11 @@ public class TutorialManager : MonoBehaviour
     {
         if (_gauge != null) return;     // すでに取得済みならスキップ
 
-        // Prefer under player
+        // プレイヤー配下を優先検索
         if (_player != null)
             _gauge = _player.GetComponentInChildren<MomentumGaugeUI>(true);    // プレイヤー配下から優先検索
 
-        // Fallback: anywhere in scene
+        // フォールバック：シーン全体から検索
         if (_gauge == null)
         {
 #if UNITY_6000_0_OR_NEWER
@@ -534,7 +534,7 @@ public class TutorialManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────────
-    // Input + pause helpers
+    // 入力 & ポーズのヘルパー
 
     private void SwitchToUIMapAndFreezeWorld()
     {
@@ -609,7 +609,7 @@ public class TutorialManager : MonoBehaviour
         var es = EventSystem.current;
         if (es == null) return;
 
-        var toSelect = target ?? _firstTutorialFirstSelected;   // 指定がなければデフォルトのオブジェクトを使用
+        var toSelect = target ?? _firstTutorialFirstSelected;   // 指定がなければデフォルトの選択オブジェクトを使用
         if (toSelect != null && toSelect.activeInHierarchy)
         {
             es.SetSelectedGameObject(null);
@@ -618,15 +618,15 @@ public class TutorialManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Begin the unified flow that used to live on GameManager:
-    /// - hide gameplay HUD, switch to UI map, disable player input
-    /// - wait for hud reveal delay (DeltaTime)
-    /// - reveal HUD, resume gameplay and notify TutorialManager that gameplay began
-    /// Public so GameManager can call it.
+    /// GameManagerに存在していた統一フローを開始する：
+    /// - ゲームプレイHUDを非表示にし、UIマップに切り替え、プレイヤー入力を無効化
+    /// - HUD表示遅延を待機（DeltaTime）
+    /// - HUDを表示し、ゲームプレイを再開してTutorialManagerにゲーム開始を通知
+    /// GameManagerから呼び出せるようにpublicにしている。
     /// </summary>
     public async UniTaskVoid BeginGameplayAfterIntroAsync(CancellationToken ctOuter)
     {
-        // cancel any previous schedule
+        // 前回のスケジュールをキャンセル
         _hudRevealCts?.Cancel();
         _hudRevealCts?.Dispose();
         _hudRevealCts = new CancellationTokenSource();
@@ -634,12 +634,12 @@ public class TutorialManager : MonoBehaviour
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ctOuter, _hudRevealCts.Token);
         var ct = linked.Token;
 
-        // 0) Hide HUD & lock gameplay during intro
+        // 0) イントロ中はHUDを非表示にしてゲームプレイをロック
         SetGameplayUIVisible(false);    // イントロ中はHUDを非表示
-        // Keep UI map active and disable player input
+        // UIマップをアクティブのまま保ってプレイヤー入力を無効化
         SwitchToUIMapNoFreeze();
 
-        // 1) Wait for HP / SP intro animation time
+        // 1) HP / SP イントロアニメーションの時間を待機
         await UniTask.Delay(TimeSpan.FromSeconds(_hudRevealDelay),
                             DelayType.DeltaTime,
                             PlayerLoopTiming.Update,
@@ -648,21 +648,21 @@ public class TutorialManager : MonoBehaviour
         if (ct.IsCancellationRequested || !IsPlayingScene())
             return;
 
-        // 2) Reveal HUD (HP/SP bars, gauge, etc.) — but check if Time Attack first
+        // 2) HUDを表示（HP/SPバー・ゲージなど）— まずタイムアタックか確認
         bool isTimeAttack = GameManager.Instance != null && GameManager.Instance.IsTimeAttackStage;
 
-        // For Time Attack, delay HUD reveal until after Ready/Go
+        // タイムアタックの場合はReady/Go後までHUD表示を遅らせる
         if (!isTimeAttack)
         {
             SetGameplayUIVisible(true); // タイムアタック以外は通常通りHUDを表示
         }
 
-        // 2.5) READY? GO! (ONLY on Level_02)
+        // 2.5) READY? GO!（Level_02のみ）
         bool shouldPlayReadyGo = _readyGoUI != null && isTimeAttack;
 
         if (shouldPlayReadyGo)
         {
-            // Ensure TimeAttack is configured so the timer UI will show when we start the run
+            // 計測開始時にタイマーUIが表示されるようTimeAttackを設定
             TimeAttackManager.Instance?.Configure(true);
 
             _readyGoUI.Play();  // 「Ready? Go!」アニメーションを再生
@@ -673,10 +673,10 @@ public class TutorialManager : MonoBehaviour
                                 ct);    // アニメーション終了まで待機（リアルタイム）
             if (ct.IsCancellationRequested) return;
 
-            // NOW reveal HUD (time UI will activate) and start the timer
+            // HUDを表示してタイマーを開始（タイマーUIがアクティブになる）
             SetGameplayUIVisible(true);
 
-            // Explicitly ensure timer UI is visible
+            // タイマーUIを確実に表示させる
             var timerUI = FindFirstObjectByType<TimeAttackTimerUI>(FindObjectsInactive.Include);
             if (timerUI != null)
                 timerUI.EnsureVisible();    // タイマーUIを確実に表示する
@@ -685,22 +685,22 @@ public class TutorialManager : MonoBehaviour
         }
         else if (!shouldPlayReadyGo && isTimeAttack)
         {
-            // Fallback: if Ready/Go UI not found, still show HUD on Time Attack
+            // フォールバック：ReadyGoUIが見つからない場合もタイムアタックではHUDを表示
             SetGameplayUIVisible(true); // ReadyGoUIが見つからない場合のフォールバック
         }
 
-        // 3) Start gameplay normally (resume world + player input)
+        // 3) 通常のゲームプレイを開始（ゲームとプレイヤー入力を再開）
         ResumeWorldToGameplay();
 
-        // Delegate first-level momentum gating & first-move tutorial
+        // 最初のレベルのモメンタムゲートと移動チュートリアルの処理を委譲
         OnGameplayBegan();
         GameManager.Instance?.NotifyGameplayBegan();
-        // cursor should be hidden during gameplay
+        // ゲームプレイ中はカーソルを非表示にする
         SetCursorForGameplay();
     }
 
     // ─────────────────────────────────────────────────────────────
-    // Mask helpers
+    // 暗幕のヘルパー
 
     private static void FadeMaskIn(CanvasGroup cg, float duration)
     {
@@ -732,7 +732,7 @@ public class TutorialManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────────
-    // First-level gating
+    // 最初のレベルのゲート処理
 
     private void ApplyMomentumAndTurboGateIfNeeded(bool isFirstLevel)
     {
@@ -742,13 +742,13 @@ public class TutorialManager : MonoBehaviour
         if (momentumGate)
             TryResetMomentum(); // ゲート中はモメンタムをリセットしておく
 
-        // NEW: Turbo gate mirrors Momentum gate style
+        // ターボゲートはモメンタムゲートと同じ方式
         bool turboGate = isFirstLevel && !TutorialProgress.IsLearned(TutorialKey.Turbo);   // ターボ未学習なら使用をゲート
         SetTurboTutorialGate(!turboGate);
     }
 
     // ─────────────────────────────────────────────────────────────
-    // Compatibility helpers (reflection / SendMessage)
+    // 互換性ヘルパー（リフレクション / SendMessage）
 
     private void TrySetGainPaused(bool paused)
     {
@@ -772,7 +772,7 @@ public class TutorialManager : MonoBehaviour
         var mm = MomentumManager.Instance;
         if (mm == null) return;
 
-        // 1) Prefer SetMomentumPercent(float)
+        // 1) SetMomentumPercent(float)を優先使用
         var mi = mm.GetType().GetMethod("SetMomentumPercent", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
         if (mi != null)
         {
@@ -780,7 +780,7 @@ public class TutorialManager : MonoBehaviour
             return;
         }
 
-        // 2) Fallback: Reset + AddMomentum(max * percent/100)
+        // 2) フォールバック：リセット後にAddMomentum(max * percent/100)を呼ぶ
         try
         {
             mm.ResetAll();
@@ -789,7 +789,7 @@ public class TutorialManager : MonoBehaviour
         }
         catch
         {
-            // ignore
+            // 無視する
         }
     }
 
@@ -798,7 +798,7 @@ public class TutorialManager : MonoBehaviour
         if (TurboModeManager.Instance != null)
             TurboModeManager.Instance.SetTurboUnlocked(unlocked);  // ターボのアンロック状態を設定
 
-        // Update the cooldown UI visuals too
+        // クールダウンUIのビジュアルにも反映
         var ui = FindFirstObjectByType<TurboCooldownUI>(FindObjectsInactive.Include);
         if (ui != null)
             ui.SetTutorialUnlocked(unlocked);   // クールダウンUIにもアンロック状態を反映
@@ -810,7 +810,7 @@ public class TutorialManager : MonoBehaviour
         var mm = MomentumManager.Instance;
         if (mm == null) return;
 
-        try { mm.ResetAll(); } catch { }    // 失敗しても無視してモメンタムをリセット
+        try { mm.ResetAll(); } catch { }    // 例外が発生しても無視してモメンタムをリセット
     }
 
     private void TryGaugeHighlight(bool on)
@@ -829,11 +829,11 @@ public class TutorialManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────────
-    // State helpers
+    // 状態確認のヘルパー
 
     public bool IsTutorialLevelActive()
     {
-        // Prefer GameManager gate if available
+        // GameManagerのゲートを優先使用
         if (GameManager.Instance != null)
             return GameManager.Instance.IsTutorialLevelActive();
 
@@ -845,13 +845,13 @@ public class TutorialManager : MonoBehaviour
         return GameManager.Instance != null && GameManager.Instance.State == GameState.Playing; // ゲームが実際にプレイ中かを確認
     }
 
-    // Helper used by the unified flow to show/hide gameplay UI and gauge
+    // 統一フローからゲームプレイUIとゲージの表示・非表示を切り替えるヘルパー
     void SetGameplayUIVisible(bool visible)
     {
         UIManager.Instance?.ShowPlayerUI(visible);              // プレイヤーUI全体の表示を切り替え
         if (!visible) UIManager.Instance?.HideAllTutorials();   // 非表示時はすべてのチュートリアルも隠す
 
-        ResolveGauge();  // finds MomentumGaugeUI in scene
+        ResolveGauge();  // シーン内のMomentumGaugeUIを取得
 
         if (_gauge != null)
         {
@@ -864,7 +864,7 @@ public class TutorialManager : MonoBehaviour
 
     private bool ShouldGaugeBeVisibleNow()
     {
-        // Defer to TutorialManager policy
+        // TutorialManagerの表示ポリシーに委譲
         return ShouldShowMomentumGauge();   // モメンタムゲージの表示ポリシーに委譲
     }
 }

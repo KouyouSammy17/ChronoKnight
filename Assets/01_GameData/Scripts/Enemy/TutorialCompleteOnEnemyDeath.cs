@@ -37,6 +37,6 @@ public class TutorialCompleteOnEnemyDeath : MonoBehaviour
         _done = true;
 
         TutorialProgress.SetLearned(key);               // チュートリアルを学習済みとして記録
-        UIManager.Instance?.TutorialSuccess(key);   //  uses your UIManager
+        UIManager.Instance?.TutorialSuccess(key);   // UIManagerを経由して成功演出を再生
     }
 }

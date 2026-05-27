@@ -4,13 +4,13 @@ using UnityEngine.UI;
 
 public class ClearUINav : MonoBehaviour
 {
-    [Header("Left is always Restart (or Back)")]
-    [SerializeField] private Selectable _leftBtn;   // Restart button
+    [Header("左ボタンは常にリスタート（または戻る）")]
+    [SerializeField] private Selectable _leftBtn;   // リスタートボタン
 
-    [Header("Right is dynamic (Next / Title)")]
-    [SerializeField] private Selectable _rightBtn;  // assign default (optional)
+    [Header("右ボタンは動的（次へ / タイトルなど）")]
+    [SerializeField] private Selectable _rightBtn;  // デフォルトを割り当て（任意）
 
-    [Tooltip("left of first = last, right of last = first")]
+    [Tooltip("先頭の左 = 末尾、末尾の右 = 先頭（ラップ）")]
     [SerializeField] private bool _wrap = true; // 端から端へのラップナビゲーションを有効にするか
 
     private void Awake()
@@ -19,7 +19,7 @@ public class ClearUINav : MonoBehaviour
     }
 
     /// <summary>
-    /// Call this before focusing first selected.
+    /// 最初の選択にフォーカスする前に呼び出す。
     /// </summary>
     public void Configure(Selectable leftRestart, Selectable rightAction, bool wrap)
     {
@@ -33,11 +33,11 @@ public class ClearUINav : MonoBehaviour
     {
         if (!_leftBtn || !_rightBtn) return; // ボタンが未設定なら処理しない
 
-        // Explicit horizontal links
+        // 水平方向の明示的なリンクを設定する
         LinkLR(_leftBtn, left: _wrap ? _rightBtn : null, right: _rightBtn);   // 左ボタンの左右を接続
         LinkLR(_rightBtn, left: _leftBtn, right: _wrap ? _leftBtn : null);    // 右ボタンの左右を接続（ラップ）
 
-        // Disable up/down to avoid vertical drift
+        // 上下方向を無効化して垂直方向へのずれを防ぐ
         DisableUD(_leftBtn);
         DisableUD(_rightBtn);
     }

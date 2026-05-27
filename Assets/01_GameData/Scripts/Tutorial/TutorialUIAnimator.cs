@@ -8,35 +8,35 @@ using System.Threading;
 public class TutorialUIAnimator : MonoBehaviour
 {
     [Header("Groups")]
-    [SerializeField] private CanvasGroup panelGroup;   // whole widget       // パネル全体のフェード制御
-    [SerializeField] private CanvasGroup contentGroup; // prompt UI          // チュートリアル指示UIのフェード制御
-    [SerializeField] private CanvasGroup checkGroup;   // success UI         // 成功チェックマークUIのフェード制御
+    [SerializeField] private CanvasGroup panelGroup;   // パネル全体のフェード制御
+    [SerializeField] private CanvasGroup contentGroup; // チュートリアル指示UIのフェード制御
+    [SerializeField] private CanvasGroup checkGroup;   // 成功チェックマークUIのフェード制御
 
     [Header("Pieces")]
-    [SerializeField] private Image bgFrame;            // vertical fill frame (Filled Vertical, Origin Bottom)  // 縦方向に塗りつぶされる背景フレーム
-    [SerializeField] private Image outlineArc;         // Radial360, show as outline/arc                        // ループするアウトラインの弧
-    [SerializeField] private Image checkmark;          // success check                                          // 成功チェックマーク画像
-    [SerializeField] private Image burst;              // optional success burst/glow                            // 成功時のバースト・グロー画像（任意）
+    [SerializeField] private Image bgFrame;            // 縦方向に塗りつぶされる背景フレーム（Filled Vertical、Origin Bottom）
+    [SerializeField] private Image outlineArc;         // ループするアウトラインの弧（Radial360）
+    [SerializeField] private Image checkmark;          // 成功チェックマーク画像
+    [SerializeField] private Image burst;              // 成功時のバースト・グロー画像（任意）
 
     [Header("Show timings")]
     [SerializeField] private float panelFadeIn   = 0.25f;  // パネルのフェードイン時間
-    [SerializeField] private float bgFillTime    = 0.35f;  // vertical 0→1   // 背景フレームを塗りつぶす時間
+    [SerializeField] private float bgFillTime    = 0.35f;  // 背景フレームを0→1に塗りつぶす時間
     [SerializeField] private float contentFadeIn = 0.30f;  // コンテンツのフェードイン時間
 
     [Header("Outline Fill (no spin)")]
-    [SerializeField] private float arcFillDuration = 1.0f; // seconds for 0→1    // アウトライン弧が0→1に塗りつぶされる時間
-    [SerializeField] private float arcAlpha        = 0.9f; // outline opacity while visible    // 表示中のアウライン透明度
-    [SerializeField] private bool  arcYoyo         = true; // true: 0→1→0, false: restart 0→1  // ヨーヨー折り返しか再スタートか
+    [SerializeField] private float arcFillDuration = 1.0f; // アウトライン弧が0→1に塗りつぶされる秒数
+    [SerializeField] private float arcAlpha        = 0.9f; // 表示中のアウトライン透明度
+    [SerializeField] private bool  arcYoyo         = true; // true: 0→1→0のヨーヨー、false: 0→1を繰り返す
 
     [Header("Success")]
     [SerializeField] private float swapToCheck   = 0.20f;      // コンテンツを隠してチェックに切り替えるまでの時間
-    [SerializeField] private float successMinScale = 0.7f;     // start small    // チェックマークの開始スケール
-    [SerializeField] private float successPeakScale = 1.2f;    // grow big       // チェックマークのピークスケール
-    [SerializeField] private float successEndScale = 0.85f;    // shrink target before hide  // フェードアウト前の最終スケール
-    [SerializeField] private float successGrowTime = 0.18f;    // small -> big   // スケールアップにかかる時間
-    [SerializeField] private float successPeakHold = 0.10f;    // hold at peak   // ピーク状態を維持する時間
-    [SerializeField] private float successShrinkTime = 0.20f;  // big -> small   // スケールダウンにかかる時間
-    [SerializeField] private float successFadeTime = 0.20f;    // alpha to 0     // フェードアウトにかかる時間
+    [SerializeField] private float successMinScale = 0.7f;     // チェックマークの開始スケール（小）
+    [SerializeField] private float successPeakScale = 1.2f;    // チェックマークのピークスケール（大）
+    [SerializeField] private float successEndScale = 0.85f;    // フェードアウト前の最終スケール（縮小後）
+    [SerializeField] private float successGrowTime = 0.18f;    // スケールアップ（小→大）にかかる時間
+    [SerializeField] private float successPeakHold = 0.10f;    // ピーク状態を維持する時間
+    [SerializeField] private float successShrinkTime = 0.20f;  // スケールダウン（大→小）にかかる時間
+    [SerializeField] private float successFadeTime = 0.20f;    // alpha を0にするフェードアウト時間
 
     [Header("Success Burst")]
     [SerializeField] private float burstStartScale = 0.2f;     // バーストの開始スケール
@@ -59,7 +59,7 @@ public class TutorialUIAnimator : MonoBehaviour
     void OnDestroy()  { _arcFillTween?.Kill(); }    // 破棄時に弧アニメーションを停止
 
     // ───────────────────────────────────────────────────────────
-    // SHOW: 1) BG vertical fill  2) Content fade  3) Arc fill loop
+    // 表示: 1) 背景の縦方向フィル  2) コンテンツのフェード  3) 弧のフィルループ
     // ───────────────────────────────────────────────────────────
     public async UniTask ShowAsync(CancellationToken ct = default)
     {
@@ -68,7 +68,7 @@ public class TutorialUIAnimator : MonoBehaviour
 
         gameObject.SetActive(true);
 
-        // reset states
+        // 状態をリセット
         panelGroup.alpha = 0f;
         if (contentGroup) { contentGroup.alpha = 0f; contentGroup.gameObject.SetActive(true); }
         if (checkGroup)   { checkGroup.alpha = 0f;   checkGroup.gameObject.SetActive(false); }   // チェックは最初非表示
@@ -77,21 +77,21 @@ public class TutorialUIAnimator : MonoBehaviour
         if (bgFrame)   bgFrame.fillAmount   = 0f;   // 背景フレームをゼロからスタート
         if (outlineArc)
         {
-            // start at transparent fill; ensure visible alpha
+            // 透明な状態からスタート；表示中のalphaを確保
             outlineArc.fillAmount = 0f;
             var c = outlineArc.color; c.a = arcAlpha; outlineArc.color = c;
         }
 
-        // panel fade-in
+        // パネルのフェードイン
         await panelGroup.DOFade(1f, panelFadeIn).SetUpdate(true).SetEase(Ease.OutQuad).Await(token);
 
-        // parallel: bg fill up & content fade in
+        // 並列：背景フィルアップ & コンテンツのフェードイン
         var seq = DOTween.Sequence().SetUpdate(true);
         if (bgFrame)      seq.Join(bgFrame.DOFillAmount(1f, bgFillTime).SetEase(Ease.OutCubic)); // 背景を下から上へ塗りつぶす
         if (contentGroup) seq.Join(contentGroup.DOFade(1f, contentFadeIn).SetEase(Ease.OutQuad));
         await seq.Await(token);
 
-        // start outline fill loop (0→1→0 or restart)
+        // アウトラインフィルループを開始（0→1→0 またはリスタート）
         if (outlineArc)
         {
             _arcFillTween?.Kill();
@@ -105,7 +105,7 @@ public class TutorialUIAnimator : MonoBehaviour
     }
 
     // ───────────────────────────────────────────────────────────
-    // SUCCESS: keep your check pop (unchanged feel)
+    // 成功：チェックマークのポップアニメーション（演出は変更なし）
     // ───────────────────────────────────────────────────────────
     public async UniTask MarkSuccessAndAutoHideAsync(CancellationToken ct = default)
     {
@@ -117,14 +117,14 @@ public class TutorialUIAnimator : MonoBehaviour
         if (checkGroup) { checkGroup.gameObject.SetActive(true); checkGroup.alpha = 0f; }
         if (checkmark) checkmark.rectTransform.localScale = Vector3.one * successMinScale; // 小さいスケールから開始
 
-        // Hide content first
+        // まずコンテンツを非表示
         if (contentGroup)
         {
             await contentGroup.DOFade(0f, swapToCheck).SetUpdate(true).Await(token); // 指示UIをフェードアウト
             contentGroup.gameObject.SetActive(false);
         }
 
-        // Optional burst prep
+        // バーストの準備（任意）
         if (burst)
         {
             burst.gameObject.SetActive(true);
@@ -132,24 +132,24 @@ public class TutorialUIAnimator : MonoBehaviour
             burst.rectTransform.localScale = Vector3.one * burstStartScale;
         }
 
-        // SUCCESS: small -> big -> (hold) -> small & fade
+        // 成功：小→大→（維持）→小＆フェード
         var seq = DOTween.Sequence().SetUpdate(true);
 
-        // fade in + grow to peak
+        // フェードイン + ピークまで拡大
         if (checkGroup) seq.Append(checkGroup.DOFade(1f, successGrowTime)); // チェックグループをフェードイン
         if (checkmark) seq.Join(checkmark.rectTransform.DOScale(successPeakScale, successGrowTime).SetEase(Ease.OutBack)); // 弾けるスケールアップ
 
-        // burst timed with rise
+        // バーストを浮上に合わせてタイミング調整
         if (burst)
         {
             seq.Join(burst.DOFade(0.8f, successGrowTime * 0.33f));                          // バーストをフェードイン
             seq.Join(burst.rectTransform.DOScale(burstPeakScale, successGrowTime * 0.66f)); // バーストをスケールアップ
         }
 
-        // ⬅️ Hold at hero size longer here
+        // ここでヒーローサイズを長めに維持する
         if (successPeakHold > 0f) seq.AppendInterval(successPeakHold); // ピーク状態を一定時間維持
 
-        // shrink & fade out the check
+        // チェックマークを縮小してフェードアウト
         if (checkGroup) seq.Append(checkGroup.DOFade(0f, successFadeTime).SetEase(Ease.InQuad)); // チェックをフェードアウト
         if (checkmark) seq.Join(checkmark.rectTransform.DOScale(successEndScale, successShrinkTime).SetEase(Ease.InQuad)); // スケールダウン
 
@@ -162,23 +162,23 @@ public class TutorialUIAnimator : MonoBehaviour
 
 
     // ───────────────────────────────────────────────────────────
-    // HIDE: scale-shrink + fade (kept), outline quick fade & reset
+    // 非表示：縮小＋フェード（維持）、アウトラインの素早いフェード＆リセット
     // ───────────────────────────────────────────────────────────
     public async UniTask HideAsync(CancellationToken ct = default)
     {
         var token = CancellationTokenSource.CreateLinkedTokenSource(ct, _destroyToken).Token;
 
-        // stop outline fill loop
+        // アウトラインフィルループを停止
         _arcFillTween?.Kill();  // アウライン弧のループを停止
 
-        // quick fade-out for arc (optional)
+        // アウトラインを素早くフェードアウト（任意）
         if (outlineArc) outlineArc.DOFade(0f, 0.15f).SetUpdate(true);  // アウラインを素早くフェードアウト
 
-        // fade content if still visible
+        // コンテンツがまだ表示中であればフェードアウト
         if (contentGroup && contentGroup.gameObject.activeSelf && contentGroup.alpha > 0f)
             await contentGroup.DOFade(0f, contentFadeOut).SetUpdate(true).Await(token); // コンテンツをフェードアウト
 
-        // SCALE-SHRINK + PANEL FADE in parallel
+        // 縮小 + パネルフェードを並列実行
         var rt = (RectTransform)transform;
         var baseScale = rt.localScale;  // 元のスケールを保存
 
@@ -187,12 +187,12 @@ public class TutorialUIAnimator : MonoBehaviour
         seq.Join(panelGroup.DOFade(0f, panelFadeOut).SetEase(Ease.InQuad)); // パネルをフェードアウト
         await seq.Await(token);
 
-        // reset for next Show
+        // 次のShow用にリセット
         rt.localScale = baseScale;      // スケールを元に戻す
         if (bgFrame)    bgFrame.fillAmount = 0f;    // 背景フレームをリセット
         if (outlineArc)
         {
-            // restore alpha and reset fill for next show
+            // 次の表示に備えてalphaを復元し、フィル量をリセット
             var c = outlineArc.color;
             outlineArc.color = new Color(c.r, c.g, c.b, arcAlpha); // 透明度を元の値に戻す
             outlineArc.fillAmount = 0f;                              // 塗りつぶし量をリセット

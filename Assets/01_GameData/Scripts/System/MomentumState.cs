@@ -1,13 +1,13 @@
 // プレイヤーのモメンタム段階を定義する列挙型
 /// <summary>
-/// Represents the current momentum level of the player.
-/// Used for unlocking abilities, applying buffs, and triggering effects.
+/// プレイヤーの現在のモメンタムレベルを表す。
+/// アビリティの解放、バフの適用、エフェクトのトリガーに使用される。
 /// </summary>
 public enum MomentumState
 {
-    None,      // 0% to <25%
-    Tier1,     // ≥25% (attack boost)
-    Tier2,     // ≥50% (double jump, more damage)
-    Tier3,     // ≥75% (air dash, dash extension)
-    Max        // 100% (combo finisher, max buffs)
+    None,      // 0%〜25%未満
+    Tier1,     // 25%以上（攻撃力アップ）
+    Tier2,     // 50%以上（二段ジャンプ、ダメージ増加）
+    Tier3,     // 75%以上（空中ダッシュ、ダッシュ延長）
+    Max        // 100%（コンボフィニッシャー、最大バフ）
 }

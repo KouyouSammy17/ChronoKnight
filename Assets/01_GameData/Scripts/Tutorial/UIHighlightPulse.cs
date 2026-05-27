@@ -6,8 +6,8 @@ using DG.Tweening;
 public class UIHighlightPulse : MonoBehaviour
 {
     [Header("Targets")]
-    [SerializeField] private RectTransform _target; // frame RectTransform   // パルスさせる対象のRectTransform
-    [SerializeField] private Graphic _graphic;      // Image, etc.           // 色・透明度を変化させる対象のGraphic
+    [SerializeField] private RectTransform _target; // パルスさせる対象のRectTransform（フレーム）
+    [SerializeField] private Graphic _graphic;      // 色・透明度を変化させる対象のGraphic（Imageなど）
 
     [Header("Pulse Settings")]
     [SerializeField] private float _scaleMultiplier = 1.06f;    // パルス時の最大スケール倍率
@@ -40,7 +40,7 @@ public class UIHighlightPulse : MonoBehaviour
     {
         KillSequence(); // シーケンスを停止
 
-        // reset
+        // リセット
         if (_target != null) _target.localScale = _baseScale;  // スケールをリセット
         if (_graphic != null) _graphic.color = _baseColor;     // カラーをリセット
     }
@@ -58,7 +58,7 @@ public class UIHighlightPulse : MonoBehaviour
         _target.localScale = _baseScale;
 
         _seq = DOTween.Sequence();
-        if (_ignoreTimeScale) _seq.SetUpdate(true); // works when Time.timeScale = 0
+        if (_ignoreTimeScale) _seq.SetUpdate(true); // Time.timeScale = 0 の場合でも動作する
 
         _seq
             .Join(_target.DOScale(_baseScale * _scaleMultiplier, _duration)

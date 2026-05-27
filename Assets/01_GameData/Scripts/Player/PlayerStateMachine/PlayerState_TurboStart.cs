@@ -8,7 +8,7 @@ public class PlayerState_TurboStart : IPlayerState
 {
     public PlayerStateID ID => PlayerStateID.TurboStart;
 
-    // tune this to match your TurboStart clip length
+    // TurboStartクリップの長さに合わせて調整する
     private const float START_ANIM_TIME = 0.45f; // TurboStartアニメーションクリップの長さに合わせる
 
     private CancellationTokenSource _cts; // 非同期終了処理のキャンセルトークン
@@ -32,7 +32,7 @@ public class PlayerState_TurboStart : IPlayerState
         // play anim
         var anim = brain.GetComponentInChildren<PlayerAnimator>();
 
-        // Start turbo FIRST (should switch animator to UnscaledTime + set baseline anim speed)
+        // ターボを先に開始する（AnimatorをUnscaledTimeモードに切替 + ベースライン速度を設定）
         bool started = turbo.TryStartTurbo(brain.Motor, anim); // ターボを先に開始（AnimatorをUnscaledTimeモードに切替）
         if (!started)
         {
@@ -41,7 +41,7 @@ public class PlayerState_TurboStart : IPlayerState
             return;
         }
 
-        // Now play the start pose (will play in real-time)
+        // 起動ポーズを再生する（リアルタイムで再生される）
         anim?.TriggerTurboStart(); // ターボ起動アニメーションをトリガー（リアルタイムで再生）
 
         RunExitAfterAnim(brain, _cts.Token).Forget(); // アニメーション終了後に自動的にステートを終了
@@ -57,13 +57,13 @@ public class PlayerState_TurboStart : IPlayerState
 
     public void Tick(PlayerStateMachineBrain brain)
     {
-        // keep it simple: no movement feed
+        // シンプルに保つ：移動入力は送らない
         brain.Motor.MotorUpdate(false, false, false); // ポーズ中は全ての移動・ジャンプを禁止
     }
 
     public void FixedTick(PlayerStateMachineBrain brain)
     {
-        // stop drift while posing
+        // ポーズ中のドリフトを止める
         brain.Motor.MotorFixedUpdate(allowHorizontalMovement: false); // ターボ起動ポーズ中は水平移動をロック
     }
 

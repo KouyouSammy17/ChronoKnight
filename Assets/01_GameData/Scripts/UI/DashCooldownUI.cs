@@ -6,9 +6,9 @@ using DG.Tweening;
 public class DashCooldownUI : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private PlayerMotor _motor;          // NEW: assign in inspector (recommended)
-    [SerializeField] private Image _cooldownFill;         // radial image on top of icon
-    [SerializeField] private RectTransform _icon;         // dash icon
+    [SerializeField] private PlayerMotor _motor;          // インスペクターで割り当て推奨
+    [SerializeField] private Image _cooldownFill;         // アイコン上部の放射状フィル画像
+    [SerializeField] private RectTransform _icon;         // ダッシュアイコン
 
     [Header("Scales")]
     [SerializeField] private float _readyScale = 1.5f;       // 準備完了時のアイコンスケール
@@ -17,10 +17,10 @@ public class DashCooldownUI : MonoBehaviour
     [SerializeField] private float _punchDuration = 0.2f;    // パンチエフェクトの時間
 
     [Header("Cooldown UI Timing")]
-    [SerializeField] private float _delayBeforeFill = 0.4f; // delay measured in SAME units as cooldown seconds
+    [SerializeField] private float _delayBeforeFill = 0.4f; // クールダウン秒数と同じ単位で計測する遅延
 
     [Header("Settings")]
-    [SerializeField] private bool _useUnscaledTime = true;  // only affects tweens (punch/scale), not cooldown timer
+    [SerializeField] private bool _useUnscaledTime = true;  // TweenのみへのTimeScale無視設定（クールダウンタイマーには影響しない）
 
     private Tween _iconTween; // アイコンアニメーション用Tween
 
@@ -28,8 +28,8 @@ public class DashCooldownUI : MonoBehaviour
     private bool _showFill;       // フィル表示フェーズかどうか
     private bool _readyFired;     // 準備完了通知を送信済みかどうか
 
-    private float _cooldownDuration;   // full cooldown seconds at dash start
-    private float _uiDuration;         // cooldownDuration - delayBeforeFill
+    private float _cooldownDuration;   // ダッシュ開始時のクールダウン秒数（全体）
+    private float _uiDuration;         // クールダウン時間から遅延を引いたUI表示時間
 
     private void Awake()
     {
@@ -42,7 +42,7 @@ public class DashCooldownUI : MonoBehaviour
         TryResolveMotor(); // PlayerMotorを取得
         Subscribe(true);   // ダッシュイベントを購読
 
-        // If we enabled mid-cooldown (scene load), sync visuals
+        // シーンロード中にクールダウンが始まっていた場合にビジュアルを同期する
         SyncFromMotor(); // シーンロード中にクールダウンが発生していた場合に同期
     }
 
@@ -62,14 +62,14 @@ public class DashCooldownUI : MonoBehaviour
 
         if (!_cooldownActive)
         {
-            // keep stable ready visuals
+            // 準備完了のビジュアルを維持する
             if (_cooldownFill) _cooldownFill.fillAmount = 0f; // 準備完了状態を維持
             return;
         }
 
         float remaining = _motor.DashCooldownRemaining; // 残りクールダウン時間を取得
 
-        // Delay phase: keep fill at 1 until remaining <= uiDuration
+        // 遅延フェーズ：remaining <= uiDurationになるまでフィルを1に維持する
         if (!_showFill)
         {
             float threshold = Mathf.Max(0f, _cooldownDuration - _delayBeforeFill);
@@ -93,7 +93,7 @@ public class DashCooldownUI : MonoBehaviour
             }
         }
 
-        // Ready
+        // 準備完了判定
         if (remaining <= 0.001f && !_readyFired)
         {
             _readyFired = true;
@@ -111,7 +111,7 @@ public class DashCooldownUI : MonoBehaviour
     {
         if (_motor != null) return;
 
-        // Best: assign in Inspector. Fallback: find one in scene.
+        // 推奨：インスペクターで割り当てる。フォールバック：シーン内から検索する。
 #if UNITY_2023_1_OR_NEWER
         _motor = Object.FindFirstObjectByType<PlayerMotor>();
 #else
@@ -140,7 +140,7 @@ public class DashCooldownUI : MonoBehaviour
             _cooldownDuration = Mathf.Max(0.01f, _motor.DashCooldownDuration);
             _uiDuration = Mathf.Max(0.01f, _cooldownDuration - _delayBeforeFill);
 
-            // show fill immediately if we are past the delay window already
+            // 遅延ウィンドウを既に過ぎている場合は即座にフィルを表示する
             float threshold = Mathf.Max(0f, _cooldownDuration - _delayBeforeFill);
             _showFill = remaining <= threshold; // 遅延ウィンドウを過ぎているかチェック
 
@@ -175,13 +175,13 @@ public class DashCooldownUI : MonoBehaviour
         _cooldownDuration = Mathf.Max(0.01f, cooldownSeconds);
         _uiDuration = Mathf.Max(0.01f, _cooldownDuration - _delayBeforeFill); // UI表示時間から遅延を引く
 
-        // Start full
+        // フィルを満タンから開始する
         if (_cooldownFill) _cooldownFill.fillAmount = 1f; // 即座にフィルを満タンにする
 
-        // Start from ready size
+        // 準備完了サイズから開始する
         if (_icon) _icon.localScale = Vector3.one * _readyScale;
 
-        // Punch on dash
+        // ダッシュ時にパンチエフェクトを再生する
         if (_icon)
         {
             _iconTween = _icon
@@ -193,7 +193,7 @@ public class DashCooldownUI : MonoBehaviour
 
     private void BeginFillVisuals()
     {
-        // Scale down during cooldown
+        // クールダウン中はアイコンを縮小する
         if (_icon)
         {
             _iconTween?.Kill();
@@ -207,7 +207,7 @@ public class DashCooldownUI : MonoBehaviour
 
     private void OnCooldownComplete()
     {
-        // Grow big when ready
+        // 準備完了時にアイコンを大きくする
         if (_icon)
         {
             _iconTween?.Kill();
@@ -219,7 +219,7 @@ public class DashCooldownUI : MonoBehaviour
         }
     }
 
-    // Optional: let other scripts bind player at runtime (good for DontDestroy UI)
+    // 任意：実行時に他スクリプトからプレイヤーをバインドできる（DontDestroyなUIに便利）
     public void Bind(PlayerMotor motor)
     {
         if (_motor == motor) return; // 同じモーターなら再バインド不要

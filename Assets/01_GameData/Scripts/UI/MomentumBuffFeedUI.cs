@@ -10,7 +10,7 @@ public class MomentumBuffFeedUI : MonoBehaviour
     [System.Serializable]
     public class PopupEntry
     {
-        public RectTransform root;   // icon root
+        public RectTransform root;   // アイコンのルート
         public CanvasGroup canvasGroup; // フェード制御用CanvasGroup
 
         [HideInInspector] public Vector2 startPos;  // アニメーション開始位置（Awakeで記録）
@@ -20,15 +20,15 @@ public class MomentumBuffFeedUI : MonoBehaviour
     [System.Serializable]
     public class TierPopup
     {
-        public PopupEntry[] entries;      // 50% = 2, 100% = 3, etc.
+        public PopupEntry[] entries;      // 50% = 2個、100% = 3個 など
         [HideInInspector] public Sequence seq; // このティアの再生中Sequence
     }
 
     [Header("Tier Popups (Icons only)")]
     [SerializeField] private TierPopup _tier25;  // 25%ティアのポップアップ
-    [SerializeField] private TierPopup _tier50;  // 2 icons
+    [SerializeField] private TierPopup _tier50;  // 50%ティアのポップアップ（2個）
     [SerializeField] private TierPopup _tier75;  // 75%ティアのポップアップ
-    [SerializeField] private TierPopup _tier100; // 3 icons
+    [SerializeField] private TierPopup _tier100; // 100%ティアのポップアップ（3個）
 
     [Header("Popup Animation")]
     [SerializeField] private float _startScale = 0.75f;      // アニメーション開始スケール
@@ -40,7 +40,7 @@ public class MomentumBuffFeedUI : MonoBehaviour
     [SerializeField] private float _fadeOutTime = 0.22f;     // フェードアウト時間
 
     [Header("Timing")]
-    [SerializeField] private float _betweenEntriesDelay = 0.06f; // small gap between icons
+    [SerializeField] private float _betweenEntriesDelay = 0.06f; // アイコン間のわずかな間隔
     [SerializeField] private bool _useUnscaledTime = true;        // ポーズ中もアニメーションするか
 
     private CancellationTokenSource _cts; // 非同期バインド処理のキャンセルトークン
@@ -93,17 +93,17 @@ public class MomentumBuffFeedUI : MonoBehaviour
 
     private void OnStateChanged(MomentumState state)
     {
-        // This event only fires when state changes, so no spam.
+        // このイベントは状態変化時のみ発火するため、連続呼び出しは発生しない
         switch (state)
         {
             case MomentumState.Tier1: PlayTier(_tier25); break;           // 25%ティア達成
-            case MomentumState.Tier2: PlayTier(_tier50); break;  // 2 icons
+            case MomentumState.Tier2: PlayTier(_tier50); break;           // 50%ティア達成（2個）
             case MomentumState.Tier3: PlayTier(_tier75); break;           // 75%ティア達成
-            case MomentumState.Max: PlayTier(_tier100); break; // 3 icons
+            case MomentumState.Max: PlayTier(_tier100); break;            // 100%ティア達成（3個）
         }
     }
 
-    // ─────── setup/hide
+    // ─────── 初期化・非表示
 
     private void SetupTier(TierPopup tier)
     {
@@ -126,7 +126,7 @@ public class MomentumBuffFeedUI : MonoBehaviour
         }
     }
 
-    // ─────── play
+    // ─────── 再生
 
     private void PlayTier(TierPopup tier)
     {
@@ -136,7 +136,7 @@ public class MomentumBuffFeedUI : MonoBehaviour
 
         var seq = DOTween.Sequence();
 
-        // entries appended => one-by-one (like your tutorial UI)
+        // entriesを順番に追加する（チュートリアルUIと同様）
         foreach (var e in tier.entries)
         {
             if (e == null || e.root == null) continue;
@@ -146,7 +146,7 @@ public class MomentumBuffFeedUI : MonoBehaviour
         }
 
         if (_useUnscaledTime)
-            seq.SetUpdate(true); // ポーズ中もアニメーションが動くようにする
+            seq.SetUpdate(true); // ポーズ中もアニメーションが動くように非スケール時間を使用
 
         tier.seq = seq;
     }
@@ -165,7 +165,7 @@ public class MomentumBuffFeedUI : MonoBehaviour
                 e.canvasGroup.alpha = 0f; // フェードイン前は透明にする
         });
 
-        // POP
+        // ポップ
         if (e.canvasGroup != null)
             s.Append(e.canvasGroup.DOFade(1f, _popTime)); // フェードインでアイコンを表示
         else
@@ -175,7 +175,7 @@ public class MomentumBuffFeedUI : MonoBehaviour
             .DOScale(e.startScale * _popScale, _popTime)
             .SetEase(Ease.OutBack)); // OutBackイージングでポップ感を演出
 
-        // RISE
+        // 上昇
         s.Append(e.root
             .DOAnchorPos(e.startPos + Vector2.up * _riseDistance, _riseTime)
             .SetEase(Ease.OutQuad)); // 上方向へ滑らかに上昇
@@ -184,10 +184,10 @@ public class MomentumBuffFeedUI : MonoBehaviour
             .DOScale(e.startScale, _riseTime)
             .SetEase(Ease.OutQuad)); // 上昇しながら基準スケールへ戻る
 
-        // HOLD
+        // ホールド
         s.AppendInterval(_holdTime); // 表示を一定時間維持
 
-        // FADE OUT
+        // フェードアウト
         if (e.canvasGroup != null)
             s.Append(e.canvasGroup.DOFade(0f, _fadeOutTime)); // フェードアウトで消える
         else

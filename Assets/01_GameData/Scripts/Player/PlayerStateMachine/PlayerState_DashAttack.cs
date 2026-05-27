@@ -17,10 +17,10 @@ public class PlayerState_DashAttack : PlayerStateBase
 
     public override void Tick(PlayerStateMachineBrain brain)
     {
-        // allow buffering �gchain into combo�h while dash attack plays
+        // ダッシュ攻撃の再生中に「コンボへの連携」バッファリングを許可する
         if (brain.Input.ConsumeAttackPressed())
         {
-            brain.Combat?.RequestAttack(); // CombatController will treat this as "chain request" during dash attack
+            brain.Combat?.RequestAttack(); // CombatControllerがダッシュ攻撃中の「連携リクエスト」として処理する
         }
 
         brain.Motor.MotorUpdate(true, true, true); // ジャンプ・モメンタム・壁スライド全て許可

@@ -11,27 +11,27 @@ public class TutorialClearUI_Anim : MonoBehaviour
     [Header("Auto Find (by name)")]
     [SerializeField] private bool _autoFindOnAwake = true; // Awake時に子オブジェクトを自動検索するか
 
-    [Header("Root")]
-    [SerializeField] private RectTransform _rootPanel;     // TutorialClearUI (this) or a child panel
-    [SerializeField] private CanvasGroup _rootGroup;       // CanvasGroup on root
+    [Header("ルート")]
+    [SerializeField] private RectTransform _rootPanel;     // TutorialClearUI（このオブジェクトまたは子パネル）
+    [SerializeField] private CanvasGroup _rootGroup;       // ルートのCanvasGroup
 
-    [Header("Dim")]
-    [SerializeField] private CanvasGroup _dimGroup;        // Dimed (optional)
+    [Header("暗幕")]
+    [SerializeField] private CanvasGroup _dimGroup;        // 暗幕（任意）
 
-    [Header("Title")]
+    [Header("タイトル")]
     [SerializeField] private RectTransform _title;         // Text_Title
-    [SerializeField] private RectTransform _titleGlow;     // TextTitle_Glow (optional)
+    [SerializeField] private RectTransform _titleGlow;     // TextTitle_Glow（任意）
 
-    [Header("SubTitle / TextBox / Buttons (optional)")]
+    [Header("サブタイトル / テキストボックス / ボタン（任意）")]
     [SerializeField] private RectTransform _textBoxStage;  // TextBox Stage
     [SerializeField] private RectTransform _buttons;       // Buttons
 
-    [Header("Stars")]
+    [Header("スター")]
     [SerializeField] private Transform _starOffRoot;       // StarStage/Star_Off
     [SerializeField] private Transform _starOnRoot;        // StarStage/Star_On
 
-    [Header("Toggle Check")]
-    [SerializeField] private RectTransform _toggleOn;      // Toggle_Check/On (the check image)
+    [Header("トグルチェック")]
+    [SerializeField] private RectTransform _toggleOn;      // Toggle_Check/On（チェック画像）
 
     [Header("Timing")]
     [SerializeField] private float _fadeIn = 0.18f;        // フェードイン時間
@@ -64,11 +64,11 @@ public class TutorialClearUI_Anim : MonoBehaviour
     [ContextMenu("AutoFind")]
     private void AutoFind()
     {
-        // Root
+        // ルート
         if (_rootPanel == null) _rootPanel = transform as RectTransform;
         if (_rootGroup == null) _rootGroup = GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
 
-        // Named finds (safe even if missing)
+        // 名前で検索する（見つからなくても安全）
         _dimGroup = _dimGroup != null ? _dimGroup : FindCanvasGroup("Dimed");
 
         _title = _title != null ? _title : FindRect("Text_Title");
@@ -132,11 +132,11 @@ public class TutorialClearUI_Anim : MonoBehaviour
         ResetSelectionState();
         EventSystem.current?.SetSelectedGameObject(null); // フォーカスをクリア
 
-        // setup visible state (instant setup)
+        // 表示状態を即座にセットアップする
         SetStarsState(starsAchieved, instant: true);  // スター表示状態を即座に設定
         SetToggleState(toggleAchieved, instant: true); // チェック状態を即座に設定
 
-        // panel start hidden
+        // パネルを非表示状態から開始する
         _rootGroup.alpha = 0f;
         _rootGroup.blocksRaycasts = true;
         _rootGroup.interactable = true;
@@ -155,15 +155,15 @@ public class TutorialClearUI_Anim : MonoBehaviour
             .SetUpdate(true)
             .SetLink(gameObject, LinkBehaviour.KillOnDestroy);
 
-        // dim fade
+        // 暗幕フェード
         if (_dimGroup != null) _seq.Join(_dimGroup.DOFade(1f, _fadeIn).SetEase(Ease.OutQuad)); // 暗幕フェードイン
 
-        // root fade + pop
+        // ルートフェード + ポップ
         _seq.Join(_rootGroup.DOFade(1f, _fadeIn).SetEase(Ease.OutQuad));                          // ルートフェードイン
         _seq.Join(_rootPanel.DOScale(_panelPopScale, _panelPop).SetEase(Ease.OutBack));            // パネルポップイン
         _seq.Append(_rootPanel.DOScale(1f, 0.10f).SetEase(Ease.OutQuad));                         // 基準スケールへ収束
 
-        // title
+        // タイトル
         _seq.AppendInterval(_titleDelay); // タイトル表示前に少し待つ
         if (_title != null)
         {
@@ -177,7 +177,7 @@ public class TutorialClearUI_Anim : MonoBehaviour
         }
 
         // ────────────────────────────────────
-        // 1) Toggle FIRST
+        // 1) チェックを先に表示する
         _seq.AppendInterval(0.10f); // チェック表示前に少し待つ
         if (toggleAchieved && _toggleOn != null)
         {
@@ -186,7 +186,7 @@ public class TutorialClearUI_Anim : MonoBehaviour
         }
 
         // ────────────────────────────────────
-        // 2) Stars AFTER toggle
+        // 2) チェックの後にスターを表示する
         int starSlots = Mathf.Min(_starOffIcons?.Length ?? 0, _starOnIcons?.Length ?? 0);
         int clamped = Mathf.Clamp(starsAchieved, 0, starSlots); // スター数を有効範囲にクランプ
 
@@ -246,7 +246,7 @@ public class TutorialClearUI_Anim : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────
-    // Stars / Toggle
+    // スター / チェック
     // ─────────────────────────────────────────────────────────
 
     private void SetStarsState(int achieved, bool instant)
@@ -264,7 +264,7 @@ public class TutorialClearUI_Anim : MonoBehaviour
                 _starOnIcons[i].gameObject.SetActive(on);
                 _starOnIcons[i].DOKill(true);
 
-                if (on && instant) _starOnIcons[i].localScale = Vector3.zero; // 即座に設定する場合はスケール0にしてポップ待機
+                if (on && instant) _starOnIcons[i].localScale = Vector3.zero; // 即座にセットアップする場合はスケール0にしてポップ待機
                 else _starOnIcons[i].localScale = Vector3.one;
 
                 _starOnIcons[i].localRotation = Quaternion.identity;
@@ -275,7 +275,7 @@ public class TutorialClearUI_Anim : MonoBehaviour
     private void RevealStar(int i)
     {
         if (_starOffIcons == null || _starOnIcons == null) return;
-        if (i < 0 || i >= _starOnIcons.Length) return; // 範囲外チェック
+        if (i < 0 || i >= _starOnIcons.Length) return; // インデックスの範囲外チェック
 
         if (_starOffIcons[i] != null) _starOffIcons[i].gameObject.SetActive(false); // OFFスターを非表示
         if (_starOnIcons[i] != null)
@@ -306,7 +306,7 @@ public class TutorialClearUI_Anim : MonoBehaviour
         _toggleOn.gameObject.SetActive(achieved); // 達成時のみ表示
         _toggleOn.DOKill(true);
 
-        if (achieved && instant) _toggleOn.localScale = Vector3.zero; // 即座に設定する場合はスケール0にしてポップ待機
+        if (achieved && instant) _toggleOn.localScale = Vector3.zero; // 即座にセットアップする場合はスケール0にしてポップ待機
         else _toggleOn.localScale = Vector3.one;
 
         _toggleOn.localRotation = Quaternion.identity;
@@ -341,7 +341,7 @@ public class TutorialClearUI_Anim : MonoBehaviour
             EventSystem.current.SetSelectedGameObject(null); // 選択中のオブジェクトをクリア
         }
 
-        // Optional: reset your hover/select visuals if you use SelectSwap (same as PauseMenu)
+        // 任意：SelectSwapを使用している場合はホバー/選択ビジュアルをリセットする（PauseMenuと同様）
         var swaps = GetComponentsInChildren<SelectSwap>(true);
         foreach (var s in swaps)
         {
@@ -351,13 +351,13 @@ public class TutorialClearUI_Anim : MonoBehaviour
 
 
 #if UNITY_EDITOR
-    [ContextMenu("DEBUG Show: 3 stars + toggle")]
+    [ContextMenu("デバッグ表示：スター3つ＋チェックあり")]
     private void DebugShowAll() => Show(3, true); // スター3つ・チェックあり でデバッグ表示
 
-    [ContextMenu("DEBUG Show: 1 star")]
+    [ContextMenu("デバッグ表示：スター1つ")]
     private void DebugShowOne() => Show(1, false); // スター1つ・チェックなし でデバッグ表示
 
-    [ContextMenu("DEBUG Hide")]
+    [ContextMenu("デバッグ非表示")]
     private void DebugHide() => Hide();
 #endif
 }

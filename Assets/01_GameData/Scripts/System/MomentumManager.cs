@@ -16,9 +16,9 @@ public class MomentumManager : MonoBehaviour
     [SerializeField] private bool _pauseGain = false;          // trueの間はモメンタム加算を停止する
 
     [Header("Events")]
-    public FloatEvent onMomentumChanged;  // Sends currentMomentum [0–max]
-    public UnityEvent onMaxReached;       // Called once when 100% reached
-    public MomentumStateEvent onStateChanged; // NEW: fires only when tier/state changes
+    public FloatEvent onMomentumChanged;  // 現在のモメンタム値[0〜max]を送信する
+    public UnityEvent onMaxReached;       // 100%到達時に一度だけ呼ばれる
+    public MomentumStateEvent onStateChanged; // 段階・状態が変化したときのみ発火する
 
     private float _currentMomentum; // 現在のモメンタム値
 
@@ -28,7 +28,7 @@ public class MomentumManager : MonoBehaviour
     public void SetGainPaused(bool paused) => _pauseGain = paused;
 
 
-    private bool _maxLock = false; // True once 100% is hit (until damage)
+    private bool _maxLock = false; // 100%到達後、ダメージを受けるまでtrueになる
 
 
     private void Awake()
@@ -45,7 +45,7 @@ public class MomentumManager : MonoBehaviour
             return;
         }
 
-        // IMPORTANT: make sure events are never null
+        // 重要：イベントがnullにならないよう確実に初期化する
         onMomentumChanged ??= new FloatEvent();
         onMaxReached ??= new UnityEvent();
         onStateChanged ??= new MomentumStateEvent();
@@ -76,10 +76,10 @@ public class MomentumManager : MonoBehaviour
         UpdateMomentumEvents();
     }
 
-    // NEW: directly set momentum to a percent of max (ignores _pauseGain)
+    // モメンタムを最大値に対するパーセントで直接セットする（_pauseGainを無視する）
     public void SetMomentumPercent(float percent)
     {
-        // clamp 0–100 just to be safe
+        // 念のため0〜100の範囲に収める
         float clamped = Mathf.Clamp(percent, 0f, 100f);
         // パーセントから実際の値に換算して直接セットする
         _currentMomentum = _maxMomentum * (clamped / 100f);
@@ -105,7 +105,7 @@ public class MomentumManager : MonoBehaviour
 
         if (newState != _currentState)
         {
-            // fire state changed FIRST (so listeners get the new tier immediately)
+            // 状態変化を最初に発火する（リスナーが新しい段階をすぐ受け取れるようにする）
             onStateChanged?.Invoke(newState);
 
             // 初めてMaxに到達した場合のみonMaxReachedを発火しロックをかける
@@ -124,7 +124,7 @@ public class MomentumManager : MonoBehaviour
     {
         // Maxロックを解除し、減衰対象に戻す
         _maxLock = false;
-        UpdateMomentumEvents(); // re-evaluate decay eligibility
+        UpdateMomentumEvents(); // 減衰対象かどうかを再評価する
     }
 
     // パーセント値から対応するMomentumStateを返す

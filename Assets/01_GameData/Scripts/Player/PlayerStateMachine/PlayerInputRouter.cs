@@ -46,7 +46,7 @@ public class PlayerInputRouter : MonoBehaviour
     {
         if (ctx.started) _turboPressed = true; // ターボ押下フラグを立てる
     }
-    // one-frame edge consumption（各入力は1フレームで消費される）
+    // ワンフレームのエッジ消費（各入力は1フレームで消費される）
     public bool ConsumeJumpPressed() { var v = _jumpPressed; _jumpPressed = false; return v; } // ジャンプ押下を消費して返す
     public bool ConsumeJumpReleased() { var v = _jumpReleased; _jumpReleased = false; return v; } // ジャンプ離しを消費して返す
     public bool ConsumeDashPressed() { var v = _dashPressed; _dashPressed = false; return v; } // ダッシュ押下を消費して返す

@@ -2,15 +2,15 @@
 using UnityEngine;
 
 /// <summary>
-/// Attach this to the Goal GameObject (which should have a Trigger collider).
-///  When the player enters, it calls GameManager.Instance.WinLevel().
+/// ゴールGameObject（トリガーコライダーが必要）にアタッチする。
+/// プレイヤーが入ったとき、GameManager.Instance.WinLevel()を呼び出す。
 /// </summary>
 public class Goal : MonoBehaviour
 {
     private void OnTriggerEnter(Collider other)
     {
         // プレイヤータグを持つコライダーのみ反応する
-        // Make sure the player's collider has the tag "Player" (or whatever tag you use)
+        // プレイヤーのコライダーに"Player"タグ（または使用しているタグ）が設定されていることを確認する
         if (other.CompareTag("Player"))
         {
             // GameManagerにクリアを通知する

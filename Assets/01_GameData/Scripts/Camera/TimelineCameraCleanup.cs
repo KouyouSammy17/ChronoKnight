@@ -14,13 +14,14 @@ public class TimelineCameraCleanup : MonoBehaviour
 
 #if CINEMACHINE
     [Header("Cinemachine")]
-    [SerializeField] CinemachineCamera _main25D;             // gameplay cam               // ゲームプレイ用のメインカメラ
-    [SerializeField] CinemachineCamera[] _animatedCams;      // intro/orbit cams animated by Timeline  // タイムラインで動かすイントロカメラ群
+    [SerializeField] CinemachineCamera _main25D;             // ゲームプレイ用のメインカメラ
+    [SerializeField] CinemachineCamera[] _animatedCams;      // タイムラインで動かすイントロ・オービットカメラ群
     [SerializeField] bool _restoreLensOnEnd = true;                 // 終了時にカメラの視野角を元に戻すか
     float[] _lensFOVDefaults;                                       // イントロカメラのデフォルトFOV値を保存する配列
 #endif
 
     // ─────────────────────────────────────────────────────────────────────────────
+    // 初期化
     void Awake()
     {
         if (_director) _director.extrapolationMode = DirectorWrapMode.None; // タイムライン終了後に外挿しないよう設定
@@ -46,18 +47,18 @@ public class TimelineCameraCleanup : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // TIMELINE ENTRY/EXIT (call these from Signal Receiver)
+    // タイムラインの開始・終了（Signal Receiverから呼び出す）
 
     public void TL_EndCinematic()
     {
-        // Optionally stop the director so it releases any holds
+        // オプション：Directorを停止してホールドを解放する
         if (_autoStopDirectorOnEnd && _director != null) _director.Stop(); // Directorを停止してバインドを解放
 
-        // 1) camera cleanup & ensure gameplay cam owns priority
+        // 1) カメラの後始末を行い、ゲームプレイカメラに優先度を持たせる
         DoCameraCleanup();  // カメラの後始末を実行
     }
 
-    // Optional: force the main cam mid-sequence if you drop a mid-timeline signal
+    // オプション：タイムライン途中のシグナルを使ってメインカメラを強制切り替えする
     public void TL_SwitchToMainCamera()
     {
 #if CINEMACHINE
@@ -66,14 +67,14 @@ public class TimelineCameraCleanup : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // DIRECTOR CALLBACK
+    // Directorコールバック
     void OnDirectorStopped(PlayableDirector d)
     {
-        // If the Timeline ends naturally, ensure cleanup ran.
+        // タイムラインが自然終了した場合も後始末を確実に実行する
         DoCameraCleanup();  // タイムラインが自然終了した場合も後始末を保証
     }
     // ─────────────────────────────────────────────────────────────────────────────
-    // HELPERS — Camera cleanup
+    // ヘルパー — カメラの後始末
     void DoCameraCleanup()
     {
 #if CINEMACHINE
@@ -94,7 +95,7 @@ public class TimelineCameraCleanup : MonoBehaviour
                 var anim = vcam.GetComponent<Animator>();
                 if (anim) anim.enabled = false; // カメラのAnimatorを無効化してタイムライン制御を解除
 
-                // If you want them completely off after intro, uncomment:
+                // イントロ後に完全にオフにしたい場合はこの行のコメントを外す：
                 vcam.gameObject.SetActive(false);   // イントロ後はカメラオブジェクトを非表示
             }
         }

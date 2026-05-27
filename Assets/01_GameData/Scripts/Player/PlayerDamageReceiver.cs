@@ -5,82 +5,82 @@ using System.Threading;
 using UnityEngine;
 
 /// <summary>
-/// Handles all player damage reception and hit reactions.
-/// Manages invulnerability frames, knockback application, and knockdown sequences.
-/// Supports air and ground damage with customizable reactions and turbo compensation.
+/// プレイヤーのダメージ受け取りとヒットリアクションを全て処理する。
+/// 無敵フレーム・ノックバック適用・ノックダウンシーケンスを管理する。
+/// 空中・地上のダメージに対応し、カスタマイズ可能なリアクションとターボ補正をサポートする。
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(PlayerMotor), typeof(PlayerStats))]
 public class PlayerDamageReceiver : MonoBehaviour
 {
-    /// <summary>Duration of hitstun on ground hit</summary>
+    /// <summary>地上ヒット時のヒットスタン持続時間</summary>
     [Header("Ground Hit Reaction")]
     [SerializeField] private float _hitStun = 0.25f; // 地上ヒット時のヒットスタン持続時間
-    /// <summary>Knockback force applied on ground hit</summary>
+    /// <summary>地上ヒット時に適用されるノックバック力</summary>
     [SerializeField] private float _knockback = 8f; // 地上ヒット時のノックバック力
-    /// <summary>Invulnerability frame duration after hit</summary>
+    /// <summary>ヒット後の無敵フレーム持続時間</summary>
     [SerializeField] private float _iframes = 0.5f; // ヒット後の無敵時間
-    /// <summary>Whether invulnerability frame timing ignores TimeScale (Turbo mode)</summary>
+    /// <summary>無敵フレームのタイミングがTimeScaleを無視するか（ターボモード対応）</summary>
     [SerializeField] private bool _ignoreTimeScale = true; // 無敵時間をTimeScaleに依存しないか（ターボモード対応）
 
-    /// <summary>Whether to cancel horizontal velocity on hit</summary>
+    /// <summary>ヒット時に水平速度をキャンセルするか</summary>
     [Header("Velocity Handling")]
     [SerializeField] private bool _cancelHorizontalVelocityOnHit = true; // ヒット時に水平速度をキャンセルするか
-    /// <summary>Whether to preserve upward velocity on hit</summary>
+    /// <summary>ヒット時に上方向の速度を維持するか</summary>
     [SerializeField] private bool _keepUpwardVelocity = true; // ヒット時に上方向の速度を維持するか
 
-    /// <summary>Whether being hit in the air triggers knockdown sequence</summary>
+    /// <summary>空中でダメージを受けたときにノックダウンシーケンスに移行するか</summary>
     [Header("Air Hit (Kirby / Smash style)")]
     [SerializeField] private bool _airDamageKnockdown = true; // 空中でダメージを受けたときにノックダウンシーケンスに移行するか
-    /// <summary>Upward launch force when hit in air</summary>
+    /// <summary>空中ヒット時の上方向打ち上げ力</summary>
     [SerializeField] private float _airLaunchUp = 6f; // 空中ヒット時の上方向打ち上げ力
-    /// <summary>Horizontal knockback multiplier for air hits</summary>
+    /// <summary>空中ヒット時の水平ノックバック倍率</summary>
     [SerializeField] private float _airLaunchHorizontalMultiplier = 1.0f; // 空中ヒット時の水平ノックバック倍率
 
-    /// <summary>Whether to apply additional downward acceleration during air knockdown</summary>
+    /// <summary>空中ノックダウン中に追加の下方向加速を適用するか</summary>
     [Header("Optional Slam Down")]
     [SerializeField] private bool _useSlamDown = true; // スラムダウン（強制落下加速）を使用するか
-    /// <summary>Delay before slam-down acceleration applies</summary>
+    /// <summary>スラムダウン加速が始まるまでの遅延</summary>
     [SerializeField] private float _slamDelay = 0.08f; // スラムダウン加速が始まるまでの遅延
-    /// <summary>Downward acceleration force during slam</summary>
+    /// <summary>スラムダウン中の下方向加速力</summary>
     [SerializeField] private float _slamDownAccel = 45f; // スラムダウン時の下方向加速力
 
-    /// <summary>Minimum tumble time in air before landing sequence</summary>
+    /// <summary>着地シーケンス前の最低空中滞空時間</summary>
     [Header("Landing Knockdown Sequence")]
     [SerializeField] private float _minAirTumbleTime = 0.10f; // 着地前の最低滞空（もんどり）時間
-    /// <summary>Delay between impact and knockdown trigger</summary>
+    /// <summary>着地からノックダウントリガーまでの遅延</summary>
     [SerializeField] private float _impactToDownDelay = 0.12f; // 着地からノックダウントリガーまでの遅延
-    /// <summary>Recovery animation duration after knockdown</summary>
+    /// <summary>ノックダウン後の回復アニメーション時間</summary>
     [SerializeField] private float _recoverTime = 0.5f; // ノックダウン後の回復アニメーション時間
 
-    /// <summary>Whether player should face the attacker on hit</summary>
+    /// <summary>ヒット時に攻撃者の方向を向くか</summary>
     [Header("Facing")]
     [SerializeField] private bool _faceAttackerOnHit = true; // ヒット時に攻撃者の方向を向くか
 
-    /// <summary>Reference to player motor component</summary>
+    /// <summary>プレイヤーのモーターコンポーネントへの参照</summary>
     private PlayerMotor _motor; // プレイヤーのモーターコンポーネント
-    /// <summary>Reference to player animator component</summary>
+    /// <summary>プレイヤーのアニメーターコンポーネントへの参照</summary>
     private PlayerAnimator _anim; // プレイヤーのアニメーターコンポーネント
-    /// <summary>Reference to rigidbody for physics</summary>
+    /// <summary>物理演算用リジッドボディへの参照</summary>
     private Rigidbody _rb; // 物理演算用リジッドボディ
-    /// <summary>Reference to combat controller for cancellation</summary>
+    /// <summary>コンボキャンセル用の戦闘コントローラーへの参照</summary>
     private CombatController _combat; // コンボキャンセル用の戦闘コントローラー
 
-    /// <summary>Cancellation token for hit reaction sequences</summary>
+    /// <summary>ヒットリアクションシーケンスのキャンセルトークン</summary>
     private CancellationTokenSource _hitCts; // ヒットリアクション処理のキャンセルトークン
-    /// <summary>Cancellation token for invulnerability timing</summary>
+    /// <summary>無敵時間タイマーのキャンセルトークン</summary>
     private CancellationTokenSource _invulnCts; // 無敵時間タイマーのキャンセルトークン
 
-    /// <summary>Whether player is currently invulnerable</summary>
+    /// <summary>現在プレイヤーが無敵状態かどうか</summary>
     private bool _invuln; // 現在無敵状態か
-    /// <summary>Whether player is currently invulnerable</summary>
+    /// <summary>現在プレイヤーが無敵状態かどうか</summary>
     public bool IsInvulnerable => _invuln;
-    /// <summary>Whether player is in active hitstun from a hit</summary>
+    /// <summary>ヒットによるヒットスタン中かどうか</summary>
     public bool IsInHitStun { get; private set; }
-    /// <summary>Whether player is in knockdown state (air-to-ground sequence)</summary>
+    /// <summary>ノックダウン状態（空中→地面へのシーケンス）かどうか</summary>
     public bool IsKnockedDown { get; private set; }
 
-    /// <summary>Initializes component references from the player hierarchy</summary>
+    /// <summary>プレイヤー階層からコンポーネント参照を初期化する</summary>
     private void Awake()
     {
         _motor = GetComponent<PlayerMotor>();
@@ -89,7 +89,7 @@ public class PlayerDamageReceiver : MonoBehaviour
         _rb = _motor != null ? _motor.GetRigidbody() : GetComponent<Rigidbody>();
     }
 
-    /// <summary>Cleanup on component disable to cancel pending async tasks</summary>
+    /// <summary>コンポーネント無効化時に保留中の非同期タスクをキャンセルしてクリーンアップする</summary>
     private void OnDisable()
     {
         _hitCts?.Cancel();
@@ -109,21 +109,21 @@ public class PlayerDamageReceiver : MonoBehaviour
         _motor?.EnableInput();
     }
 
-    /// <summary>Sets the invulnerability state manually</summary>
+    /// <summary>無敵状態を手動で設定する</summary>
     public void SetInvulnerable(bool v) => _invuln = v;
 
     /// <summary>
-    /// Plays the hit reaction sequence.
-    /// Handles both ground and air knockdown, applies knockback, and manages invulnerability.
+    /// ヒットリアクションシーケンスを再生する。
+    /// 地上・空中のノックダウンを処理し、ノックバックを適用して無敵状態を管理する。
     /// </summary>
-    /// <param name="sourceWorldPos">Optional world position of the attacker for knockback direction</param>
-    /// <param name="extraForce">Additional force multiplier for knockback (from damage, buffs, etc.)</param>
+    /// <param name="sourceWorldPos">ノックバック方向の計算に使う攻撃者のワールド座標（任意）</param>
+    /// <param name="extraForce">ノックバックへの追加力倍率（ダメージ・バフなどから算出）</param>
     public async UniTaskVoid PlayHitReact(Vector3? sourceWorldPos = null, float extraForce = 0f)
     {
         if (_motor == null || _rb == null) return;
         if (_invuln) return; // 無敵中はダメージを受け付けない
 
-        // cancel previous reaction
+        // 前のリアクションをキャンセル
         _hitCts?.Cancel(); // 前のヒットリアクションをキャンセル
         _hitCts?.Dispose();
         _hitCts = new CancellationTokenSource();
@@ -133,14 +133,14 @@ public class PlayerDamageReceiver : MonoBehaviour
         IsInHitStun = true;
         IsKnockedDown = false;
 
-        // lock control
+        // 操作をロック
         _motor.DisableInput(); // ヒット中は入力をロック
         _combat?.CancelCombo(); // 進行中のコンボをキャンセル
         _motor.GetComponent<PlayerStateMachineBrain>()?.Input?.ClearPressedBuffers(); // バッファされた入力をクリア
 
         try
         {
-            // IMPORTANT: use RAW grounded (no coyote) for damage logic
+            // 重要：ダメージ処理にはコヨーテタイムを除いた純粋な接地判定を使用する
             bool inAir = !_motor.IsGroundedRaw; // コヨーテタイムを除いた純粋な空中判定
 
             if (_airDamageKnockdown && inAir)
@@ -150,7 +150,7 @@ public class PlayerDamageReceiver : MonoBehaviour
                 return;
             }
 
-            // ground hit
+            // 地上ヒット
             ApplyKnockback(sourceWorldPos, extraForce, verticalLaunch: 0f, horizontalMultiplier: 1f); // 地上ノックバックを適用
 
             _anim?.SetHurt(true); // ヒットアニメーション状態を有効化
@@ -167,7 +167,7 @@ public class PlayerDamageReceiver : MonoBehaviour
         catch (OperationCanceledException) { }
         finally
         {
-            // cleanup state
+            // 状態をクリーンアップ
             IsInHitStun = false;
             _invuln = false; // 無敵状態を解除
 
@@ -177,7 +177,7 @@ public class PlayerDamageReceiver : MonoBehaviour
     }
 
     /// <summary>
-    /// Plays the air knockdown sequence: launch up, slam down, then knockdown on landing.
+    /// 空中ノックダウンシーケンスを再生する：上方打ち上げ → スラムダウン → 着地後ノックダウン。
     /// </summary>
     private async UniTask PlayAirKnockdownSequence(Vector3? sourceWorldPos, float extraForce, CancellationToken ct)
     {
@@ -198,7 +198,7 @@ public class PlayerDamageReceiver : MonoBehaviour
         _anim?.SetHurt(true); // ヒットアニメーション状態を有効化
         _anim?.TriggerDamage(); // ダメージアニメーションをトリガー
 
-        // minimum�gtumble time�h
+        // 最低滞空（もんどり）時間
         await DelaySeconds(_minAirTumbleTime, ct);
 
         if (_useSlamDown)
@@ -208,7 +208,7 @@ public class PlayerDamageReceiver : MonoBehaviour
             {
                 float slamAccel = _slamDownAccel;
 
-                // Acceleration DOES get weaker under timeScale, so compensate only for slow-mo.
+                // 加速度はTimeScaleの影響で弱まるため、スロー分だけ補正する。
                 var turbo = TurboModeManager.Instance;
                 if (turbo != null && turbo.IsActive)
                     slamAccel *= turbo.RealTimeComp; // = 1/slowFactor スロー中は加速力をTimeScaleで補正
@@ -217,17 +217,17 @@ public class PlayerDamageReceiver : MonoBehaviour
             }
         }
 
-        // IMPORTANT: wait for RAW grounded so coyote doesn't instantly trigger
+        // 重要：コヨーテタイムが即座に発火しないよう、純粋な接地判定を待つ
         await UniTask.WaitUntil(() => _motor.IsGroundedRaw, PlayerLoopTiming.Update, ct); // 実際に地面に着くまで待機
 
-        // When we truly land: stop sliding
+        // 着地した瞬間：滑りを止める
         _motor.StopHorizontalInstant(); // 着地時に水平速度を即時停止
         var v = _rb.linearVelocity;
         v.x = 0f;
         v.z = 0f;
         _rb.linearVelocity = v; // 横方向の滑りを完全にゼロにする
 
-        // DamageLand / Knockdown
+        // 着地ダメージ / ノックダウン
         _anim?.TriggerKnockdown(); // ノックダウンアニメーションをトリガー
         await DelaySeconds(_impactToDownDelay, ct); // 着地からノックダウンまでの遅延を待機
 
@@ -242,7 +242,7 @@ public class PlayerDamageReceiver : MonoBehaviour
         _motor.EnableInput(); // 入力を再開
     }
 
-    // Call this when you respawn/teleport the player so the pending WaitUntil doesn't fire later.
+    // リスポーン・テレポート時に呼び出す。保留中のWaitUntilが後から発火しないようにする。
     public void CancelForRespawn()
     {
         _hitCts?.Cancel();
@@ -260,10 +260,10 @@ public class PlayerDamageReceiver : MonoBehaviour
     private void ApplyKnockback(Vector3? sourceWorldPos, float extraForce, float verticalLaunch, float horizontalMultiplier)
     {
         float attackerSideX = GetAttackerSideX(sourceWorldPos); // 攻撃者の横方向（+1 or -1）を取得
-        float knockDirX = -attackerSideX; // away from attacker 攻撃者と逆方向にノックバック
+        float knockDirX = -attackerSideX; // 攻撃者と逆方向にノックバック
 
         float force = (_knockback + Mathf.Max(0f, extraForce)) * horizontalMultiplier; // 最終ノックバック力を計算
-        // If Turbo is active, compensate slow-mo so damage impulses feel normal in real time
+        // ターボが有効なら、ダメージの衝撃が実時間で自然に感じられるようスロー分を補正する
         var turbo = TurboModeManager.Instance;
         if (turbo != null && turbo.IsActive)
         {
@@ -287,7 +287,7 @@ public class PlayerDamageReceiver : MonoBehaviour
             return (dx >= 0f) ? 1f : -1f; // 右なら+1、左なら-1を返す
         }
 
-        // fallback: �gbehind you�h
+        // フォールバック：「背後から」と仮定する
         float facingX = Mathf.Sign(_motor.GetFacingDirection().x);
         if (Mathf.Abs(facingX) < 0.001f) facingX = 1f;
         return -facingX;
@@ -326,7 +326,7 @@ public class PlayerDamageReceiver : MonoBehaviour
         catch (OperationCanceledException) { }
         finally
         {
-            // Clear invulnerability and dispose token even if object still exists.
+            // オブジェクトが存在する場合でも無敵を解除しトークンを破棄する。
             if (this != null)
                 _invuln = false;
 

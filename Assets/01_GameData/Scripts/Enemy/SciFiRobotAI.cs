@@ -1,6 +1,6 @@
 // SF風ロボット敵のAI行動（巡回・警戒・戦闘）を制御するスクリプト
 using UnityEngine;
-using TGRobotsWheeled;    // make sure this matches the asset's namespace
+using TGRobotsWheeled;    // アセットの名前空間と一致していることを確認すること
 
 [RequireComponent(typeof(TGDroidStateManager))]
 public class SciFiRobotAI : MonoBehaviour
@@ -20,7 +20,7 @@ public class SciFiRobotAI : MonoBehaviour
     [Tooltip("Seconds between each shot")]
     public float shootInterval = 1f;        // 射撃の間隔（秒）
 
-    private float _lastShootTime = -Mathf.Infinity; // 最後に射撃した時刻（初回即発射を許可）
+    private float _lastShootTime = -Mathf.Infinity; // 最後に射撃した時刻（負の無限大で初回即発射を許可）
 
     // AIの状態を定義する列挙型
     private enum AIState { Patrol, Alert, Combat }
@@ -32,7 +32,7 @@ public class SciFiRobotAI : MonoBehaviour
     private float _staggerTimer = 0f;       // よろめき残り時間
     private bool _isStaggered = false;      // よろめき中かどうか
 
-    // Patrol waypoints
+    // 巡回ウェイポイント
     public Transform pointA, pointB;        // 巡回の折り返し地点A・B
     private Vector3 _currentPatrolTarget;   // 現在向かっている巡回目標
 
@@ -53,16 +53,16 @@ public class SciFiRobotAI : MonoBehaviour
 
         float dist = Vector3.Distance(transform.position, _player.position); // プレイヤーとの距離を算出
 
-        // Hard stop during stagger (no move, no shoot)
+        // よろめき中は完全停止（移動・射撃ともに禁止）
         if (_isStaggered)
         {
             _droid.Shooting = false;
             _staggerTimer -= Time.deltaTime;            // よろめきタイマーを減算
             if (_staggerTimer <= 0f) _isStaggered = false;  // タイマー終了でよろめき解除
-            return; // skips state transitions & any movement this frame
+            return; // このフレームの状態遷移と移動をスキップ
         }
 
-        // --- STATE TRANSITIONS ---
+        // --- 状態遷移 ---
         switch (_aiState)
         {
             case AIState.Patrol:
@@ -74,7 +74,7 @@ public class SciFiRobotAI : MonoBehaviour
                 if (dist <= attackRange)
                     _aiState = AIState.Combat;  // 攻撃射程内に入ったら戦闘状態へ
                 else if (dist > aggroRadius * 1.2f)
-                    _aiState = AIState.Patrol;  // 十分遠ざかったら巡回に戻る（ヒステリシス）
+                    _aiState = AIState.Patrol;  // 十分遠ざかったら巡回に戻る（過敏な切り替えを防ぐヒステリシス）
                 break;
 
             case AIState.Combat:
@@ -83,17 +83,17 @@ public class SciFiRobotAI : MonoBehaviour
                 break;
         }
 
-        // --- DRIVE DROID STATE & BEHAVIOR ---
+        // --- ドロイド状態と行動の制御 ---
         switch (_aiState)
         {
             case AIState.Patrol:
-                _droid.State = TGDroidStateManager.TDroidState.Idle;      // idle‐patrol blend
+                _droid.State = TGDroidStateManager.TDroidState.Idle;      // アイドル・巡回ブレンド
                 Patrol();
                 _droid.Shooting = false;    // 巡回中は射撃しない
                 break;
 
             case AIState.Alert:
-                _droid.State = TGDroidStateManager.TDroidState.Alarmed;   // alert color/sound
+                _droid.State = TGDroidStateManager.TDroidState.Alarmed;   // 警告色・警報サウンド
                 Chase();
                 _droid.Shooting = false;    // 警戒追跡中は射撃しない
                 break;
@@ -126,10 +126,10 @@ public class SciFiRobotAI : MonoBehaviour
         }
     }
 
-    // Centralized movement gate
+    // 移動の一元管理ゲート
     private void MoveIfAllowed(Vector3 dir, float speed)
     {
-        if (_isStaggered) return; // safety—though Update() already returns early
+        if (_isStaggered) return; // 安全対策（Update()で早期リターンしているが念のため）
         transform.position += dir * speed * Time.deltaTime;    // 方向と速度に基づいて移動
     }
 
@@ -165,8 +165,8 @@ public class SciFiRobotAI : MonoBehaviour
 
     private void OnDroidShoot(Transform origin)
     {
-        _lastShootTime = Time.time;      // record shot time
-        _droid.Shooting = false;         // immediately turn off Shooting flag
+        _lastShootTime = Time.time;      // 射撃時刻を記録
+        _droid.Shooting = false;         // Shootingフラグを即座にオフにする
     }
 
     public void Stagger()

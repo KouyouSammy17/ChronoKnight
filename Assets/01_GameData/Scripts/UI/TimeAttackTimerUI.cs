@@ -5,7 +5,7 @@ using UnityEngine;
 public class TimeAttackTimerUI : MonoBehaviour
 {
     [SerializeField] private TMP_Text _text;       // 時間を表示するTMPテキスト
-    [SerializeField] private GameObject _root;     // optional (assign self or parent)
+    [SerializeField] private GameObject _root;     // 任意（自身または親オブジェクトを割り当て）
 
     private void Awake()
     {
@@ -16,7 +16,7 @@ public class TimeAttackTimerUI : MonoBehaviour
     private void Update()
     {
         var ta = TimeAttackManager.Instance;
-        // Show if TimeAttack is enabled OR if it's running (accounts for scene transitions)
+        // タイムアタックが有効または実行中なら表示する（シーン遷移も考慮）
         bool show = ta != null && (ta.Enabled || ta.IsRunning); // タイムアタック有効中または実行中なら表示
 
         if (_root != null)
@@ -32,7 +32,7 @@ public class TimeAttackTimerUI : MonoBehaviour
         _text.text = TimeAttackManager.Format(ta.Elapsed); // 経過時間をフォーマットして表示
     }
 
-    /// <summary>Public method to force-show the timer (called by TutorialManager)</summary>
+    /// <summary>タイマーを強制表示する公開メソッド（TutorialManagerから呼び出される）</summary>
     public void EnsureVisible()
     {
         if (_root != null)

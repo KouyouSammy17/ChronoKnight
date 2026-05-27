@@ -5,9 +5,7 @@ public class PlayerState_Knockdown : PlayerStateBase
 
     public override void Tick(PlayerStateMachineBrain brain)
     {
-        // no input buffering here: you are "down"
-        // ノックダウン中は全入力を無視（完全な無力状態）
-        // no input buffering here (you�fre �gdown�h)
+        // 入力バッファリングなし：ノックダウン中は全入力を無視（完全な無力状態）
         brain.Motor.MotorUpdate(false, false, false); // ジャンプ・モメンタム・壁スライド全て禁止
     }
 

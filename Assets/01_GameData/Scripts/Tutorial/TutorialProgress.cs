@@ -16,7 +16,6 @@ public static class TutorialProgress
         UnityEngine.PlayerPrefs.Save();                         // 即座に永続保存
     }
 
-    // NEW: reset all tutorial flags
     // すべてのチュートリアルフラグを削除してリセットする
     public static void ResetAll()
     {

@@ -1,29 +1,29 @@
 // プレイヤーのステートマシンで使用する全アクションステートのID列挙体
 /// <summary>
-/// Enumeration of all player action states in the state machine.
+/// ステートマシンにおけるプレイヤーの全アクションステートの列挙体。
 /// </summary>
 public enum PlayerStateID
 {
-    /// <summary>Player is standing or moving on ground</summary>
+    /// <summary>プレイヤーが地上で静止・移動している</summary>
     Grounded,   // 地上にいる（静止・移動含む）
-    /// <summary>Player is in the air (jumping or falling)</summary>
+    /// <summary>プレイヤーが空中にいる（ジャンプ・落下）</summary>
     Airborne,   // 空中にいる（ジャンプ・落下含む）
-    /// <summary>Player is sliding on a wall</summary>
+    /// <summary>プレイヤーが壁をスライドしている</summary>
     WallSlide,  // 壁をスライドしている
-    /// <summary>Player is performing a dash move</summary>
+    /// <summary>プレイヤーがダッシュを実行中</summary>
     Dash,       // ダッシュ中
-    /// <summary>Player is performing a melee attack</summary>
+    /// <summary>プレイヤーが近接攻撃（コンボ）を実行中</summary>
     Attack,     // 近接攻撃（コンボ）中
-    /// <summary>Player is performing a dash attack</summary>
+    /// <summary>プレイヤーがダッシュ攻撃を実行中</summary>
     DashAttack, // ダッシュ攻撃中
-    /// <summary>Player is in hitstun from taking damage</summary>
+    /// <summary>プレイヤーがダメージによるヒットスタン中</summary>
     Hurt,       // ダメージによるヒットスタン中
-    /// <summary>Player is in knockdown state (air-to-ground sequence)</summary>
+    /// <summary>プレイヤーがノックダウン状態（空中→地面への連続処理）</summary>
     Knockdown,  // ノックダウン状態（空中→地面への連続処理）
-    /// <summary>Player is playing turbo mode activation sequence</summary>
+    /// <summary>プレイヤーがターボモード起動アニメーションを再生中</summary>
     TurboStart, // ターボモード起動アニメーション中
-    /// <summary>Player is dead</summary>
+    /// <summary>プレイヤーが死亡している</summary>
     Dead,       // 死亡状態
-    /// <summary>Player has won the level</summary>
+    /// <summary>プレイヤーがステージをクリアした</summary>
     Win         // ステージクリア（勝利）状態
 }

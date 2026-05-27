@@ -5,7 +5,7 @@ public class PlayerState_Hurt : PlayerStateBase
 
     public override void Tick(PlayerStateMachineBrain brain)
     {
-        //brain.Motor.InputMove(brain.Input.Move); // ヒットスタン中は移動入力を受け付けない
+        //brain.Motor.InputMove(brain.Input.Move); // ヒットスタン中は移動入力を受け付けない（無効化済み）
 
         brain.Motor.MotorUpdate(false, false, false); // ジャンプ・モメンタム・壁スライド全て禁止
 

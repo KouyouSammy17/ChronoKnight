@@ -7,7 +7,7 @@ public class PersistentEventSystem : MonoBehaviour
 {
     private void Awake()
     {
-        // If another EventSystem already exists, destroy this one
+        // 別のEventSystemが既に存在する場合はこのオブジェクトを破棄する
         var all = FindObjectsByType<EventSystem>(FindObjectsSortMode.None); // シーン内の全EventSystemを検索
         if (all.Length > 1)
         {

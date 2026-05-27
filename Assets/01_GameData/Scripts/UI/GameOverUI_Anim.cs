@@ -8,20 +8,20 @@ public class GameOverUI_Anim : MonoBehaviour
     [Header("Auto Find (by name)")]
     [SerializeField] private bool _autoFindOnAwake = true; // Awake時に子オブジェクトを自動検索するか
 
-    [Header("Root")]
-    [SerializeField] private RectTransform _rootPanel;     // GameOverUI root
-    [SerializeField] private CanvasGroup _rootGroup;       // CanvasGroup on root
+    [Header("ルート")]
+    [SerializeField] private RectTransform _rootPanel;     // GameOverUIのルート
+    [SerializeField] private CanvasGroup _rootGroup;       // ルートのCanvasGroup
 
-    [Header("Dim / Glow")]
-    [SerializeField] private CanvasGroup _dimGroup;        // Dimed (CanvasGroup)
-    [SerializeField] private CanvasGroup _screenGlowGroup; // ScreenGlow (CanvasGroup, optional)
+    [Header("暗幕 / グロー")]
+    [SerializeField] private CanvasGroup _dimGroup;        // 暗幕（CanvasGroup）
+    [SerializeField] private CanvasGroup _screenGlowGroup; // スクリーングロー（CanvasGroup・任意）
 
-    [Header("Title")]
+    [Header("タイトル")]
     [SerializeField] private RectTransform _title;         // Text_Title
-    [SerializeField] private RectTransform _titleGlow;     // TextTitle_Glow (optional)
+    [SerializeField] private RectTransform _titleGlow;     // TextTitle_Glow（任意）
 
-    [Header("Rewards / Buttons")]
-    [SerializeField] private RectTransform _rewards;       // Text_Rewards (optional)
+    [Header("リワード / ボタン")]
+    [SerializeField] private RectTransform _rewards;       // Text_Rewards（任意）
     [SerializeField] private RectTransform _buttons;       // Buttons
 
     [Header("Timing")]
@@ -35,7 +35,7 @@ public class GameOverUI_Anim : MonoBehaviour
     [SerializeField] private float _titlePopScale = 1.08f;  // タイトルのポップスケール
     [SerializeField] private float _buttonsPopScale = 1.05f; // ボタンのポップスケール
 
-    //[Header("Navigation (optional; GameManager can do focus instead)")]
+    //[Header("ナビゲーション（任意；GameManagerが代わりにフォーカスを設定できる）")]
     //[SerializeField] private GameObject _firstSelectedOnOpen;
 
     private Sequence _seq; // 全体アニメーションのSequence
@@ -56,7 +56,7 @@ public class GameOverUI_Anim : MonoBehaviour
         _screenGlowGroup = _screenGlowGroup != null ? _screenGlowGroup : FindCanvasGroup("ScreenGlow");
 
         _title = _title != null ? _title : FindRect("Text_Title");
-        // your glow object name is "TextTitle_Glow" in screenshot
+        // グローオブジェクトの名前は "TextTitle_Glow"
         _titleGlow = _titleGlow != null ? _titleGlow : FindRect("TextTitle_Glow");
 
         _rewards = _rewards != null ? _rewards : FindRect("Text_Rewards");
@@ -85,10 +85,10 @@ public class GameOverUI_Anim : MonoBehaviour
         gameObject.SetActive(true);
         transform.SetAsLastSibling(); // 最前面に表示
 
-        // clear selection (avoid weird state)
+        // 選択状態をクリアして不正な状態を避ける
         if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null); // 選択状態をクリア
 
-        // initial state
+        // 初期状態を設定する
         if (_rootGroup != null)
         {
             _rootGroup.alpha = 0f;
@@ -120,11 +120,11 @@ public class GameOverUI_Anim : MonoBehaviour
             .SetUpdate(true)
             .SetLink(gameObject, LinkBehaviour.KillOnDestroy);
 
-        // dim + root
+        // 暗幕 + ルートフェード
         if (_dimGroup != null) _seq.Join(_dimGroup.DOFade(1f, _fadeIn).SetEase(Ease.OutQuad));   // 暗幕フェードイン
         if (_rootGroup != null) _seq.Join(_rootGroup.DOFade(1f, _fadeIn).SetEase(Ease.OutQuad)); // パネルフェードイン
 
-        // screen glow "pulse"
+        // スクリーングロー「パルス」演出
         if (_screenGlowGroup != null)
         {
             _seq.Join(_screenGlowGroup.DOFade(0.85f, 0.12f).SetEase(Ease.OutQuad)); // スクリーングローを強く表示
@@ -135,7 +135,7 @@ public class GameOverUI_Anim : MonoBehaviour
         if (_rootPanel != null) _seq.Join(_rootPanel.DOScale(_panelPopScale, _panelPop).SetEase(Ease.OutBack)); // パネルポップイン
         if (_rootPanel != null) _seq.Append(_rootPanel.DOScale(1f, 0.10f).SetEase(Ease.OutQuad));              // 基準スケールへ収束
 
-        // title hit (slightly more "heavy" than clear)
+        // タイトルヒット（クリア演出よりやや「重め」）
         _seq.AppendInterval(_titleDelay); // タイトル表示前に少し待つ
         if (_title != null)
         {
@@ -150,7 +150,7 @@ public class GameOverUI_Anim : MonoBehaviour
             _seq.Append(_titleGlow.DOScale(1f, 0.12f).SetEase(Ease.OutQuad));
         }
 
-        // rewards slide-up (optional)
+        // リワードのスライドアップ（任意）
         if (_rewards != null)
         {
             Vector2 end = _rewards.anchoredPosition;
@@ -158,7 +158,7 @@ public class GameOverUI_Anim : MonoBehaviour
             _seq.Append(_rewards.DOAnchorPos(end, 0.18f).SetEase(Ease.OutCubic)); // 正しい位置へスライド
         }
 
-        // buttons pop
+        // ボタンポップ
         _seq.AppendInterval(_buttonsDelay); // ボタン表示前に少し待つ
         if (_buttons != null)
         {
@@ -219,10 +219,10 @@ public class GameOverUI_Anim : MonoBehaviour
     }
 
 #if UNITY_EDITOR
-    [ContextMenu("DEBUG/Show")]
+    [ContextMenu("デバッグ/表示")]
     private void DebugShow() => Show(); // エディタ上でのデバッグ表示
 
-    [ContextMenu("DEBUG/Hide")]
+    [ContextMenu("デバッグ/非表示")]
     private void DebugHide() => Hide();
 #endif
 }

@@ -12,13 +12,13 @@ public class SelectSwap : MonoBehaviour, ISelectHandler, IDeselectHandler, IPoin
     [SerializeField] private GameObject activeRoot;   // 選択時に表示するオブジェクト
 
     [Header("Tween")]
-    [SerializeField] private Transform tweenTarget;         // usually the button root or a child frame
-    [SerializeField] private float selectedScale = 1.05f;   // how big on select
+    [SerializeField] private Transform tweenTarget;         // 通常はボタンルートまたは子フレーム
+    [SerializeField] private float selectedScale = 1.05f;   // 選択時の拡大スケール
     [SerializeField] private float selectDur = 0.08f;       // 選択時のアニメーション時間
     [SerializeField] private float deselectDur = 0.10f;     // 非選択時のアニメーション時間
     [SerializeField] private Ease selectEase = Ease.OutQuad;
     [SerializeField] private Ease deselectEase = Ease.OutQuad;
-    [SerializeField] private bool useUnscaledTime = true;   // animate while paused
+    [SerializeField] private bool useUnscaledTime = true;   // ポーズ中もアニメーションする
 
     private Selectable _sel;   // このオブジェクトのSelectableコンポーネント
     private Tween _scaleTween; // 現在実行中のスケールTween
@@ -56,7 +56,7 @@ public class SelectSwap : MonoBehaviour, ISelectHandler, IDeselectHandler, IPoin
             tweenTarget.localScale = Vector3.one; // スケールをリセット
     }
 
-    // Hovering with mouse should also move selection (so visuals match keyboard/gamepad)
+    // マウスホバーでも選択を移動させる（キーボード・ゲームパッドとビジュアルを合わせるため）
     public void OnPointerEnter(PointerEventData eventData)
     {
         if (!EventSystem.current || !_sel || !_sel.interactable) return; // インタラクト不可なら無視
@@ -75,7 +75,7 @@ public class SelectSwap : MonoBehaviour, ISelectHandler, IDeselectHandler, IPoin
         _scaleTween = tweenTarget
             .DOScale(target, dur)
             .SetEase(ease)
-            .SetUpdate(useUnscaledTime)            // <- works while paused
+            .SetUpdate(useUnscaledTime)            // <- ポーズ中も動作する
             .SetLink(gameObject, LinkBehaviour.KillOnDestroy);
     }
 

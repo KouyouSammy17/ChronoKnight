@@ -2,12 +2,11 @@
 using UnityEngine;
 
 /// <summary>
-/// Responsible for applying Turbo Mode scaling to combat animations. This decouples
-/// attack speed changes from TurboModeManager so that combat animation speed is
-/// managed by a dedicated combat manager script. When Turbo Mode is active it
-/// multiplies the attack speed buff on CombatController and the animation speed
-/// on PlayerAnimator by the Turbo compensation factor. When Turbo ends it
-/// restores both to their normal values.
+/// ターボモードのスケーリングを戦闘アニメーションに適用する役割を持つ。
+/// 攻撃速度の変更をTurboModeManagerから切り離し、専用の戦闘マネージャースクリプトで管理する。
+/// ターボモードがアクティブな間は、CombatControllerの攻撃速度バフと
+/// PlayerAnimatorのアニメーション速度にターボ補正係数を乗算する。
+/// ターボが終了すると、両方を通常の値に戻す。
 /// </summary>
 [RequireComponent(typeof(CombatController))]
 public class CombatTurboManager : MonoBehaviour
@@ -18,17 +17,17 @@ public class CombatTurboManager : MonoBehaviour
     private void Awake()
     {
         _combat = GetComponent<CombatController>();
-        // Try to get the PlayerAnimator from this GameObject or its children
+        // このGameObjectまたはその子からPlayerAnimatorを取得する
         _playerAnim = GetComponent<PlayerAnimator>() ?? GetComponentInChildren<PlayerAnimator>();
 
     }
 
     private void Update()
     {
-        // Determine the Turbo compensation factor.  When Turbo is inactive, comp = 1.
+        // ターボ補正係数を算出する。ターボが非アクティブなら comp = 1
         var turbo = TurboModeManager.Instance;
 
-        // Animator is UnscaledTime during Turbo, so we set REAL-TIME multipliers directly:
+        // ターボ中はアニメーターがUnscaledTimeを使うため、リアルタイム倍率を直接設定する：
         // ターボ中はリアルタイム倍率を適用し、非アクティブ時は1倍（通常速度）に戻す
         float comp = (turbo != null && turbo.IsActive) ? turbo.OtherAnimComp : 1f;
 
@@ -38,7 +37,7 @@ public class CombatTurboManager : MonoBehaviour
         bool inCombo = (_combat != null) && _combat.IsComboActive;
         if (!inCombo)
         {
-            // Locomotion/idle animations = 1.1x real-time
+            // 移動・アイドルアニメーション = リアルタイム1.1倍
             _playerAnim.SetAttackSpeed(comp);
         }
     }

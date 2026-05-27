@@ -20,19 +20,19 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
 
     // ───────────────────────────────────────────────────────────────────────────────
-    // ACTION MAP CONSTANTS (avoid string typos)
+    // アクションマップ定数（文字列の入力ミスを防ぐ）
     const string MAP_PLAYER = "Player"; // プレイヤー操作マップ名
     const string MAP_UI = "UI";         // UIナビゲーションマップ名
 
     [Header("Scene Names (3-scene flow)")]
     [SerializeField] private string _titleScene = "Title";       // タイトルシーン名
-    [SerializeField] private string _tutorialLevel = "Level_01"; // Tutorial Stage
+    [SerializeField] private string _tutorialLevel = "Level_01"; // チュートリアルステージ名
     [SerializeField] private string _level02 = "Level_02";       // タイムアタックステージ名
 
     [Header("Title UI")]
-    [SerializeField] private GameObject _titleFirstSelected;         // assign your Title button root
-    [SerializeField] private string _titleFirstSelectedTag = "FirstSelected"; // optional fallback
-    [SerializeField] private string _titleFirstSelectedName = "Btn_Title";    // optional fallback
+    [SerializeField] private GameObject _titleFirstSelected;         // タイトルの最初に選択するボタン
+    [SerializeField] private string _titleFirstSelectedTag = "FirstSelected"; // タグによるフォールバック検索
+    [SerializeField] private string _titleFirstSelectedName = "Btn_Title";    // 名前によるフォールバック検索
 
     [Header("Game Over")]
     [SerializeField] private float _gameOverDelay = 2f;  // ゲームオーバーUIを表示するまでの遅延時間（秒）
@@ -58,10 +58,10 @@ public class GameManager : MonoBehaviour
 
     [Header("Fall Respawn")]
     [SerializeField] private bool _enableFallCheck = true;          // 落下死判定を有効にするかどうか
-    [SerializeField] private float _fallKillY = -20f;               // when player.y < this → respawn
+    [SerializeField] private float _fallKillY = -20f;               // この高さより下に落ちたらリスポーンする
     [SerializeField] private int _fallDamage = 20;                  // 落下時に受けるダメージ量
-    [SerializeField] private float _respawnFreeze = 0.1f;           // short freeze before snap (sec, realtime)
-    [SerializeField] private float _respawnIFrames = 1.0f;          // optional: post-respawn grace (sec)
+    [SerializeField] private float _respawnFreeze = 0.1f;           // スポーン前の短い硬直時間（リアル秒）
+    [SerializeField] private float _respawnIFrames = 1.0f;          // リスポーン後の無敵時間（リアル秒）
     [SerializeField, Tooltip("Prevents double-triggering fall respawn in quick succession.")]
     private float _fallRearmDelay = 0.35f;                           // 連続落下リスポーンを防ぐ最小間隔
     private float _nextFallAllowedUnscaled = 0f;                    // 次に落下判定を受け付けるリアル時間
@@ -69,40 +69,40 @@ public class GameManager : MonoBehaviour
     [Header("Player Spawn")]
     [SerializeField] private PlayerMotor _playerPrefab; // プレイヤーが存在しない場合にスポーンするプレハブ
 
-    // NEW: reference to PauseMenu (assign in Inspector or auto-resolve)
+    // ポーズメニューへの参照（Inspectorで設定するか自動解決される）
     [SerializeField] private PauseMenu _pauseMenu;              // ポーズメニューへの参照
     [SerializeField] private float _pauseInputBuffer = 0.35f;  // ポーズ連続入力を防ぐバッファ時間
     [SerializeField] private bool _freezeTimeOnResults = true; // リザルト画面でtimeScale=0にするかどうか
 
     [Header("Tutorial Stage Flag")]
-    private TutorialClearUI_Anim _tutorialClearAnim; // drag if you want, else auto-find
-    [SerializeField] private bool _forceTutorialStage = false; // for testing
+    private TutorialClearUI_Anim _tutorialClearAnim; // Inspectorで設定するか自動検索する
+    [SerializeField] private bool _forceTutorialStage = false; // テスト用強制フラグ
 
     [Header("Result UI First Selected")]
-    [SerializeField] private GameObject _tutorialClearFirstSelected; // Restart button GO
-    [SerializeField] private GameObject _gameClearFirstSelected;     // (optional) Next/Restart on normal clear
-    [SerializeField] private GameObject _gameOverFirstSelected;      // (optional)
+    [SerializeField] private GameObject _tutorialClearFirstSelected; // リスタートボタン
+    [SerializeField] private GameObject _gameClearFirstSelected;     // 通常クリア時の最初に選択するボタン（任意）
+    [SerializeField] private GameObject _gameOverFirstSelected;      // ゲームオーバー時の最初に選択するボタン（任意）
 
     // チュートリアルステージ判定（強制フラグまたはシーン名で確認する）
     public bool IsTutorialStage => _forceTutorialStage || SceneManager.GetActiveScene().name == _tutorialLevel;
 
 
-    // HUD reveal is now owned by TutorialManager
+    // HUDの表示制御はTutorialManagerが担当する
 
     [Header("Debug")]
     [SerializeField] private bool _allowStartFromAnyScene = true; // エディタでどのシーンからでも開始できるようにする
 
     public GameState State { get; private set; } = GameState.Title; // 現在のゲーム状態
 
-    // runtime refs（実行時に解決される参照）
+    // 実行時に解決される参照
     private PlayerMotor _player;                        // 現在シーン上のプレイヤー
     private PlayerInput _playerInput;                   // プレイヤーのInputコンポーネント
-    private InputAction _pauseAction;                   // from Player map
-    private InputAction _cancelAction;                  // from UI map
+    private InputAction _pauseAction;                   // プレイヤーマップのPauseアクション
+    private InputAction _cancelAction;                  // UIマップのCancelアクション
     private bool _isRespawningFromFall = false;         // 落下リスポーン処理中かどうか
-    private Transform _spawnPoint;                      // Tag: Respawn
-    private MomentumGaugeUI _gauge;                     // auto-fetched from the Player
-    private Goal goal;                                  // set by Goal when player wins
+    private Transform _spawnPoint;                      // タグ「Respawn」で検索する初期スポーン地点
+    private MomentumGaugeUI _gauge;                     // プレイヤーから自動取得するゲージUI
+    private Goal goal;                                  // クリア時にGoalスクリプトが設定する
     private Transform _checkpoint;                      // 現在有効なチェックポイントの座標
     private CancellationTokenSource _gameOverCts;       // ゲームオーバー処理のキャンセルトークン
     private bool _gameOverSequenceRunning;              // ゲームオーバーシーケンス実行中フラグ
@@ -129,7 +129,7 @@ public class GameManager : MonoBehaviour
             Instance = this;
             DontDestroyOnLoad(gameObject);
             SceneManager.sceneLoaded += OnSceneLoaded; // シーン読み込み完了時のコールバックを登録
-            ResolvePauseMenu(); // try resolve at boot
+            ResolvePauseMenu(); // 起動時に解決を試みる
         }
         else
         {
@@ -161,7 +161,7 @@ public class GameManager : MonoBehaviour
         if (_player == null) return;
         if (_isRespawningFromFall) return;
 
-        // prevent spam triggers（連続落下トリガーを防ぐため時間チェックを行う）
+        // 連続落下トリガーを防ぐため時間チェックを行う
         if (Time.unscaledTime < _nextFallAllowedUnscaled) return;
 
         // プレイヤーがキルラインより下に落ちたらリスポーンを開始する
@@ -172,7 +172,7 @@ public class GameManager : MonoBehaviour
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
-    // Input callbacks (wired from WireInput)
+    // 入力コールバック（WireInputで登録される）
     public void OnPauseStarted(InputAction.CallbackContext ctx)
     {
         // プレイ中でなければポーズを受け付けない
@@ -187,33 +187,33 @@ public class GameManager : MonoBehaviour
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
-    // Public API
+    // 公開API
     public void LoadTitle()
     {
-        // Ensure we are not paused anymore
+        // ポーズ状態を確実に解除する
         Time.timeScale = 1f;
         _isPaused = false;
 
-        // Make sure pause UI is hidden
+        // ポーズメニューを確実に非表示にする
         ResolvePauseMenu();
-        _pauseMenu?.HideMenuInstant();   // instant, no tween
-        // Reset / hide gameplay-related UI (including tutorials)
+        _pauseMenu?.HideMenuInstant();   // トゥイーンなしで即時非表示
+        // ゲームプレイ関連のUI（チュートリアル含む）をリセット・非表示にする
         if (UIManager.Instance != null)
         {
-            UIManager.Instance.ResetAllUI();      // your existing global clean
+            UIManager.Instance.ResetAllUI();      // 既存の全体リセット処理
         }
 
-        // Do the actual scene transition (Feel loader etc.)
+        // Feelローダーを使ってシーン遷移する
         LoadWithFeel(_titleScene, GameState.Title);
 
-        // Cursor should be visible on title
+        // タイトル画面ではカーソルを表示する
         UpdateCursorState();
         CancelGameOverSequence();
     }
 
     public void StartNewGame()
     {
-        // make sure we start "clean"
+        // クリーンな状態で開始できるよう初期化する
         Time.timeScale = 1f;
         _isPaused = false;
 
@@ -225,10 +225,10 @@ public class GameManager : MonoBehaviour
         MomentumManager.Instance?.ResetAll();
         UIManager.Instance?.ResetAllUI();
 
-        // RESET ALL TUTORIALS (new game = fresh tutorial state)
+        // 新規ゲーム開始時はチュートリアルの進行状態をすべてリセットする
         TutorialProgress.ResetAll();
 
-        // load tutorial stage
+        // チュートリアルステージをロードする
         LoadWithFeel(_tutorialLevel, GameState.Playing);
 
         UpdateCursorState();
@@ -268,7 +268,7 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        // Level_02 or anything else -> back to title
+        // Level_02以降またはそれ以外はタイトルに戻る
         LoadTitle();
     }
 
@@ -280,19 +280,19 @@ public class GameManager : MonoBehaviour
         // 二重実行を防ぐフラグチェック
         if (_winRunning) return;
 
-        // lock immediately so we can't re-enter
+        // 二重実行を防ぐため即座にロックする
         _winRunning = true;
         State = GameState.Clear;
-        // remember the goal that triggered the win
+        // クリアをトリガーしたゴールを保持する
         this.goal = goal;
         // プレイヤーUIとモメンタムゲージを非表示にする
         UIManager.Instance?.ShowPlayerUI(false);
         _gauge?.TL_HideGauge();
 
-        // Stop the timer when goal is touched
+        // ゴール接触と同時にタイマーを止める
         TimeAttackManager.Instance?.StopRun();
 
-        // Goal-specific refs: fetch EVERY time (not only when null)
+        // ゴール固有の参照は毎回取得する（nullのときだけでなく）
         if (goal != null)
         {
             // ゴールオブジェクト配下からフェードとズームフィードバックを取得する
@@ -302,7 +302,7 @@ public class GameManager : MonoBehaviour
             _winZoomFeedback = tag != null ? tag.GetComponentInChildren<MMFeedbacks>(true) : null;
         }
 
-        // Scene-wide: fetch once（シーン全体からWinCinematicControllerを一度だけ探す）
+        // シーン全体からWinCinematicControllerを一度だけ探す
         if (_winCine == null)
         {
 #if UNITY_6000_0_OR_NEWER
@@ -336,20 +336,20 @@ public class GameManager : MonoBehaviour
                 brain.Motor?.SetFrozen(true);
             }
 
-            // camera zoom (goal-tagged)（ゴールに紐付いたカメラズームを再生する）
+            // ゴールに紐付いたカメラズームを再生する
             if (_winZoomFeedback != null)
             {
                 _winZoomFeedback.PlayFeedbacks();
             }
 
-            // win cinematic (turn + win anim)（振り返り回転と勝利アニメーションを再生する）
+            // 振り返り回転と勝利アニメーションを再生する
             if (_winCine != null && brain != null)
             {
                 Transform modelRoot = brain.Anim != null ? brain.Anim.transform : player.transform;
                 await _winCine.PlayWinCinematicAsync(brain, modelRoot, ct);
             }
 
-            // goal fade (optional)（ゴール地点のフェードアウト演出を再生する）
+            // ゴール地点のフェードアウト演出を再生する（任意）
             if (_teleFade != null)
             {
                 _teleFade.SetFadeParams(speed: 1.2f, rise: 0.25f, twist: 3.5f, spread: 0.7f);
@@ -382,13 +382,13 @@ public class GameManager : MonoBehaviour
                     UIManager.Instance?.ShowTutorialClearUI();
                     ResolveTutorialClearUI();
 
-                    int starsAchieved = 3;      // tutorial fixed
-                    bool toggleAchieved = true; // tutorial fixed
+                    int starsAchieved = 3;      // チュートリアルは固定値
+                    bool toggleAchieved = true; // チュートリアルは固定値
                     _tutorialClearAnim?.Show(starsAchieved, toggleAchieved);
                     return;
                 }
 
-                // Level_02 = Time Attack clear UI（タイムアタックのクリアUIを表示する）
+                // Level_02：タイムアタックのクリアUIを表示する
                 UIManager.Instance?.ShowGameClearUI();
 
                 if (IsTimeAttackStage)
@@ -403,16 +403,16 @@ public class GameManager : MonoBehaviour
                     bool[] checks = { reachedGoal, clear120, clear90 };
                     int stars = (reachedGoal ? 1 : 0) + (clear120 ? 1 : 0) + (clear90 ? 1 : 0);
 
-                    // compute stars/checks...
+                    // スター数とチェック項目を計算する
                     SaveTimeAttackResult(elapsed, stars); // ベスト記録を保存する
 
-                    // read best AFTER saving（保存後にベストタイムを読み込む）
+                    // 保存後にベストタイムを読み込む
                     float best = PlayerPrefs.GetFloat(TA_BEST_TIME_KEY, float.MaxValue);
 
-                    // update text（タイム表示UIを更新する）
+                    // タイム表示UIを更新する
                     _gameClearTimeText?.OnGameClearUIShown(elapsed, best);
 
-                    // animate checks/stars（星・チェックのアニメーションを再生する）
+                    // 星・チェックのアニメーションを再生する
                     _gameClearAnim?.Show(stars, checks);
                 }
             });
@@ -455,13 +455,13 @@ public class GameManager : MonoBehaviour
 
     private async UniTaskVoid GameOverSequenceAsync(CancellationToken ct)
     {
-        // Make sure turbo timescale doesn't make death feel weird
+        // ターボのtimeScaleが残ったまま死亡するとおかしくなるため確実にリセットする
         TurboModeManager.Instance?.ForceReset(clearCooldown: true);
 
-        // Lock player（プレイヤーの操作を無効にする）
+        // プレイヤーの操作を無効にする
         _player?.DisableInput();
 
-        // Stop sliding（リジッドボディの速度をゼロにして滑りを防ぐ）
+        // リジッドボディの速度をゼロにして滑りを防ぐ
         if (_player != null)
         {
             var rb = _player.GetRigidbody();
@@ -499,10 +499,10 @@ public class GameManager : MonoBehaviour
         var rb = _player.GetRigidbody();
         if (rb != null) rb.linearVelocity = Vector3.zero; // 速度をリセットする
 
-        // 2) make the new transform "real" for raycasts this frame
-        Physics.SyncTransforms(); // 物理エンジンにトランスフォームの変更を即時反映させる
+        // 物理エンジンにトランスフォームの変更を即時反映させる（このフレームのレイキャストに確実に当たるよう）
+        Physics.SyncTransforms();
 
-        // 3) use a respawn-aware reset (does not kill jump buffer, seeds coyote)
+        // リスポーン対応のリセット処理（ジャンプバッファを消さず、コヨーテタイムも引き継ぐ）
         _player.OnRespawnSnap();
 
         if (resetStats)
@@ -513,21 +513,21 @@ public class GameManager : MonoBehaviour
         }
 
 
-        // NEW: if Turbo is active when we fall, stop it and start cooldown
+        // 落下時にターボが動作中であれば停止してクールダウンを開始する
         var turbo = TurboModeManager.Instance;
         if (turbo != null && turbo.IsActive)
         {
-            turbo.StopTurbo();   // this will:
-                                 // - restore timeScale
-                                 // - set _onCooldown = true
-                                 // - start the cooldown timer
-                                 // - invoke onTurboEnd => TurboCooldownUI starts cooldown anim
+            turbo.StopTurbo();   // 以下を行う：
+                                 // - timeScaleを元に戻す
+                                 // - _onCooldown = true にする
+                                 // - クールダウンタイマーを開始する
+                                 // - onTurboEndを発火してTurboCooldownUIのアニメを開始する
         }
 
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
-    // Pause System (directly calls PauseMenu)
+    // ポーズシステム（PauseMenuを直接呼び出す）
     public void TogglePause()
     {
         // バッファ中またはプレイ中でなければポーズを切り替えない
@@ -548,7 +548,7 @@ public class GameManager : MonoBehaviour
     {
         if (_isPaused) return;
 
-        // Switch to UI BEFORE freezing time（timeScaleを0にする前にUIマップに切り替える）
+        // timeScaleを0にする前にUIマップに切り替える
         if (_playerInput != null && _playerInput.actions != null)
         {
             if (!_playerInput.enabled) _playerInput.enabled = true;
@@ -568,7 +568,7 @@ public class GameManager : MonoBehaviour
         _isPaused = true;
 
         ResolvePauseMenu();
-        _pauseMenu?.ShowMenu();  // <-- direct call
+        _pauseMenu?.ShowMenu();  // 直接呼び出す
         UpdateCursorState();
     }
 
@@ -596,12 +596,12 @@ public class GameManager : MonoBehaviour
         _isPaused = false;
 
         ResolvePauseMenu();
-        _pauseMenu?.HideMenu();  // <-- direct call
+        _pauseMenu?.HideMenu();  // 直接呼び出す
         UpdateCursorState();
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
-    // Reset Tutorial (UniTask)
+    // チュートリアルリセット（UniTask）
     public void ResetTutorial()
     {
         if (State != GameState.Playing || _player == null) return;
@@ -610,7 +610,7 @@ public class GameManager : MonoBehaviour
         _player.DisableInput();
         Animator anim = _player.GetComponentInChildren<Animator>();
         float cachedSpeed = anim?.speed ?? 1f;
-        if (anim) anim.speed = 0f; // アニメーターを止めてチュートリアルUI表示中に動かないようにする
+        if (anim) anim.speed = 0f; // チュートリアルUI表示中にプレイヤーが動かないようアニメーターを停止する
 
         TutorialProgress.ResetAll();
         UIManager.Instance?.ShowTutorial(TutorialKey.Move); // 最初のチュートリアルから再表示する
@@ -628,33 +628,33 @@ public class GameManager : MonoBehaviour
         if (anim) anim.speed = Mathf.Approximately(cachedSpeed, 0f) ? 1f : cachedSpeed;
     }
 
-    // Called by the Restart button on Tutorial Clear / Clear UI
+    // チュートリアルクリア・クリアUIのリスタートボタンから呼ばれる
     public void RestartFromClearUI()
     {
-        // Results often run at timeScale 0（リザルト中はtimeScale=0になっているので元に戻す）
+        // リザルト中はtimeScale=0になっているので元に戻す
         Time.timeScale = 1f;
         _isPaused = false;
 
-        // Hide pause UI if it exists
+        // ポーズメニューが表示されていれば即時非表示にする
         ResolvePauseMenu();
         _pauseMenu?.HideMenuInstant();
 
-        // Stop turbo/time effects
+        // ターボ・時間エフェクトを停止する
         TurboModeManager.Instance?.ForceReset(clearCooldown: true);
 
         // チュートリアルステージの場合はチュートリアル全体もリセットする
         if (IsTutorialStage)
         {
-            // This method already exists in your project (you call it elsewhere)
+            // このメソッドはプロジェクト内で既に定義されている
             TutorialManager.Instance?.ResetAllTutorialsAndRestart();
-            // NOTE: If that method itself reloads the scene, you can early return.
-            // If it doesn't reload, we continue and reload below.
+            // 注意：そのメソッド内でシーン再ロードされる場合は早期リターンしてよい。
+            // 再ロードされない場合はそのまま下の処理へ進む。
         }
 
-        // Clear UI state before reloading（シーン再ロード前にUIをすべてリセットする）
+        // シーン再ロード前にUIをすべてリセットする
         UIManager.Instance?.ResetAllUI();
 
-        // Reload current scene
+        // 現在のシーンを再ロードする
         string current = SceneManager.GetActiveScene().name;
         LoadWithFeel(current, GameState.Playing);
 
@@ -664,7 +664,7 @@ public class GameManager : MonoBehaviour
 
 
     // ───────────────────────────────────────────────────────────────────────────────
-    // FEEL scene loading wrapper
+    // Feelシーンロードのラッパー
     // 指定したシーン名がロード中シーン自体かどうかを判定する
     private bool IsLoadingScene(string sceneName)
     {
@@ -701,11 +701,11 @@ public class GameManager : MonoBehaviour
         }
 
         State = targetState;
-        ResolvePauseMenu(); // in case canvas lives across scenes
+        ResolvePauseMenu(); // キャンバスがシーンをまたいで残る場合に備えて解決する
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
-    // Scene hooks
+    // シーンフック
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         // ロード中シーン自体が読み込まれた場合はUIを非表示にして処理を抜ける
@@ -736,23 +736,23 @@ public class GameManager : MonoBehaviour
                 var cam = uiCamObj.GetComponent<Camera>();
                 UIManager.Instance?.SetUICamera(cam);
             }
-            // Hide first to avoid flicker (BeginGameplayAfterIntroAsync also hides, but this guarantees immediate off)
+            // チラつきを防ぐため先に非表示にする（BeginGameplayAfterIntroAsyncでも非表示にするが、ここで確実に即時オフにする）
             UIManager.Instance?.ShowPlayerUI(false);
             UIManager.Instance?.HideAllTutorials();
 
             _player?.GetComponent<PlayerStats>()?.ResetStats(); // プレイヤーのステータスをリセットする
 
-            // Ensure TutorialManager knows about scene refs
+            // TutorialManagerにシーン参照を確実に渡す
             TutorialManager.Instance?.ResolveSceneReferences();
 
-            // kick the unified flow (no signals needed) — owned by TutorialManager
+            // 統合フロー（シグナル不要）を開始する。TutorialManagerが管理する
             TutorialManager.Instance?.BeginGameplayAfterIntroAsync(this.GetCancellationTokenOnDestroy()).Forget();
         }
         else // Title
         {
             UIManager.Instance?.ShowPlayerUI(false);
             UIManager.Instance?.ShowTitleUI(true);
-            FocusTitleFirstSelectedNextFrame().Forget(); // 1フレーム後にタイトルボタンにフォーカスする
+            FocusTitleFirstSelectedNextFrame().Forget(); // タイトルUIが有効になった次のフレームでフォーカスする
         }
 
         ResolvePauseMenu();
@@ -791,7 +791,7 @@ public class GameManager : MonoBehaviour
 
         WireInput(); // 入力アクションとコールバックを紐付ける
 
-        // set default map on entry（シーン状態に応じてデフォルトの入力マップを設定する）
+        // シーン状態に応じてデフォルトの入力マップを設定する
         if (_playerInput != null && _playerInput.actions != null)
         {
             if (!_playerInput.enabled) _playerInput.enabled = true;
@@ -813,10 +813,10 @@ public class GameManager : MonoBehaviour
             _gauge = _player.GetComponentInChildren<MomentumGaugeUI>(true);
     }
 
-    // find PauseMenu singleton (inspector or auto)
+    // PauseMenuシングルトンを取得する（Inspectorまたは自動検索）
     private void ResolvePauseMenu()
     {
-        if (_pauseMenu != null) return; // すでに取得済みなら何もしない
+        if (_pauseMenu != null) return; // 既に取得済みなら何もしない
 
 #if UNITY_6000_0_OR_NEWER
         _pauseMenu = UnityEngine.Object.FindFirstObjectByType<PauseMenu>(FindObjectsInactive.Include);
@@ -872,7 +872,7 @@ public class GameManager : MonoBehaviour
 
     private void UpdateCursorState()
     {
-        // Visible on Title/Clear/GameOver OR while paused. Hidden during active gameplay.
+        // タイトル・クリア・ゲームオーバー中またはポーズ中は表示する。ゲームプレイ中は非表示にする
         bool show = _isPaused || State != GameState.Playing;
 
         Cursor.visible = show;
@@ -893,10 +893,10 @@ public class GameManager : MonoBehaviour
 
         _isRespawningFromFall = true;
 
-        // re-arm delay (so we can't double-trigger immediately)
+        // 再発動防止のインターバルを設定する（即座に二重トリガーされないようにする）
         _nextFallAllowedUnscaled = Time.unscaledTime + _fallRearmDelay;
 
-        // Cancel any previous fall routine（前回の落下処理が残っている場合はキャンセルする）
+        // 前回の落下処理が残っている場合はキャンセルする
         _fallRespawnCts?.Cancel();
         _fallRespawnCts?.Dispose();
         _fallRespawnCts = new CancellationTokenSource();
@@ -911,17 +911,17 @@ public class GameManager : MonoBehaviour
 
         try
         {
-            // Make sure we have a spawn point (prevents "didn't respawn" loops)
+            // スポーン地点を確保する（リスポーンされないループを防ぐ）
             EnsureSpawnPoint();
 
-            // Stop combat / queued stuff that can lock you（コンボをキャンセルしてロック状態を解除する）
+            // コンボをキャンセルしてロック状態を解除する
             combat?.CancelCombo();
 
-            // Block incoming damage during the sequence + shortly after（リスポーン中は無敵状態にする）
+            // リスポーンシーケンス中と直後は被ダメージを無効にする
             recv?.SetInvulnerable(true);
             stats?.ArmNoDamageFor(_respawnIFrames + 0.1f);
 
-            // Lock input + stop motion（操作を止め、リジッドボディを静止させる）
+            // 操作を止め、リジッドボディを静止させる
             player.DisableInput();
             if (rb != null)
             {
@@ -929,34 +929,33 @@ public class GameManager : MonoBehaviour
                 rb.angularVelocity = Vector3.zero;
             }
 
-            // Snap to spawn (your RespawnPlayer already calls OnRespawnSnap + stops Turbo)
-            RespawnPlayer(resetStats: false); // HPリセットなしでスポーン地点に瞬時移動する
+            // スポーン地点に瞬時移動する（RespawnPlayerがOnRespawnSnapとターボ停止を行う）
+            RespawnPlayer(resetStats: false); // HPリセットなしで移動する
 
             if (rb != null) rb.linearVelocity = Vector3.zero;
             Physics.SyncTransforms();
 
-            // Tiny freeze for feel（スポーン直後の短い硬直でフィードバックを演出する）
+            // スポーン直後の短い硬直でフィードバックを演出する
             if (_respawnFreeze > 0f)
             {
                 await UniTask.Delay(TimeSpan.FromSeconds(_respawnFreeze), DelayType.Realtime, PlayerLoopTiming.Update, ct);
                 if (ct.IsCancellationRequested) return;
             }
 
-            // Apply fall damage ONCE (skip hit react)（落下ダメージを一度だけ与える）
+            // 落下ダメージを一度だけ与える（ヒットリアクションはスキップ）
             if (stats != null && _fallDamage > 0)
             {
                 stats.TakeHazardDamage(_fallDamage, ignoreGates: true, triggerHitReact: false);
             }
 
-            // Force state machine back to locomotion (prevents "stuck can't jump/attack")
-            // ステートマシンを接地・空中ステートに強制遷移させて操作不能を防ぐ
+            // ステートマシンを接地・空中ステートに強制遷移させて操作不能（ジャンプ・攻撃できない状態）を防ぐ
             if (brain != null)
             {
                 var next = player.IsGrounded ? PlayerStateID.Grounded : PlayerStateID.Airborne;
                 brain.ChangeState(next, force: true);
             }
 
-            // Restore control（プレイヤーの操作を再開する）
+            // プレイヤーの操作を再開する
             player.EnableInput();
 
             // リスポーン後の無敵時間を設定する
@@ -998,7 +997,7 @@ public class GameManager : MonoBehaviour
         var spawnGo = GameObject.FindGameObjectWithTag("Respawn");
         _spawnPoint = spawnGo ? spawnGo.transform : null;
 
-        // If still missing, fall back to world origin so we don't loop under killY forever.
+        // それでも見つからない場合はワールド原点を仮の地点にしてkillY以下のループを防ぐ
         if (_spawnPoint == null)
         {
             Debug.LogWarning("[GameManager] Respawn tag not found. Falling back to (0,0,0).");
@@ -1011,19 +1010,18 @@ public class GameManager : MonoBehaviour
     // リザルト画面に移行する共通処理（状態設定・UI表示・入力マップ切替を行う）
     private void EnterResultMode(GameState newState, System.Action showUI)
     {
-        // state
+        // 状態を更新する
         State = newState;
 
-        // make sure we are not considered paused (and hide the pause menu instantly)
+        // ポーズ状態を解除してポーズメニューを即時非表示にする
         _isPaused = false;
         ResolvePauseMenu();
         _pauseMenu?.HideMenuInstant();
 
         TurboModeManager.Instance?.ForceReset(clearCooldown: true);
-        // lock gameplay（プレイヤーの操作を無効にする）
+        // プレイヤーの操作を無効にする
         _player?.DisableInput();
 
-        // put PlayerInput on UI map so Submit/Cancel/Navigate work on result screen
         // リザルト画面でUI操作を受け付けるようにUIマップに切り替える
         if (_playerInput != null && _playerInput.actions != null)
         {
@@ -1038,15 +1036,14 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // optionally freeze gameplay world (UI tweens should use SetUpdate(true))
-        // リザルト画面中はゲームワールドを停止する
+        // リザルト画面中はゲームワールドを停止する（UIのトゥイーンはSetUpdate(true)を使う必要がある）
         if (_freezeTimeOnResults) Time.timeScale = 0f;
 
 
-        // clear any leftover gameplay UI (tutorials, etc.)
+        // 残存するゲームプレイUI（チュートリアルなど）をすべてリセットする
         UIManager.Instance?.ResetAllUI();
 
-        // show the specific result UI（クリアまたはゲームオーバーのUIを表示する）
+        // クリアまたはゲームオーバーのUIを表示する
         showUI?.Invoke();
 
         // 表示するリザルト種別に応じて最初に選択するUI要素を決定する
@@ -1063,18 +1060,18 @@ public class GameManager : MonoBehaviour
 
         FocusUIFirstSelectedAsync(first, this.GetCancellationTokenOnDestroy()).Forget();
 
-        // show/unlock cursor for results（リザルト画面ではカーソルを表示する）
+        // リザルト画面ではカーソルを表示・アンロックする
         UpdateCursorState();
     }
 
     // 1フレーム待ってからタイトルUIの最初のボタンにフォーカスする
     private async UniTaskVoid FocusTitleFirstSelectedNextFrame()
     {
-        await UniTask.NextFrame(); // wait until Title UI is enabled
+        await UniTask.NextFrame(); // タイトルUIが有効になるまで待機する
 
         var target = _titleFirstSelected;
 
-        // optional fallbacks（Inspectorに未設定の場合はタグや名前で検索する）
+        // Inspectorに未設定の場合はタグや名前でフォールバック検索する
         if (target == null && !string.IsNullOrEmpty(_titleFirstSelectedTag))
             target = GameObject.FindGameObjectWithTag(_titleFirstSelectedTag);
         if (target == null && !string.IsNullOrEmpty(_titleFirstSelectedName))
@@ -1093,8 +1090,7 @@ public class GameManager : MonoBehaviour
     {
         if (target == null) return;
 
-        // Let UI enable, rebuild layout, and InputSystemUIInputModule settle
-        // UIが有効化されてレイアウトが確定するまで複数フレーム待機する
+        // UIが有効化されてレイアウトが確定し、InputSystemUIInputModuleが安定するまで複数フレーム待機する
         await UniTask.Yield(PlayerLoopTiming.PostLateUpdate, ct);
         await UniTask.NextFrame(ct);
         await UniTask.Yield(PlayerLoopTiming.PostLateUpdate, ct);
@@ -1103,7 +1099,7 @@ public class GameManager : MonoBehaviour
         if (EventSystem.current == null) return;
         if (!target.activeInHierarchy) return;
 
-        // Must be a Selectable (Button). If it's a child Text, selection won't show.
+        // Selectableコンポーネント（Button等）である必要がある。子のTextだと選択表示されない
         var sel = target.GetComponent<UnityEngine.UI.Selectable>();
         if (sel != null && !sel.IsInteractable()) return; // インタラクト不可ならフォーカスしない
 
@@ -1130,7 +1126,7 @@ public class GameManager : MonoBehaviour
         float best = PlayerPrefs.GetFloat(TA_BEST_TIME_KEY, float.MaxValue);
         int bestStars = PlayerPrefs.GetInt(TA_BEST_STARS_KEY, 0);
 
-        // Save better stars first, then time（より多くのスターを獲得した場合は無条件で更新する）
+        // より多くのスターを獲得した場合は無条件で更新し、同スターならタイムを比較する
         if (stars > bestStars)
         {
             PlayerPrefs.SetInt(TA_BEST_STARS_KEY, stars);

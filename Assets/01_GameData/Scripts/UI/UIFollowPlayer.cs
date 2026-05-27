@@ -13,7 +13,7 @@ public class UIFollowPlayer : MonoBehaviour
 
         Vector3 targetPos = _target.position + _offset; // オフセットを加算した目標位置を計算
         transform.position = Vector3.Lerp(transform.position, targetPos, _smoothSpeed * Time.deltaTime); // 現在位置から目標位置へ滑らかに移動
-        transform.rotation = Quaternion.LookRotation(Camera.main.transform.forward); // always face camera
+        transform.rotation = Quaternion.LookRotation(Camera.main.transform.forward); // 常にカメラ正面を向く
     }
 
     public void SetTarget(Transform newTarget)

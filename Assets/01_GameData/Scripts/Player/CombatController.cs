@@ -7,112 +7,112 @@ using System.Collections.Generic;
 using System.Threading;
 
 /// <summary>
-/// Manages player combat mechanics including ground combos, air attacks, dash attacks, and finishers.
-/// Handles attack buffering, momentum scaling, and turbo mode integration.
+/// プレイヤーの戦闘システム（地上コンボ・空中攻撃・ダッシュ攻撃・フィニッシャー）を管理する。
+/// 攻撃バッファリング、モメンタムスケーリング、ターボモード連携を担う。
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class CombatController : MonoBehaviour
 {
     /// <summary>
-    /// Defines a single step in a ground combo sequence with timing and damage properties.
+    /// 地上コンボシーケンスの1ステップを定義する構造体。タイミングとダメージのプロパティを持つ。
     /// </summary>
     [Serializable]
     public struct ComboStep
     {
-        /// <summary>Name identifier for this combo step</summary>
+        /// <summary>このコンボステップの識別名</summary>
         public string stepName; // コンボステップの識別名
-        /// <summary>Time window during which the next attack can be buffered</summary>
+        /// <summary>次の攻撃をバッファできる時間ウィンドウ</summary>
         public float inputWindow; // 次の攻撃をバッファできる時間ウィンドウ
-        /// <summary>Animation speed multiplier for this attack</summary>
+        /// <summary>このステップのアニメーション速度倍率</summary>
         public float speedMultiplier; // このステップのアニメーション速度倍率
-        /// <summary>Base damage dealt by this attack</summary>
+        /// <summary>この攻撃の基本ダメージ量</summary>
         public int damage; // この攻撃の基本ダメージ量
-        /// <summary>Momentum points gained from hitting with this attack</summary>
+        /// <summary>命中時に得られるモメンタムポイント</summary>
         public float momentumGain; // 命中時に得られるモメンタムポイント
-        /// <summary>Knockback force applied to enemies</summary>
+        /// <summary>敵に与えるノックバック力</summary>
         public float knockbackForce; // 敵に与えるノックバック力
     }
 
-    // ==================== SERIALIZED CONFIGURATION ====================
+    // ==================== シリアライズ設定 ====================
 
-    /// <summary>Sequence of attacks that form the ground combo chain</summary>
+    /// <summary>地上コンボチェーンを構成する攻撃ステップのリスト</summary>
     [Header("Ground Combo Definition")]
     [SerializeField] private List<ComboStep> _comboSteps = new List<ComboStep>(); // 地上コンボのステップ定義リスト
 
-    /// <summary>Speed and damage configuration for air attacks</summary>
+    /// <summary>空中攻撃の速度・ダメージ設定</summary>
     [Header("Air Attack (Single)")]
     [SerializeField] private float _airAttackSpeedMult = 1.0f; // 空中攻撃のアニメーション速度倍率
     [SerializeField] private int _airAttackDamage = 15; // 空中攻撃のダメージ量
     [SerializeField] private float _airAttackMomentum = 8f; // 空中攻撃命中時のモメンタム獲得量
     [SerializeField] private float _airAttackKnockback = 8f; // 空中攻撃のノックバック力
 
-    /// <summary>If enabled, limits air attacks to once per airtime (resets when landing)</summary>
+    /// <summary>有効にすると、空中攻撃を1回の滞空につき1回のみに制限する（着地でリセット）</summary>
     [Tooltip("If ON, you can only do 1 air attack per airtime (resets on landing).")]
     [SerializeField] private bool _airAttackOncePerAirtime = true; // 空中攻撃を一度の滞空中に1回のみ許可するフラグ
 
-    /// <summary>References to other player components (auto-assigned at runtime)</summary>
+    /// <summary>他のプレイヤーコンポーネントへの参照（実行時に自動アサイン）</summary>
     [Header("References (auto-assigned)")]
     [SerializeField] private PlayerMotor _motor; // プレイヤーの移動コンポーネント
     [SerializeField] private PlayerAnimator _playerAnim; // プレイヤーのアニメーター
     [SerializeField] private WeaponHitbox _weaponHitbox; // 武器のヒットボックス
 
-    /// <summary>Configuration for dash attack mechanics</summary>
+    /// <summary>ダッシュ攻撃の設定</summary>
     [Header("Dash Attack")]
     [SerializeField] private float _dashAttackSpeedMult = 1.0f; // ダッシュ攻撃のアニメーション速度倍率
     [SerializeField] private int _dashAttackDamage = 20; // ダッシュ攻撃のダメージ量
     [SerializeField] private float _dashAttackMomentum = 10f; // ダッシュ攻撃命中時のモメンタム獲得量
     [SerializeField] private float _dashAttackKnockback = 10f; // ダッシュ攻撃のノックバック力
 
-    /// <summary>Settings for the maximum momentum AOE finisher attack (4th hit)</summary>
+    /// <summary>モメンタム最大時のAOEフィニッシャー攻撃（4撃目）の設定</summary>
     [Header("Max Momentum 4th Hit (AOE Finisher)")]
     [SerializeField] private bool _enableMaxFinisher = true; // フィニッシャー攻撃を有効にするか
     [SerializeField] private float _finisherSpeedMult = 1.0f; // フィニッシャーのアニメーション速度倍率
     [SerializeField] private int _finisherDamage = 45; // フィニッシャーのダメージ量
     [SerializeField] private float _finisherMomentumGain = 0f; // フィニッシャー命中時のモメンタム獲得量（通常0）
     [SerializeField] private float _finisherKnockback = 14f; // フィニッシャーのノックバック力
-    /// <summary>Separate hitbox for AOE finisher effect (if null, uses weapon hitbox)</summary>
+    /// <summary>AOEフィニッシャー専用の別ヒットボックス（nullの場合は武器ヒットボックスを使用）</summary>
     [SerializeField] private WeaponHitbox _finisherHitbox; // AOEフィニッシャー専用ヒットボックス（nullなら武器ヒットボックスを使用）
 
-    // ==================== RUNTIME STATE ====================
+    // ==================== ランタイム状態 ====================
 
-    /// <summary>Current position in the combo sequence</summary>
+    /// <summary>コンボシーケンスの現在位置</summary>
     private int _comboIndex; // 現在のコンボステップのインデックス
-    /// <summary>Whether the combo window is open for buffering next attack</summary>
+    /// <summary>コンボウィンドウが開いており次の攻撃をバッファできる状態か</summary>
     private bool _canBuffer; // 次の攻撃をバッファできる状態か
-    /// <summary>Whether an attack input was buffered during combo window</summary>
+    /// <summary>コンボウィンドウ中に攻撃入力がバッファされたか</summary>
     private bool _bufferedAttack; // コンボウィンドウ中に攻撃入力がバッファされたか
 
-    /// <summary>Whether a dash attack is currently active</summary>
+    /// <summary>ダッシュ攻撃が現在実行中か</summary>
     private bool _dashAttackActive; // ダッシュ攻撃が実行中か
-    /// <summary>Whether an attack was buffered while dash attack was playing</summary>
+    /// <summary>ダッシュ攻撃の再生中に次の攻撃がバッファされたか</summary>
     private bool _dashAttackChainBuffered; // ダッシュ攻撃中に次の攻撃がバッファされたか
-    /// <summary>Whether current attack mode is dash attack</summary>
+    /// <summary>現在の攻撃モードがダッシュ攻撃か</summary>
     private bool _dashAttackMode; // 現在ダッシュ攻撃モードか
 
-    /// <summary>Whether current attack mode is air attack</summary>
+    /// <summary>現在の攻撃モードが空中攻撃か</summary>
     private bool _airAttackMode; // 現在空中攻撃モードか
 
-    /// <summary>Whether any attack sequence is currently active</summary>
+    /// <summary>何らかの攻撃シーケンスが現在実行中か</summary>
     private bool _isActive; // 何らかの攻撃シーケンスが進行中か
-    /// <summary>Damage multiplier applied to all attacks (from buffs/debuffs)</summary>
+    /// <summary>全攻撃に適用するダメージ倍率（バフ・デバフから算出）</summary>
     private float _damageMul = 1f; // 全攻撃に適用するダメージ倍率
-    /// <summary>Attack speed multiplier applied to animations</summary>
+    /// <summary>攻撃アニメーションに適用する速度バフ倍率</summary>
     private float _speedBuff = 1f; // 攻撃アニメーションの速度バフ倍率
-    /// <summary>Whether the finisher attack is currently playing</summary>
+    /// <summary>フィニッシャー攻撃が現在再生中か</summary>
     private bool _finisherMode; // フィニッシャー攻撃が実行中か
 
-    /// <summary>Cancellation token for async attack tasks</summary>
+    /// <summary>非同期攻撃タスクのキャンセルトークン</summary>
     private CancellationTokenSource _cts; // 非同期攻撃処理のキャンセルトークン
 
-    /// <summary>Gate to ensure only one air attack per airtime session</summary>
+    /// <summary>1回の滞空につき空中攻撃を1回に制限するゲートフラグ</summary>
     private bool _airAttackUsedThisAirtime; // 今回の滞空で空中攻撃を使用済みか
 
-    /// <summary>Whether the active combo is currently playing</summary>
+    /// <summary>現在コンボが実行中かどうか</summary>
     public bool IsComboActive => _isActive;
-    /// <summary>Whether a dash attack is currently executing</summary>
+    /// <summary>現在ダッシュ攻撃が実行中かどうか</summary>
     public bool IsDashAttackActive => _dashAttackActive;
 
-    /// <summary>Initializes component references from the player hierarchy</summary>
+    /// <summary>プレイヤー階層からコンポーネント参照を初期化する</summary>
     private void Awake()
     {
         _motor = _motor ?? GetComponent<PlayerMotor>(); // モーターを自動取得
@@ -121,8 +121,8 @@ public class CombatController : MonoBehaviour
     }
 
     /// <summary>
-    /// Input callback for attack command from input system.
-    /// Only responds to started input events.
+    /// 入力システムからの攻撃コマンドを受け取るコールバック。
+    /// started イベントにのみ反応する。
     /// </summary>
     public void OnAttack(InputAction.CallbackContext ctx)
     {
@@ -131,24 +131,24 @@ public class CombatController : MonoBehaviour
     }
 
     /// <summary>
-    /// Processes an attack request and initiates the appropriate attack type.
-    /// Handles buffering, dash attack chaining, and distinguishes between air/ground attacks.
+    /// 攻撃リクエストを処理し、適切な攻撃タイプを開始する。
+    /// バッファリング・ダッシュ攻撃の連携・空中/地上攻撃の判別を行う。
     /// </summary>
     public void RequestAttack()
     {
         if (_motor == null || _playerAnim == null) return;
 
-        // If dash attack is playing, allow "chain into ground combo" buffer
+        // ダッシュ攻撃の再生中は「地上コンボへの連携」バッファを許可する
         if (_dashAttackActive)
         {
             _dashAttackChainBuffered = true; // ダッシュ攻撃中のコンボ連携をバッファ
             return;
         }
 
-        // If something is already active:
+        // 既に何かが実行中の場合：
         if (_isActive)
         {
-            // IMPORTANT: air attack should NOT loop, so ignore buffering while air-attack mode
+            // 重要：空中攻撃はループしないため、空中攻撃モード中はバッファリングを無視する
             if (_canBuffer && !_airAttackMode)
                 _bufferedAttack = true; // ウィンドウ内なら次の攻撃をバッファ
 
@@ -157,7 +157,7 @@ public class CombatController : MonoBehaviour
 
         bool airborne = !_motor.IsGrounded; // 地上にいないなら空中判定
 
-        // ---------- AIR ATTACK (single) ----------
+        // ---------- 空中攻撃（シングル） ----------
         if (airborne)
         {
             if (_airAttackOncePerAirtime && _airAttackUsedThisAirtime)
@@ -169,32 +169,32 @@ public class CombatController : MonoBehaviour
             return;
         }
 
-        // ---------- GROUND COMBO ----------
+        // ---------- 地上コンボ ----------
         StartComboAsync().Forget(); // 地上コンボを開始
     }
 
-    /// <summary>Immediately cancels the current attack sequence</summary>
+    /// <summary>現在の攻撃シーケンスを即時キャンセルする</summary>
     public void CancelCombo()
     {
         _cts?.Cancel();
         _weaponHitbox?.DisableHitbox();
     }
 
-    /// <summary>Sets the damage multiplier for all subsequent attacks</summary>
+    /// <summary>以降の全攻撃に適用するダメージ倍率を設定する</summary>
     public void SetDamageMultiplier(float m) => _damageMul = m;
 
-    /// <summary>Sets the attack speed multiplier for animations</summary>
+    /// <summary>アニメーションに適用する攻撃速度倍率を設定する</summary>
     public void SetAttackSpeedBuff(float b) => _speedBuff = b;
 
     /// <summary>
-    /// Called when the attack animation opens its hitbox window.
-    /// Enables the appropriate hitbox based on current attack mode and applies multipliers.
+    /// 攻撃アニメーションがヒットボックスウィンドウを開いたときに呼ばれる。
+    /// 現在の攻撃モードに応じた適切なヒットボックスを有効化し、倍率を適用する。
     /// </summary>
     public void OnOpenComboWindow()
     {
         _canBuffer = true; // コンボウィンドウを開く（次の入力をバッファ可能にする）
 
-        // 0) FINISHER FIRST (AOE hitbox)
+        // 0) フィニッシャー優先（AOEヒットボックス）
         if (_finisherMode)
         {
             int dmg = Mathf.RoundToInt(_finisherDamage * _damageMul); // ダメージ倍率を適用
@@ -205,7 +205,7 @@ public class CombatController : MonoBehaviour
             return;
         }
 
-        // 1) Dash attack
+        // 1) ダッシュ攻撃
         if (_dashAttackMode)
         {
             int dmg = Mathf.RoundToInt(_dashAttackDamage * _damageMul); // ダッシュ攻撃のダメージを計算
@@ -214,7 +214,7 @@ public class CombatController : MonoBehaviour
             return;
         }
 
-        // 2) Air attack
+        // 2) 空中攻撃
         if (_airAttackMode)
         {
             int dmg = Mathf.RoundToInt(_airAttackDamage * _damageMul); // 空中攻撃のダメージを計算
@@ -223,7 +223,7 @@ public class CombatController : MonoBehaviour
             return;
         }
 
-        // 3) Ground combo
+        // 3) 地上コンボ
         if (_comboSteps == null || _comboSteps.Count == 0) return; // コンボステップが未定義なら何もしない
         if (_comboIndex < 0 || _comboIndex >= _comboSteps.Count) return; // インデックスが範囲外なら無視
 
@@ -237,8 +237,8 @@ public class CombatController : MonoBehaviour
     }
 
     /// <summary>
-    /// Called when the attack animation closes its hitbox window.
-    /// Disables all active hitboxes and finalizes buffering logic.
+    /// 攻撃アニメーションがヒットボックスウィンドウを閉じたときに呼ばれる。
+    /// 全アクティブなヒットボックスを無効化し、バッファリングを終了する。
     /// </summary>
     public void OnCloseComboWindow()
     {
@@ -248,8 +248,8 @@ public class CombatController : MonoBehaviour
     }
 
     /// <summary>
-    /// Computes the attack speed compensation factor based on turbo mode status.
-    /// Returns 1.5x multiplier during turbo, 1x otherwise.
+    /// ターボモードの状態に基づいて攻撃速度の補正係数を算出する。
+    /// ターボ中は1.5倍、通常時は1倍を返す。
     /// </summary>
     private float ComputeTurboAttackComp()
     {
@@ -257,18 +257,18 @@ public class CombatController : MonoBehaviour
         var turbo = TurboModeManager.Instance;
         if (turbo != null && turbo.IsActive)
         {
-            // Use attack compensation (playerSpeedMult) only so attacks are 1.5x, not multiplied by slow-mo cancel.
+            // 攻撃補正値（playerSpeedMult）のみ使用して攻撃を1.5倍にする。スロー打ち消しは含まない。
             turboAttack = turbo.AttackComp; // ターボ中は攻撃補正値を使用（スロー打ち消しは含まない）
         }
         return turboAttack;
     }
 
     // -----------------------
-    // AIR ATTACK (single)
+    // 空中攻撃（シングル）
     // -----------------------
     /// <summary>
-    /// Initiates a single air attack. Locks player control, applies root motion,
-    /// and prevents multiple air attacks per airtime (if configured).
+    /// 単発の空中攻撃を開始する。プレイヤーの操作をロックし、ルートモーションを適用し、
+    /// 設定に応じて1回の滞空につき1回のみ攻撃を許可する。
     /// </summary>
     private async UniTaskVoid StartAirAttackAsync()
     {
@@ -281,10 +281,10 @@ public class CombatController : MonoBehaviour
         _comboIndex = 0;
         _bufferedAttack = false;
 
-        // Lock control for the attack
+        // 攻撃中に操作をロック
         _motor.DisableInput(); // 攻撃中は入力をロック
 
-        // Stop carry-over drift (keep Y)
+        // キャリーオーバーの水平ドリフトを止める（Y軸は維持）
         var rb = _motor.GetRigidbody();
         if (rb != null)
             rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f); // 水平速度をリセット（Y軸は維持）
@@ -296,14 +296,14 @@ public class CombatController : MonoBehaviour
             float turboAttack = ComputeTurboAttackComp(); // ターボ補正を計算
             _playerAnim.SetAttackSpeed(_airAttackSpeedMult * _speedBuff * turboAttack); // アニメーション速度を設定
 
-            // IMPORTANT:
-            // We reuse TriggerAttack(0) (Attack1 trigger) but Animator chooses the AIR clip when IsGrounded=false.
+            // 重要：
+            // TriggerAttack(0)（Attack1トリガー）を再利用するが、IsGrounded=false のとき Animator が空中用クリップを選択する。
             _playerAnim.TriggerAttack(0); // 空中攻撃アニメーションを再生（Animatorが空中用クリップを選択）
 
             await UniTask.WaitUntil(() => _canBuffer, cancellationToken: token); // ヒットウィンドウが開くまで待機
             await UniTask.WaitUntil(() => !_canBuffer, cancellationToken: token); // ヒットウィンドウが閉じるまで待機
 
-            // No chaining. Ignore bufferedAttack.
+            // 連携なし。バッファされた攻撃入力を無視する。
         }
         catch (OperationCanceledException) { }
         finally
@@ -325,11 +325,11 @@ public class CombatController : MonoBehaviour
     }
 
     // -----------------------
-    // GROUND COMBO
+    // 地上コンボ
     // -----------------------
     /// <summary>
-    /// Starts the ground combo sequence. Loops through combo steps with input buffering
-    /// between each attack. Triggers finisher if maximum momentum is reached after the last hit.
+    /// 地上コンボシーケンスを開始する。各攻撃の間で入力バッファリングを行いながらコンボステップを繰り返す。
+    /// 最終ヒット後にモメンタムが最大値であればフィニッシャーを発動する。
     /// </summary>
     private async UniTaskVoid StartComboAsync()
     {
@@ -372,14 +372,14 @@ public class CombatController : MonoBehaviour
                 {
                     bool isLastNormalHit = (_comboIndex >= _comboSteps.Count - 1); // 最後の通常攻撃ステップか判定
 
-                    // If player tries to chain after Attack3
+                    // Attack3の後に連携しようとした場合
                     if (isLastNormalHit)
                     {
                         if (HasMaxMomentum())
                         {
-                            await PlayFinisherAsync(token); // 4th AOE hit モメンタム最大時にフィニッシャーを実行
+                            await PlayFinisherAsync(token); // 4撃目（AOE）モメンタム最大時にフィニッシャーを実行
                         }
-                        break; // combo ends after finisher attempt コンボ終了
+                        break; // フィニッシャー試行後にコンボ終了
                     }
 
                     _comboIndex++; // 次のコンボステップへ進む
@@ -407,14 +407,14 @@ public class CombatController : MonoBehaviour
     }
 
     /// <summary>
-    /// Plays the finisher attack (4th hit AOE) when maximum momentum is reached.
-    /// Waits for hitbox window before returning control.
+    /// モメンタム最大時にフィニッシャー攻撃（4撃目AOE）を再生する。
+    /// ヒットボックスウィンドウを待ってから制御を返す。
     /// </summary>
     private async UniTask PlayFinisherAsync(CancellationToken token)
     {
         _finisherMode = true; // フィニッシャーモードを有効化
 
-        // stop horizontal drift (keep Y)
+        // 水平ドリフトを止める（Y軸は維持）
         var rb = _motor.GetRigidbody();
         if (rb != null)
             rb.linearVelocity = new Vector3(0f, rb.linearVelocity.y, 0f); // 水平速度をリセット
@@ -422,7 +422,7 @@ public class CombatController : MonoBehaviour
         float turboAttack = ComputeTurboAttackComp(); // ターボ補正を計算
         _playerAnim.SetAttackSpeed(_finisherSpeedMult * _speedBuff * turboAttack); // フィニッシャー速度を設定
 
-        // Attack4 trigger
+        // Attack4トリガー
         _playerAnim.TriggerAttack(3); // 4撃目（フィニッシャー）アニメーションをトリガー
 
         await UniTask.WaitUntil(() => _canBuffer, cancellationToken: token); // AOEヒットウィンドウ開始まで待機
@@ -433,11 +433,11 @@ public class CombatController : MonoBehaviour
     }
 
     // -----------------------
-    // Dash Attack
+    // ダッシュ攻撃
     // -----------------------
     /// <summary>
-    /// Initiates a dash attack. Only executes if no other attack is active.
-    /// Applies root motion and locks player input during the attack.
+    /// ダッシュ攻撃を開始する。他の攻撃が実行中でない場合のみ実行される。
+    /// 攻撃中はルートモーションを適用し、プレイヤーの入力をロックする。
     /// </summary>
     public void StartDashAttack()
     {
@@ -457,8 +457,8 @@ public class CombatController : MonoBehaviour
     }
 
     /// <summary>
-    /// Called when the dash attack animation completes.
-    /// Re-enables player control and processes any buffered attack input.
+    /// ダッシュ攻撃アニメーションが完了したときに呼ばれる。
+    /// プレイヤーの操作を再開し、バッファされた攻撃入力を処理する。
     /// </summary>
     public void OnDashAttackEnd()
     {
@@ -479,7 +479,7 @@ public class CombatController : MonoBehaviour
     }
 
     /// <summary>
-    /// Restores animation speed to baseline state (accounting for turbo mode if active).
+    /// アニメーション速度をベースライン状態に戻す（ターボモードが有効な場合はそれを考慮する）。
     /// </summary>
     private void RestoreAnimBaseline()
     {
@@ -487,22 +487,22 @@ public class CombatController : MonoBehaviour
 
         var turbo = TurboModeManager.Instance;
         if (turbo != null && turbo.IsActive)
-            _playerAnim.RestoreBaselineSpeed();   // 1.1 during turbo ターボ中はベースライン速度（1.1倍）に戻す
+            _playerAnim.RestoreBaselineSpeed();   // ターボ中はベースライン速度（1.1倍）に戻す
         else
-            _playerAnim.SetAttackSpeed(1f);       // normal 通常時は等倍速度に戻す
+            _playerAnim.SetAttackSpeed(1f);       // 通常時は等倍速度に戻す
     }
 
-    /// <summary>Checks if the player currently has maximum momentum level</summary>
+    /// <summary>プレイヤーが現在モメンタム最大状態かどうかを確認する</summary>
     private bool HasMaxMomentum()
     {
         var mm = MomentumManager.Instance;
         return _enableMaxFinisher && mm != null && mm.CurrentState == MomentumState.Max; // フィニッシャーが有効かつモメンタムが最大状態か確認
     }
 
-    /// <summary>Resets the per-airtime air attack gate when player returns to ground</summary>
+    /// <summary>プレイヤーが地面に戻ったとき、1回の滞空あたりの空中攻撃制限をリセットする</summary>
     private void Update()
     {
-        // reset once-per-airtime gate when grounded again
+        // 着地時に「1回の滞空につき1回」のゲートをリセット
         if (_motor != null && _motor.IsGrounded)
             _airAttackUsedThisAirtime = false; // 着地時に空中攻撃の使用フラグをリセット
     }

@@ -13,8 +13,8 @@ public class MomentumTutorialUI : MonoBehaviour
 
     [Header("Slider Animation (stepped)")]
     [SerializeField] private float _segmentDuration = 0.6f;      // 0→25, 25→50 etc   // 各区間のアニメーション時間
-    [SerializeField] private float _segmentPauseTime = 0.3f;     // small stop at 25,50,75 // 各段階で一時停止する時間
-    [SerializeField] private float _holdAtMaxSliderTime = 1.0f;  // wait at 100 before restart // 最大値で待機する時間
+    [SerializeField] private float _segmentPauseTime = 0.3f;     // 25、50、75%で短く一時停止する時間
+    [SerializeField] private float _holdAtMaxSliderTime = 1.0f;  // 100%到達後、再スタート前に待機する時間
     [SerializeField] private bool _useUnscaledTime = true;       // ポーズ中でもアニメーションを継続するか
 
     [Header("Value Display")]
@@ -26,7 +26,7 @@ public class MomentumTutorialUI : MonoBehaviour
     [System.Serializable]
     public class PopupEntry
     {
-        public RectTransform root;   // parent (icon + text)    // ポップアップの親オブジェクト
+        public RectTransform root;   // ポップアップの親オブジェクト（アイコン＋テキスト）
         public CanvasGroup canvasGroup;                         // フェード制御用キャンバスグループ
 
         [HideInInspector] public Vector2 startPos;      // 初期アンカー位置を保存
@@ -151,13 +151,13 @@ public class MomentumTutorialUI : MonoBehaviour
 
         // 75 → 100
         _loopSequence.Append(CreateSegmentTween(100f));
-        _loopSequence.AppendInterval(_holdAtMaxSliderTime); // stay at max
+        _loopSequence.AppendInterval(_holdAtMaxSliderTime); // 最大値で待機
 
         _loopSequence.SetLoops(-1, LoopType.Restart);   // 無限ループ設定
         _loopSequence.OnStepComplete(OnLoopStepComplete);
 
         if (_useUnscaledTime)
-            _loopSequence.SetUpdate(true);  // Time.timeScale = 0 でも動作させる
+            _loopSequence.SetUpdate(true);  // Time.timeScale = 0 でも正常に動作させる
     }
 
     private Tween CreateSegmentTween(float targetPercent)
@@ -182,7 +182,7 @@ public class MomentumTutorialUI : MonoBehaviour
 
     private void OnLoopStepComplete()
     {
-        // Called after 0→25→50→75→100 + pauses + hold-at-max finishes
+        // 0→25→50→75→100 + 一時停止 + 最大値待機の1サイクル完了後に呼ばれる
         ResetTierFlags();   // 次のループのためにフラグをリセット
 
         _momentumSlider.value = 0f;
@@ -238,10 +238,10 @@ public class MomentumTutorialUI : MonoBehaviour
         {
             flag = true;
 
-            // buff popups
+            // バフポップアップを表示
             PlayTier(tier);         // バフポップアップを表示
 
-            // NEW: gauge effects
+            // ゲージエフェクトを再生
             PlayGaugeFxForThreshold(threshold); // ゲージエフェクトを再生
         }
     }
@@ -266,7 +266,7 @@ public class MomentumTutorialUI : MonoBehaviour
 
         var seq = DOTween.Sequence();
 
-        // entries are appended → play one by one
+        // エントリーを順番に追加して1つずつ再生
         foreach (var e in tier.entries)
         {
             if (e == null || e.root == null) continue;
@@ -293,7 +293,7 @@ public class MomentumTutorialUI : MonoBehaviour
                 e.canvasGroup.alpha = 0f;   // 透明から開始
         });
 
-        // POP
+        // ポップ（出現）
         if (e.canvasGroup != null)
             s.Append(e.canvasGroup.DOFade(1f, _popupPopTime)); // フェードイン
         else
@@ -303,7 +303,7 @@ public class MomentumTutorialUI : MonoBehaviour
             .DOScale(e.startScale * _popupPopScale, _popupPopTime)
             .SetEase(Ease.OutBack));    // 弾けるようなスケールアップ
 
-        // RISE
+        // 浮上
         s.Append(e.root
             .DOAnchorPos(e.startPos + Vector2.up * _popupRiseDistance, _popupRiseTime)
             .SetEase(Ease.OutQuad));    // 上方向へ浮上
@@ -311,10 +311,10 @@ public class MomentumTutorialUI : MonoBehaviour
             .DOScale(e.startScale, _popupRiseTime)
             .SetEase(Ease.OutQuad));    // 標準スケールに戻す
 
-        // HOLD
+        // 維持
         s.AppendInterval(_popupHoldTime);   // 表示を維持
 
-        // FADE OUT
+        // フェードアウト
         if (e.canvasGroup != null)
             s.Append(e.canvasGroup.DOFade(0f, _popupFadeOutTime));  // フェードアウト
         else
@@ -347,7 +347,7 @@ public class MomentumTutorialUI : MonoBehaviour
 
     private void PlayGaugeFxForThreshold(float threshold)
     {
-        // choose which MMF_Player to fire
+        // 閾値に応じて再生するMMF_Playerを選択
         if (Mathf.Approximately(threshold, 25f))
         {
             _tier25GaugeFx?.StopFeedbacks();

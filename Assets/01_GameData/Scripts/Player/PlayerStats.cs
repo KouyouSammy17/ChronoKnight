@@ -2,84 +2,84 @@
 using UnityEngine;
 using UnityEngine.Events;
 
-/// <summary>Custom UnityEvent for integer value changes</summary>
+/// <summary>整数値の変化を通知するカスタムUnityEvent</summary>
 [System.Serializable] public class IntEvent : UnityEvent<int> { }
 
 /// <summary>
-/// Manages player health and stamina stats.
-/// Handles damage intake with gate checking, stamina regeneration, and damage events.
-/// Integrates with momentum system and hit reaction triggers.
+/// プレイヤーのHP・スタミナのステータスを管理する。
+/// ゲートチェック付きのダメージ受け取り・スタミナ回復・ダメージイベントを処理する。
+/// モメンタムシステムとヒットリアクショントリガーと連携する。
 /// </summary>
 public class PlayerStats : MonoBehaviour
 {
-    /// <summary>Maximum health points the player can have</summary>
+    /// <summary>プレイヤーが持てる最大HP</summary>
     [Header("Health Settings")]
     [SerializeField] private int _maxHP = 100; // HPの最大値
-    /// <summary>Starting health for new scenes/levels</summary>
+    /// <summary>新しいシーン/レベル開始時の初期HP</summary>
     [SerializeField] private int _startingHP = 100; // シーン開始時の初期HP
 
-    /// <summary>Maximum stamina points the player can have</summary>
+    /// <summary>プレイヤーが持てる最大スタミナ</summary>
     [Header("Stamina Settings")]
     [SerializeField] private int _maxStamina = 100; // スタミナの最大値
-    /// <summary>Starting stamina for new scenes/levels</summary>
+    /// <summary>新しいシーン/レベル開始時の初期スタミナ</summary>
     [SerializeField] private int _startingStamina = 100; // シーン開始時の初期スタミナ
-    /// <summary>Stamina regeneration rate in points per second</summary>
+    /// <summary>スタミナの回復量（毎秒）</summary>
     [SerializeField] private float _staminaRegenRate = 10f; // スタミナの毎秒回復量
 
-    /// <summary>Event fired when health changes (passes new HP value)</summary>
+    /// <summary>HP変化時に発火するイベント（新しいHP値を渡す）</summary>
     public IntEvent onHealthChanged; // HP変化時に発火するイベント（新しいHP値を渡す）
-    /// <summary>Event fired when stamina changes (passes new stamina value)</summary>
+    /// <summary>スタミナ変化時に発火するイベント（新しいスタミナ値を渡す）</summary>
     public IntEvent onStaminaChanged; // スタミナ変化時に発火するイベント
 
-    /// <summary>Current health points</summary>
+    /// <summary>現在のHP</summary>
     private int _currentHP; // 現在のHP
-    /// <summary>Current stamina points</summary>
+    /// <summary>現在のスタミナ</summary>
     private int _currentStamina; // 現在のスタミナ
-    /// <summary>Accumulator for smooth stamina regeneration</summary>
+    /// <summary>スムーズなスタミナ回復のためのアキュムレータ</summary>
     private float _staminaRegenAccumulator; // スタミナ回復の端数蓄積用アキュムレータ
 
-    /// <summary>Unscaled time until which damage is blocked (no-damage immunity window)</summary>
+    /// <summary>ダメージがブロックされる終了時刻（UnscaledTime基準のノーダメージ免疫期間）</summary>
     private float _noDamageUntilTime; // ノーダメージ免疫期間の終了時刻（UnscaledTime基準）
 
-    /// <summary>Current health points</summary>
+    /// <summary>現在のHP</summary>
     public int CurrentHP => _currentHP;
-    /// <summary>Maximum health points</summary>
+    /// <summary>最大HP</summary>
     public int MaxHP => _maxHP;
-    /// <summary>Current stamina points</summary>
+    /// <summary>現在のスタミナ</summary>
     public int CurrentStamina => _currentStamina;
-    /// <summary>Maximum stamina points</summary>
+    /// <summary>最大スタミナ</summary>
     public int MaxStamina => _maxStamina;
 
-    /// <summary>Initializes events and resets stats to starting values</summary>
+    /// <summary>イベントを初期化し、ステータスを開始値にリセットする</summary>
     private void Awake()
     {
-        // make sure events exist
+        // イベントが未初期化なら生成
         onHealthChanged ??= new IntEvent(); // イベントが未初期化なら生成
         onStaminaChanged ??= new IntEvent(); // イベントが未初期化なら生成
         ResetStats(); // ステータスを初期値にリセット
     }
 
-    /// <summary>Updates stamina regeneration each frame</summary>
+    /// <summary>毎フレームスタミナ回復を更新する</summary>
     private void Update()
     {
         RegenerateStamina();
     }
 
     /// <summary>
-    /// Creates a temporary no-damage immunity window.
-    /// Uses unscaled time, so it works during pauses and other time manipulations.
+    /// 一時的なノーダメージ免疫期間を設定する。
+    /// UnscaledTimeを使用するため、ポーズ中やその他のTime操作中でも正常に動作する。
     /// </summary>
-    /// <param name="seconds">Duration of immunity in seconds</param>
+    /// <param name="seconds">免疫期間の秒数</param>
     public void ArmNoDamageFor(float seconds)
     {
         _noDamageUntilTime = Mathf.Max(_noDamageUntilTime, Time.unscaledTime + Mathf.Max(0f, seconds));
     }
 
     /// <summary>
-    /// Simple damage intake (hazard-like damage that triggers default hit reaction).
+    /// シンプルなダメージ受け取り（ハザード系のダメージ。デフォルトのヒットリアクションを発動する）。
     /// </summary>
-    /// <param name="amount">Damage amount to subtract from HP</param>
-    /// <returns>True if damage was applied, false if blocked by gates</returns>
+    /// <param name="amount">HPから差し引くダメージ量</param>
+    /// <returns>ダメージが適用された場合はtrue、ゲートによりブロックされた場合はfalse</returns>
     public bool TakeDamage(int amount)
     {
         return TakeDamageInternal(amount, sourceWorldPos: null, extraKnockback: 0f,
@@ -87,14 +87,14 @@ public class PlayerStats : MonoBehaviour
     }
 
     /// <summary>
-    /// Damage from enemies with knockback and directional information.
+    /// ノックバックと方向情報を伴う敵からのダメージ。
     /// </summary>
-    /// <param name="amount">Damage amount</param>
-    /// <param name="sourceWorldPos">World position of the attacker (for knockback direction)</param>
-    /// <param name="extraKnockback">Additional knockback force modifier</param>
-    /// <param name="ignoreGates">Whether to bypass invulnerability/no-damage gates</param>
-    /// <param name="triggerHitReact">Whether to play hit reaction animation</param>
-    /// <returns>True if damage was applied</returns>
+    /// <param name="amount">ダメージ量</param>
+    /// <param name="sourceWorldPos">攻撃者のワールド座標（ノックバック方向の計算に使用）</param>
+    /// <param name="extraKnockback">追加のノックバック力修飾子</param>
+    /// <param name="ignoreGates">無敵/ノーダメージゲートを無視するか</param>
+    /// <param name="triggerHitReact">ヒットリアクションアニメーションを再生するか</param>
+    /// <returns>ダメージが適用された場合はtrue</returns>
     public bool TakeEnemyDamage(int amount, Vector3 sourceWorldPos, float extraKnockback = 0f,
                             bool ignoreGates = false, bool triggerHitReact = true)
     {
@@ -102,21 +102,21 @@ public class PlayerStats : MonoBehaviour
     }
 
     /// <summary>
-    /// Damage from environmental hazards (typically no knockback or rotation).
+    /// 環境ハザードからのダメージ（通常はノックバックや回転なし）。
     /// </summary>
-    /// <param name="amount">Damage amount</param>
-    /// <param name="ignoreGates">Whether to bypass damage gates</param>
-    /// <param name="triggerHitReact">Whether to play hit reaction (usually false for hazards)</param>
-    /// <returns>True if damage was applied</returns>
+    /// <param name="amount">ダメージ量</param>
+    /// <param name="ignoreGates">ダメージゲートを無視するか</param>
+    /// <param name="triggerHitReact">ヒットリアクションを再生するか（ハザードでは通常false）</param>
+    /// <returns>ダメージが適用された場合はtrue</returns>
     public bool TakeHazardDamage(int amount, bool ignoreGates = false, bool triggerHitReact = false)
     {
-        // hazards typically shouldn't rotate/knockback; keep triggerHitReact false by default
+        // ハザードは通常回転・ノックバックしない。triggerHitReactのデフォルトはfalse
         return TakeDamageInternal(amount, sourceWorldPos: null, extraKnockback: 0f, ignoreGates, triggerHitReact);
     }
 
     /// <summary>
-    /// Internal damage processing with full gate checking and momentum integration.
-    /// Applies damage, momentum penalties, and triggers hit reactions.
+    /// 全ゲートチェックとモメンタム連携を含む内部ダメージ処理。
+    /// ダメージの適用・モメンタムペナルティ・ヒットリアクションのトリガーを行う。
     /// </summary>
     private bool TakeDamageInternal(int amount, Vector3? sourceWorldPos, float extraKnockback,
                                   bool ignoreGates, bool triggerHitReact)
@@ -134,7 +134,7 @@ public class PlayerStats : MonoBehaviour
         _currentHP = Mathf.Max(_currentHP - amount, 0); // HPをダメージ分減算（最低0まで）
         onHealthChanged?.Invoke(_currentHP); // HP変化イベントを発火
 
-        // Damage penalty to momentum system
+        // モメンタムシステムへのダメージペナルティ
         MomentumManager.Instance?.AddMomentum(-20f); // ダメージによるモメンタムペナルティ
         MomentumManager.Instance?.BreakMaxLock(); // モメンタム最大ロックを解除
         GetComponent<MomentumBuffsManager>()?.RemoveMaxBuffIfActive(); // 最大バフをアクティブなら除去
@@ -147,10 +147,10 @@ public class PlayerStats : MonoBehaviour
     }
 
     /// <summary>
-    /// Attempts to spend stamina for actions like dashing.
+    /// ダッシュなどのアクションのためにスタミナを消費しようとする。
     /// </summary>
-    /// <param name="cost">Amount of stamina to consume</param>
-    /// <returns>True if stamina was available and spent, false if insufficient</returns>
+    /// <param name="cost">消費するスタミナ量</param>
+    /// <returns>スタミナが足りて消費できた場合はtrue、不足の場合はfalse</returns>
     public bool SpendStamina(int cost)
     {
         if (cost <= 0) return true;
@@ -161,8 +161,8 @@ public class PlayerStats : MonoBehaviour
     }
 
     /// <summary>
-    /// Regenerates stamina each frame based on configured regen rate.
-    /// Uses accumulator for smooth, frame-rate independent regeneration.
+    /// 設定された回復量に基づいて毎フレームスタミナを回復する。
+    /// アキュムレータを使用してフレームレートに依存しないスムーズな回復を実現する。
     /// </summary>
     private void RegenerateStamina()
     {
@@ -184,9 +184,9 @@ public class PlayerStats : MonoBehaviour
     }
 
     /// <summary>
-    /// Resets health and stamina to starting values.
-    /// Call this when loading a scene or restarting a level.
-    /// Clears immunity gates and triggers update events.
+    /// HPとスタミナを開始値にリセットする。
+    /// シーン読み込み時またはレベル再起動時に呼び出す。
+    /// 免疫ゲートをクリアして更新イベントを発火する。
     /// </summary>
     public void ResetStats()
     {
@@ -198,7 +198,7 @@ public class PlayerStats : MonoBehaviour
         onStaminaChanged?.Invoke(_currentStamina);
     }
 
-    /// <summary>Triggers game over sequence when HP reaches zero</summary>
+    /// <summary>HPがゼロになったときにゲームオーバーシーケンスを発動する</summary>
     private void Die()
     {
         GameManager.Instance.GameOver();

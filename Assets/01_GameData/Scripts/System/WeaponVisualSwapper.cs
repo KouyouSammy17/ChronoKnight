@@ -24,13 +24,13 @@ public class WeaponVisualSwapper : MonoBehaviour
         if (_swordInHand) _swordInHand.SetActive(drawn);      // 抜刀中は手持ちの剣を表示
     }
 
-    // Animation Event（アニメーションイベントから呼ばれる：抜刀の瞬間に剣を切り替える）
+    // アニメーションイベントから呼ばれる：抜刀の瞬間に剣を切り替える
     public void AnimEvent_UnsheathSwap()
     {
         SetDrawn(true);
     }
 
-    // Animation Event（アニメーションイベントから呼ばれる：収刀の瞬間に剣を切り替える）
+    // アニメーションイベントから呼ばれる：収刀の瞬間に剣を切り替える
     public void AnimEvent_SheathSwap()
     {
         SetDrawn(false);

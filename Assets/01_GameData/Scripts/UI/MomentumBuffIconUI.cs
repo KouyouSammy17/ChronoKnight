@@ -10,9 +10,9 @@ public class MomentumBuffIconUI : MonoBehaviour
     public class IconEntry
     {
         public MomentumState state;     // Tier1/Tier2/Tier3/Max
-        public GameObject root;         // icon GameObject
-        public CanvasGroup group;       // for fade
-        public RectTransform rect;      // for pop scale
+        public GameObject root;         // アイコンのGameObject
+        public CanvasGroup group;       // フェード用CanvasGroup
+        public RectTransform rect;      // ポップスケール用RectTransform
 
         [HideInInspector] public Vector3 baseScale; // アイコンの基準スケール
         [HideInInspector] public bool isOn;         // 現在の表示状態
@@ -23,7 +23,7 @@ public class MomentumBuffIconUI : MonoBehaviour
     [SerializeField] private IconEntry[] _icons; // 各ティアに対応するアイコンエントリ一覧
 
     [Header("Behavior")]
-    [SerializeField] private bool _showAllUnlockedBelowMax = true; // Tier3 also shows Tier1/2 etc.
+    [SerializeField] private bool _showAllUnlockedBelowMax = true; // Tier3の場合はTier1/2なども表示する
     [SerializeField] private bool _animateWhilePaused = true;      // ポーズ中もアニメーションするか
 
     [Header("Anim (snappy recommended)")]
@@ -69,7 +69,7 @@ public class MomentumBuffIconUI : MonoBehaviour
 
         if (_bound && MomentumManager.Instance != null)
         {
-            // NEW: listen to state changes (no spam, instant timing)
+            // 状態変化イベントのリスナーを解除する（スパムなし・即時反映）
             MomentumManager.Instance.onStateChanged.RemoveListener(OnStateChanged); // イベントリスナーを解除
         }
 
@@ -87,11 +87,11 @@ public class MomentumBuffIconUI : MonoBehaviour
         await UniTask.WaitUntil(() => MomentumManager.Instance != null, cancellationToken: token); // MomentumManagerの準備を待機
         if (token.IsCancellationRequested) return;
 
-        // NEW: subscribe to state change event
+        // 状態変化イベントを購読する
         MomentumManager.Instance.onStateChanged.AddListener(OnStateChanged); // 状態変化イベントを購読
         _bound = true;
 
-        // force refresh immediately
+        // 即座に強制更新する
         ApplyState(MomentumManager.Instance.CurrentState); // バインド直後に現在の状態を反映
     }
 

@@ -13,13 +13,13 @@ public class SquareTextButtonAnimator :
     IDeselectHandler,
     ISubmitHandler
 {
-    [Header("References")]
-    [SerializeField] private RectTransform _root;     // button root (scale)
-    [SerializeField] private RectTransform _text;     // TMP text rect (optional)
+    [Header("参照")]
+    [SerializeField] private RectTransform _root;     // ボタンルート（スケール対象）
+    [SerializeField] private RectTransform _text;     // TMPテキストのRect（任意）
     [SerializeField] private CanvasGroup _canvasGroup; // 透明度制御用CanvasGroup
 
-    [Header("Time")]
-    [SerializeField] private bool _ignoreTimeScale = true; //  unscaled time for DOTween
+    [Header("時間設定")]
+    [SerializeField] private bool _ignoreTimeScale = true; // DOTweenで非スケール時間を使用する
 
     [Header("Scale")]
     [SerializeField] private float _hoverScale = 1.08f;  // ホバー時のスケール
@@ -52,10 +52,10 @@ public class SquareTextButtonAnimator :
         if (_canvasGroup == null) _canvasGroup = gameObject.AddComponent<CanvasGroup>(); // なければ追加
     }
 
-    private Tween U(Tween t) => t.SetUpdate(_ignoreTimeScale); // helper
+    private Tween U(Tween t) => t.SetUpdate(_ignoreTimeScale); // ヘルパー：非スケール時間を設定する
 
     // ─────────────────────────────────────────────
-    // Public API
+    // 公開API
     // ─────────────────────────────────────────────
 
     public void SetInteractable(bool value)
@@ -78,7 +78,7 @@ public class SquareTextButtonAnimator :
     }
 
     // ─────────────────────────────────────────────
-    // Hover / Select
+    // ホバー / 選択
     // ─────────────────────────────────────────────
 
     public void OnPointerEnter(PointerEventData eventData)
@@ -118,7 +118,7 @@ public class SquareTextButtonAnimator :
     }
 
     // ─────────────────────────────────────────────
-    // Press / Submit
+    // プレス / 決定
     // ─────────────────────────────────────────────
 
     public void OnPointerDown(PointerEventData eventData)

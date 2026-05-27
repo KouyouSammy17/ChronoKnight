@@ -8,10 +8,10 @@ using MoreMountains.Tools;   // ← FEEL ProgressBar
 public class UIPlayerBars : MonoBehaviour
 {
     [Header("HP (FEEL MMProgressBar)")]
-    [SerializeField] private MMProgressBar _hpBar;      // real HP bar
+    [SerializeField] private MMProgressBar _hpBar;      // 実際のHPバー
 
     [Header("Intro HP Slider (only for animation)")]
-    [SerializeField] private Slider _hpIntroSlider;     // overlay HP slider just for intro
+    [SerializeField] private Slider _hpIntroSlider;     // イントロ専用のオーバーレイHPスライダー
     [SerializeField] private float _hpIntroDuration = 0.4f; // HPイントロアニメーションの時間
 
     [Header("Stamina (Simple Slider)")]
@@ -46,7 +46,7 @@ public class UIPlayerBars : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // When scene is reloaded / changed, player instance may change → rebind
+        // シーンがリロード・変更された場合、プレイヤーインスタンスが変わる可能性があるため再バインドする
         BindToStats();
     }
 
@@ -55,14 +55,14 @@ public class UIPlayerBars : MonoBehaviour
     {
         Unsubscribe(); // 既存のバインドを解除してから再接続
 
-        // find current PlayerStats in the scene
+        // シーン内の現在のPlayerStatsを検索する
         _stats = Object.FindFirstObjectByType<PlayerStats>();
         if (_stats == null) return; // PlayerStatsが見つからなければ何もしない
 
-        // initialize UI to current values (or 0 if using intro)
+        // UIを現在値（またはイントロ使用時は0）で初期化する
         InitBars();
 
-        // subscribe to events
+        // イベントを購読する
         _stats.onHealthChanged.AddListener(UpdateHP);
         _stats.onStaminaChanged.AddListener(UpdateStamina);
     }
@@ -80,27 +80,27 @@ public class UIPlayerBars : MonoBehaviour
     {
         if (_stats == null) return;
 
-        // ── HP (real MMProgressBar) ───────────────────────────────────
+        // ── HP（実際のMMProgressBar）─────────────────────────────────
         if (_hpBar != null)
         {
-            // Always show real HP bar at current value
+            // 実際のHPバーを常に現在値で表示する
             _hpBar.SetBar(_stats.CurrentHP, 0f, _stats.MaxHP); // HPバーを現在値で初期化
         }
 
-        // ── Intro HP Slider (overlay) ────────────────────────────────
+        // ── イントロHPスライダー（オーバーレイ）────────────────────────
         if (_hpIntroSlider != null)
         {
             _hpIntroSlider.maxValue = _stats.MaxHP; // スライダーの最大値をHPに合わせる
 
             if (_useIntroFill && !_introPlayed)
             {
-                // start empty, will animate 0 → full in PlayIntroAnimation()
+                // 空から開始し、PlayIntroAnimation()で0→満タンへアニメーションする
                 _hpIntroSlider.value = 0f;
-                _hpIntroSlider.gameObject.SetActive(true);   // visible during intro
+                _hpIntroSlider.gameObject.SetActive(true);   // イントロ中は表示
             }
             else
             {
-                // after intro played, keep it hidden
+                // イントロ再生後は非表示のままにする
                 _hpIntroSlider.gameObject.SetActive(false);
             }
         }
@@ -122,12 +122,12 @@ public class UIPlayerBars : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // Called from PlayerStats events (gameplay)
+    // PlayerStatsのイベントから呼び出される（ゲームプレイ中）
     private void UpdateHP(int hp)
     {
         if (_stats == null || _hpBar == null) return;
 
-        // FEEL handles delayed bar / bump / easing.
+        // FEELがバーの遅延・バンプ・イージングを管理する
         _hpBar.UpdateBar(hp, 0f, _stats.MaxHP); // FEELのMMProgressBarにHP変化を通知
     }
 
@@ -135,20 +135,20 @@ public class UIPlayerBars : MonoBehaviour
     {
         if (_staminaSlider == null) return;
 
-        // Simple DOTween for stamina, no delayed bar
+        // スタミナはシンプルなDOTween（遅延バーなし）
         _staminaSlider.DOValue(sta, _tweenDuration).SetEase(Ease.OutQuad); // スタミナ変化をDOTweenでアニメーション
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // Call this when the camera work / intro is finished.
-    // Example: from your camera script, timeline signal, or GameManager.
+    // カメラ演出・イントロが終わったら呼び出す。
+    // 例：カメラスクリプト、タイムラインシグナル、GameManagerなどから呼び出す。
     public void PlayIntroAnimation()
     {
         if (_stats == null) return;
 
         _introPlayed = true; // 以降のInitBarsでイントロスライダーを非表示にするためのフラグ
 
-        // ── HP intro overlay: 0 → full HP, then disable ──────────────
+        // ── HPイントロオーバーレイ：0 → 最大HP → 非表示 ──────────────
         if (_hpIntroSlider != null)
         {
             _hpIntroSlider.gameObject.SetActive(true);
@@ -161,12 +161,12 @@ public class UIPlayerBars : MonoBehaviour
                 .SetEase(Ease.OutQuad)
                 .OnComplete(() =>
                 {
-                    // hide the intro slider after it finishes
+                    // アニメーション完了後にイントロスライダーを非表示にする
                     _hpIntroSlider.gameObject.SetActive(false); // アニメーション完了後にオーバーレイスライダーを非表示
                 });
         }
 
-        // ── Stamina intro: 0 → current ───────────────────────────────
+        // ── スタミナイントロ：0 → 現在値 ───────────────────────────────
         if (_staminaSlider != null)
         {
             _staminaSlider.maxValue = _stats.MaxStamina;

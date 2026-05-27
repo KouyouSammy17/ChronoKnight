@@ -30,7 +30,7 @@ public class SuperFastPlatform : MonoBehaviour
         rb.isKinematic = true;                                                  // キネマティックで物理シミュレーションは受けない
         rb.interpolation = RigidbodyInterpolation.Interpolate;                  // 補間で滑らかに表示
 
-        //Helps fast kinematic bodies not miss contacts
+        // 高速なキネマティックボディが接触を見逃さないようにする
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative; // 高速時の接触抜けを防ぐ
     }
 

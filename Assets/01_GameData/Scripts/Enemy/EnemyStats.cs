@@ -1,16 +1,16 @@
 // 敵のHP管理・ダメージ処理・死亡演出を制御するスクリプト
 using UnityEngine.Events;
 using UnityEngine;
-using TGRobotsWheeled;    // for TGDroidStateManager
-                          // (if your AI lives in another namespace, import that too)
+using TGRobotsWheeled;    // TGDroidStateManagerのために必要
+                          // （AIが別の名前空間にある場合はそちらもインポートすること）
 
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(Collider))]
 public class EnemyStats : MonoBehaviour
 {
     [SerializeField] private int _maxHP = 50;           // 敵の最大HP
-    [SerializeField] private float _deathDelay = 1.5f;     // seconds to linger
-    public UnityEvent OnDied; // ← add                  // 死亡時に発火するイベント
+    [SerializeField] private float _deathDelay = 1.5f;     // 死亡後に残留する時間（秒）
+    public UnityEvent OnDied; // ← 追加                  // 死亡時に発火するイベント
     private int _currentHP;                             // 現在のHP
     private Rigidbody _rb;                              // 物理演算コンポーネント
 
@@ -21,14 +21,14 @@ public class EnemyStats : MonoBehaviour
     }
 
     /// <summary>
-    /// Call this when you want to deal damage. When HP hits zero DIE.
+    /// ダメージを与えたいときに呼び出す。HPがゼロになったら死亡処理を実行する。
     /// </summary>
     public void TakeDamage(int dmg)
     {
         _currentHP = Mathf.Max(_currentHP - dmg, 0);   // HPが0未満にならないようにクランプ
         Debug.Log($"Enemy took {dmg} damage, HP now {_currentHP}");
 
-        // trigger a brief stagger on the AI
+        // AIに短いよろめきを発生させる
         var ai = GetComponent<SciFiRobotAI>();
         if (ai != null)
             ai.Stagger();   // ダメージを受けたAIをよろめかせる
@@ -39,19 +39,19 @@ public class EnemyStats : MonoBehaviour
 
     private void Die()
     {
-        OnDied?.Invoke(); // ← fire BEFORE Destroy       // Destroyより先にイベントを発火する
+        OnDied?.Invoke(); // Destroyより先にイベントを発火する
 
-        // 1) Switch the asset's state machine into "Sleep"
+        // 1) アセットのステートマシンを「スリープ」状態へ移行する
         var droidSM = GetComponent<TGDroidStateManager>();
         if (droidSM != null)
             droidSM.State = TGDroidStateManager.TDroidState.Sleep;  // ドロイドをスリープ状態へ移行
 
-        // 2) Stop chasing/firing
+        // 2) 追跡・射撃を停止する
         var ai = GetComponent<SciFiRobotAI>();
         if (ai != null)
             ai.enabled = false;     // AIスクリプトを無効化して追跡・射撃を停止
 
-        // 3) Freeze physics & disable collider
+        // 3) 物理演算を停止してコライダーを無効化する
         if (_rb != null)
         {
             _rb.linearVelocity = Vector3.zero;  // 速度をリセット
@@ -61,7 +61,7 @@ public class EnemyStats : MonoBehaviour
         if (col != null)
             col.enabled = false;    // コライダーを無効化して当たり判定をなくす
 
-        // 4) Finally destroy after a short delay
+        // 4) 最後に短い遅延後にゲームオブジェクトを削除する
         Destroy(gameObject, _deathDelay);   // 短い遅延後にゲームオブジェクトを削除
     }
 }

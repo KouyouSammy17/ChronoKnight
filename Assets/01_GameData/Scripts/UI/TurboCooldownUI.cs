@@ -6,19 +6,19 @@ using DG.Tweening;
 public class TurboCooldownUI : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private Image _cooldownFill;         // radial fill image on top
-    [SerializeField] private RectTransform _icon;         // ONLY rotates
-    [SerializeField] private RectTransform _background;   // frame / ring that scales & punches
+    [SerializeField] private Image _cooldownFill;         // アイコン上部の放射状フィル画像
+    [SerializeField] private RectTransform _icon;         // 回転のみを行うアイコン
+    [SerializeField] private RectTransform _background;   // スケール・パンチ演出するフレーム/リング
 
     [Header("Cooldown Settings")]
     [SerializeField] private float _cooldownDuration = 6f;           // クールダウンの秒数
-    [SerializeField] private float _rotationSpeed = 180f;   // degrees per second
-    [SerializeField] private bool _useUnscaledTime = true;  // UI should ignore timeScale
+    [SerializeField] private float _rotationSpeed = 180f;   // 回転速度（度/秒）
+    [SerializeField] private bool _useUnscaledTime = true;  // UIはtimeScaleを無視する
 
     [Header("Scale Settings")]
-    [SerializeField] private float _lockedScale = 1.0f;     // momentum < 25%
-    [SerializeField] private float _readyScale = 1.25f;     // momentum >= 25% and not cooling
-    [SerializeField] private float _cooldownScale = 0.8f;   // during cooldown
+    [SerializeField] private float _lockedScale = 1.0f;     // モメンタム25%未満のスケール
+    [SerializeField] private float _readyScale = 1.25f;     // モメンタム25%以上かつクールダウンなしのスケール
+    [SerializeField] private float _cooldownScale = 0.8f;   // クールダウン中のスケール
 
     [Header("Punch Settings")]
     [SerializeField] private float _punchScale = 0.25f;   // パンチエフェクトの強さ
@@ -30,28 +30,28 @@ public class TurboCooldownUI : MonoBehaviour
     private Tween _bgPunchTween;    // 背景パンチエフェクト用Tween
     private Tween _lockDelayTween;  // ロック遅延用Tween
 
-    // "Unlocked" = have ≥25% momentum *when idle*
+    // 「アンロック済み」= アイドル中にモメンタムが25%以上
     private bool _unlocked = true;        // 現在のアンロック状態（モメンタム+チュートリアル両方考慮）
     private bool _isCoolingDown = false;  // クールダウン中かどうか
 
-    // Tutorial gate: Turbo is not usable until tutorial unlocks it
+    // チュートリアルがアンロックするまでターボは使用不可
     private bool _tutorialUnlocked = true; // チュートリアルによるアンロック状態
 
-    // Keep momentum-based unlocked separate (>=25%)
+    // モメンタムベースのアンロックを個別に管理（25%以上）
     private bool _momentumUnlocked = true; // モメンタム25%以上かどうか
 
-    // Effective unlock = tutorial unlocked AND momentum unlocked
+    // 実効アンロック = チュートリアルアンロック AND モメンタムアンロック
     private bool EffectiveUnlocked => _tutorialUnlocked && _momentumUnlocked; // 実効アンロック（両条件の論理積）
 
 
-    // Pending lock flag (used to avoid snapping when Turbo starts right after cost)
+    // 保留中のロックフラグ（コスト消費直後にターボが開始される場合のスナップを防ぐ）
     private bool _lockPending = false; // ロック遅延処理が保留中かどうか
 
     // ───────────────────────────────────────────────────────────────────
     private void Awake()
     {
         if (_cooldownFill != null)
-            _cooldownFill.fillAmount = 0f; // default ready
+            _cooldownFill.fillAmount = 0f; // デフォルトは準備完了状態
 
         if (_background != null)
             _background.localScale = Vector3.one * _readyScale; // 準備完了スケールで初期化
@@ -59,14 +59,14 @@ public class TurboCooldownUI : MonoBehaviour
 
     private void OnEnable()
     {
-        // Turbo events
+        // ターボイベント
         if (TurboModeManager.Instance != null)
         {
             TurboModeManager.Instance.onTurboStart.AddListener(OnTurboStart); // ターボ開始イベントを購読
             TurboModeManager.Instance.onTurboEnd.AddListener(OnTurboEnd);     // ターボ終了イベントを購読
         }
 
-        // Momentum events
+        // モメンタムイベント
         if (MomentumManager.Instance != null)
         {
             MomentumManager.Instance.onMomentumChanged.AddListener(HandleMomentumChanged); // モメンタム変化イベントを購読
@@ -161,26 +161,26 @@ public class TurboCooldownUI : MonoBehaviour
         bool newEffective = EffectiveUnlocked;
         if (newEffective == _unlocked) return; // 実効アンロック状態に変化がなければスキップ
 
-        // Always keep the logical flag updated (this flag now means EFFECTIVE unlock)
+        // 論理フラグを常に最新の値に保つ（このフラグは実効アンロックを意味する）
         _unlocked = newEffective;
 
-        // IMPORTANT:
-        // If we are in the middle of a cooldown animation,
-        // DO NOT change visuals here. Just remember the new _unlocked value.
-        // OnCooldownComplete() will look at _unlocked and decide:
-        //   - !_unlocked → go locked
-        //   -  _unlocked → go ready
+        // 重要：
+        // クールダウンアニメーション中はここでビジュアルを変更しない。
+        // 新しい_unlocked値を記憶するだけにする。
+        // OnCooldownComplete()が_unlockedを参照して以下を判断する：
+        //   - !_unlocked → ロック状態へ
+        //   -  _unlocked → 準備完了状態へ
         if (_isCoolingDown)
             return; // クールダウン中はビジュアルを変更しない（完了後に処理する）
 
-        // Not cooling: normal behavior
+        // クールダウンなし：通常の処理
         if (_unlocked)
         {
-            OnMomentumUnlocked(); // アンロック状態のビジュアルに切り替え
+            OnMomentumUnlocked(); // アンロック状態のビジュアルに切り替える
         }
         else
         {
-            OnMomentumLocked(); // ロック状態のビジュアルに切り替え
+            OnMomentumLocked(); // ロック状態のビジュアルに切り替える
         }
     }
 
@@ -203,26 +203,25 @@ public class TurboCooldownUI : MonoBehaviour
         }
 
         if (_cooldownFill != null)
-            _cooldownFill.fillAmount = 0f; // unlocked ⇒ ready
+            _cooldownFill.fillAmount = 0f; // アンロック済み → 準備完了
     }
 
     private void OnMomentumLocked()
     {
-        // If turbo is active or the UI is in cooldown,
-        // don't snap to locked visuals right now.
-        // We'll go locked in OnCooldownComplete() instead.
+        // ターボ使用中またはクールダウン中は即座にロックビジュアルへ切り替えない。
+        // OnCooldownComplete()でロック状態に移行する。
         bool turboActive = TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive;
 
         if (_isCoolingDown || turboActive)
         {
-            // Just update _unlocked; visuals will be handled later.
+            // _unlockedだけ更新し、ビジュアルは後で処理する。
             return;
         }
 
-        // Here is the tricky case: this is often called RIGHT AFTER Turbo consumed momentum,
-        // but BEFORE TurboModeManager sets IsActive and fires onTurboStart.
-        // So instead of snapping, schedule a small delayed lock that can be canceled
-        // if Turbo actually starts or cooldown starts in this frame.
+        // 注意：ターボがモメンタムを消費した直後にこのメソッドが呼ばれることが多い。
+        // ただし、TurboModeManagerがIsActiveをセットしてonTurboStartを発火させる前に呼ばれる。
+        // そのため、スナップではなく少し遅延したロックをスケジュールし、
+        // このフレーム内でターボやクールダウンが開始された場合はキャンセルできるようにする。
         ClearPendingLock();
         _lockPending = true; // ロック遅延を保留状態にする
 
@@ -251,7 +250,7 @@ public class TurboCooldownUI : MonoBehaviour
             _icon.localRotation = Quaternion.identity; // 回転をリセット
 
         if (_cooldownFill != null)
-            _cooldownFill.fillAmount = 1f; // locked = full mask
+            _cooldownFill.fillAmount = 1f; // ロック = フル表示（マスク）
 
         if (_background != null)
         {
@@ -268,22 +267,22 @@ public class TurboCooldownUI : MonoBehaviour
         if (_tutorialUnlocked == unlocked) return; // 状態が変わっていなければ何もしない
         _tutorialUnlocked = unlocked;
 
-        // Re-evaluate visuals immediately (don't kill cooldown mid animation)
+        // アニメーション途中でクールダウンをキャンセルしないよう即座にビジュアルを再評価する
         if (_isCoolingDown) return; // クールダウン中はビジュアルを変更しない
 
         if (EffectiveUnlocked) OnMomentumUnlocked();
-        else ApplyLockedVisuals(); // locked by tutorial OR momentum
+        else ApplyLockedVisuals(); // チュートリアルまたはモメンタムによりロック
     }
 
     // ───────────────────────────────────────────────────────────────────
     private void OnTurboStart()
     {
         if (!_tutorialUnlocked) return;
-        // Once Turbo really starts, we know this is NOT a "idle → locked" case.
-        // Cancel any pending lock from the momentum cost.
+        // ターボが実際に開始した場合、これは「アイドル → ロック」ではないことが確定する。
+        // モメンタムコスト消費による保留中のロックをキャンセルする。
         ClearPendingLock(); // ターボ開始が確定したので保留中のロックをキャンセル
 
-        // We ALWAYS show Turbo use (even if momentum is now <25 because of the cost).
+        // コスト消費でモメンタムが25%未満になっていても、常にターボ使用を表示する。
         PlayRotation();    // アイコン回転を開始
         PlayStartPunch();  // 背景に開始パンチエフェクトを再生
     }
@@ -291,7 +290,7 @@ public class TurboCooldownUI : MonoBehaviour
     private void OnTurboEnd()
     {
         if (!_tutorialUnlocked) return;
-        // Always run cooldown when Turbo ends, even if momentum <25.
+        // モメンタムが25%未満でも、ターボ終了時は必ずクールダウンを実行する。
         StopRotation();  // アイコン回転を停止
         StartCooldown(); // クールダウンアニメーションを開始
     }
@@ -318,10 +317,10 @@ public class TurboCooldownUI : MonoBehaviour
         _cooldownTween?.Kill(); _cooldownTween = null;
         _bgScaleTween?.Kill(); _bgScaleTween = null;
 
-        // Fill instantly to 100, then animate down.
+        // 即座に100%にして、そこからアニメーションで減らす。
         _cooldownFill.fillAmount = 1f; // クールダウン開始直後はフィルを満タンにする
 
-        // Background to cooldown scale
+        // 背景をクールダウンスケールへ縮小する
         if (_background != null)
         {
             _bgScaleTween = _background
@@ -346,13 +345,13 @@ public class TurboCooldownUI : MonoBehaviour
 
         if (!_unlocked)
         {
-            // Case: you used Turbo at exactly 25% → momentum dropped <25
-            // or lost momentum during cooldown ⇒ AFTER cooldown ends, go locked.
+            // ケース：ターボをちょうど25%で使用 → モメンタムが25%未満に
+            // またはクールダウン中にモメンタムを失った → クールダウン後にロック状態へ
             ApplyLockedVisuals(); // クールダウン後もモメンタムが足りなければロック状態へ
             return;
         }
 
-        // Still have enough momentum ⇒ show ready state.
+        // まだ十分なモメンタムがある → 準備完了状態を表示する
         if (_background != null)
         {
             _bgScaleTween?.Kill();
@@ -377,7 +376,7 @@ public class TurboCooldownUI : MonoBehaviour
         _rotateTween = _icon
             .DORotate(new Vector3(0, 0, -360f), 360f / _rotationSpeed, RotateMode.FastBeyond360)
             .SetEase(Ease.Linear)
-            .SetLoops(-1, LoopType.Restart) // 無限ループで回転し続ける
+            .SetLoops(-1, LoopType.Restart) // 無限ループで回転し続ける（-1 = 無制限）
             .SetSpeedBased()
             .SetUpdate(_useUnscaledTime)
             .SetLink(gameObject);

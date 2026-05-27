@@ -11,7 +11,7 @@ public class DamageZone : MonoBehaviour
         {
             var stats = other.GetComponent<PlayerStats>();
             if (stats != null)
-                // pass the trap world position so the player can face/knockback correctly
+                // プレイヤーの向き・ノックバック方向を正しく計算するためにトラップのワールド座標を渡す
                 stats.TakeEnemyDamage(_damage, transform.position); // トラップのワールド座標をノックバック方向の計算に使用
         }
     }

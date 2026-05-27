@@ -1,19 +1,19 @@
 // プレイヤーのモードステート（通常・ターボ等）の基底インターフェース
 /// <summary>
-/// Interface for player mode states (e.g., Normal, Turbo).
-/// Separates mode-level state management from action states.
+/// プレイヤーのモードステート（例：通常・ターボ）のインターフェース。
+/// モードレベルのステート管理をアクションステートから分離する。
 /// </summary>
 public interface IPlayerModeState
 {
-    /// <summary>Unique identifier for this mode</summary>
+    /// <summary>このモードを識別する固有ID</summary>
     PlayerModeID ID { get; } // このモードを識別するID
 
-    /// <summary>Called when entering this mode</summary>
+    /// <summary>このモードへ入るときに呼ばれる</summary>
     void Enter(PlayerStateMachineBrain brain); // モード開始時に呼ばれる
 
-    /// <summary>Called when exiting this mode</summary>
+    /// <summary>このモードから出るときに呼ばれる</summary>
     void Exit(PlayerStateMachineBrain brain); // モード終了時に呼ばれる
 
-    /// <summary>Called every frame while in this mode</summary>
+    /// <summary>このモードの間、毎フレーム呼ばれる</summary>
     void Tick(PlayerStateMachineBrain brain); // 毎フレーム呼ばれる更新処理
 }

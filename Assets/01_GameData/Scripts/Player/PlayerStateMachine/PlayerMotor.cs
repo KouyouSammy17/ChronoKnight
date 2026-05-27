@@ -3,35 +3,35 @@ using UnityEngine;
 using System;
 
 /// <summary>
-/// Core physics and movement controller for the player.
-/// Handles ground/air movement, jumping, wall sliding, dashing, and momentum accumulation.
-/// Integrates with PlayerStateMachineBrain for state transitions and PlayerAnimator for animation feedback.
-/// Uses Rigidbody for physics and performs velocity calculations with turbo mode scaling.
+/// プレイヤーのコア物理・移動コントローラー。
+/// 地上/空中の移動・ジャンプ・壁スライド・ダッシュ・モメンタム蓄積を処理する。
+/// ステート遷移のためにPlayerStateMachineBrainと、アニメーションフィードバックのためにPlayerAnimatorと連携する。
+/// Rigidbodyを使用した物理演算と、ターボモードのスケーリングを含む速度計算を行う。
 /// </summary>
 [RequireComponent(typeof(Rigidbody))]
 public class PlayerMotor : MonoBehaviour
 {
 
-    /// <summary>Base movement speed (units/second)</summary>
+    /// <summary>基本移動速度（単位/秒）</summary>
     [Header("Movement Settings")]
     [SerializeField] private float _moveSpeed = 6f; // 基本移動速度（単位/秒）
-    /// <summary>Acceleration rate for smooth speed-up</summary>
+    /// <summary>スムーズな加速のための加速率</summary>
     [SerializeField] private float _acceleration = 10f; // 加速率（移動開始時の速度上昇）
-    /// <summary>Deceleration rate for smooth slow-down</summary>
+    /// <summary>スムーズな減速のための減速率</summary>
     [SerializeField] private float _deceleration = 10f; // 減速率（移動停止時の速度減少）
 
-    /// <summary>Rotation speed toward movement direction</summary>
+    /// <summary>移動方向への回転速度</summary>
     [Header("Rotation")]
     [SerializeField] private float _rotateSpeed = 10f; // 移動方向への回転速度
-    /// <summary>Target rotation quaternion for smooth rotation</summary>
+    /// <summary>スムーズ回転の目標クォータニオン</summary>
     private Quaternion _targetRotation; // スムーズ回転の目標クォータニオン
 
-    /// <summary>Forward distance for edge detection (prevents walking off cliffs)</summary>
+    /// <summary>崖検出用の前方レイキャスト距離（崖からの落下を防ぐ）</summary>
     [Header("Edge Detection")]
     [SerializeField] private float _edgeCheckForward = 0.5f; // 崖検出用の前方レイキャスト距離
-    /// <summary>Down distance for ground raycast</summary>
+    /// <summary>接地レイキャストの下方向距離</summary>
     [SerializeField] private float _edgeCheckDown = 1.0f; // 崖検出用の下方レイキャスト距離
-    /// <summary>Layer mask for ground detection</summary>
+    /// <summary>接地判定に使用するレイヤーマスク</summary>
     [SerializeField] private LayerMask _groundLayer; // 接地判定に使用するレイヤーマスク
 
     [Header("Jump Settings")]
@@ -44,12 +44,12 @@ public class PlayerMotor : MonoBehaviour
 
     [Header("Dash Jump")]
     [SerializeField] private float _dashJumpForce = 16f;
-    [SerializeField] private float _dashJumpUpMultiplier = 1.2f;     // dash jump higher than normal
-    [SerializeField] private float _dashJumpBonusUpVelocity = 5f;    // optional extra pop (VelocityChange)
-    [SerializeField] private float _dashJumpAntiPopAccel = 20f; // was hardcoded
+    [SerializeField] private float _dashJumpUpMultiplier = 1.2f;     // ダッシュジャンプは通常より高く飛ぶ
+    [SerializeField] private float _dashJumpBonusUpVelocity = 5f;    // 任意の追加打ち上げ力（VelocityChange）
+    [SerializeField] private float _dashJumpAntiPopAccel = 20f; // 以前はハードコードされていた値
 
     [Header("Ground Ignore After Jump")]
-    [SerializeField] private float _groundIgnoreAfterJump = 0.08f; // 80ms feels good
+    [SerializeField] private float _groundIgnoreAfterJump = 0.08f; // 80msが自然に感じる
    
 
     [Header("Jump Hold Limit")]
@@ -80,13 +80,13 @@ public class PlayerMotor : MonoBehaviour
 
 
 
-    // inputs (fed by brain)
+    // 入力（ブレインから渡される）
     private Vector2 _moveInput = Vector2.zero; // ステートマシンから渡される移動入力
     private bool _inputEnabled = true; // 入力が有効か（攻撃・ダメージ中はfalse）
     private RigidbodyConstraints _savedConstraints; // フリーズ前のRigidbody制約を保存
     private bool _frozen; // 完全フリーズ状態か
 
-    // buffering (needed for combat buffering)
+    // バッファリング（コンボのバッファリングに必要）
     private Vector2 _moveInputBuffer = Vector2.zero; // コンボ中の移動入力をバッファ
     private float _moveBufferTime = 0.2f; // 移動バッファの有効時間
     private float _moveBufferCounter = 0f; // 移動バッファのカウントダウン
@@ -140,7 +140,7 @@ public class PlayerMotor : MonoBehaviour
     // --- Hit React Lock (Smash/Kirby style) ---
     private bool _hitReactLock = false; // ヒットリアクション中に物理制御をロックするフラグ
 
-    // grounded (raw vs coyote)
+    // 接地判定（純粋値 vs コヨーテタイム込み）
     private bool _isGroundedRaw = false; // コヨーテタイムを含まない純粋な接地判定
     public bool IsGroundedRaw => _isGroundedRaw;
 
@@ -156,39 +156,39 @@ public class PlayerMotor : MonoBehaviour
         (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
             ? Time.fixedUnscaledDeltaTime // ターボ中：実時間ベース（物理）
             : Time.fixedDeltaTime;        // 通常時：TimeScale依存（物理）
-    // buffs
+    // バフ
     public bool CanAirDash { get; private set; } = false;
     public int ExtraJumpCount { get; private set; } = 0;
 
-    // animator-facing
+    // アニメーター向けプロパティ
     public float VerticalSpeed => _rb.linearVelocity.y;
     public bool IsGrounded => _isGrounded;
     public bool IsWallSliding => _isWallSliding;
 
-    // state machine-facing
+    // ステートマシン向けプロパティ
 
     public bool IsTouchingWall => _isTouchingWall;
     public bool IsDashing => _isDashing;
     public bool IsInputEnabled => _inputEnabled;
 
     public bool IsMoving => _inputEnabled && !_isDashing && _moveInput.sqrMagnitude > 0.01f;
-    // helpers
+    // ヘルパー
 
-    // “Should we be in WallSlide state right now?”
+    // 「今すぐWallSlideステートに入るべきか？」
     public bool ShouldWallSlide => _allowWallSlide && _isTouchingWall && !_isGrounded && _rb.linearVelocity.y < 0f;
     private bool isTapWallJump => _isWallJumpLerping || _isWallJumping;
 
 
     // ───────────────────────────────────────────────────────────────
-    // Platform carry (for super-fast moving platforms)
+    // 足場の速度引き継ぎ（超高速移動足場用）
     // ───────────────────────────────────────────────────────────────
-    private Vector3 _platformCarryVel = Vector3.zero; // world-space velocity to add (x/z)
+    private Vector3 _platformCarryVel = Vector3.zero; // 追加するワールド空間速度（X/Z）
     public void SetPlatformCarryVelocity(Vector3 vel) => _platformCarryVel = vel;
     public void ClearPlatformCarryVelocity() => _platformCarryVel = Vector3.zero;
 
     public float GetAnimMovementSpeedNormalized()
     {
-        // Ignore platform carry so standing on moving platforms stays Idle
+        // 足場の速度を除外して、移動足場の上でもアイドルのままにする
         Vector3 v = _rb.linearVelocity - _platformCarryVel; // 足場の速度を除いた実際の移動速度を計算
         v.y = 0f; // 垂直成分を除く
         float speed = v.magnitude;
@@ -209,7 +209,7 @@ public class PlayerMotor : MonoBehaviour
     {
         _moveInputBuffer = Vector2.zero;
         _moveBufferCounter = 0f;
-        // Re-sync _currentVelocity from rigidbody when buffer is cleared
+        // バッファクリア時にRigidbodyから_currentVelocityを再同期する
         _currentVelocity = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
     }
 
@@ -222,8 +222,8 @@ public class PlayerMotor : MonoBehaviour
         }
     }
 
-    // UI hooks
-    public event Action<float> DashStarted; // passes cooldown seconds
+    // UIフック
+    public event Action<float> DashStarted; // クールダウン秒数を渡す
     public float DashCooldownRemaining => Mathf.Max(0f, _dashCooldownTimer);
     public float DashCooldownDuration => _dashCooldown;
 
@@ -274,19 +274,19 @@ public class PlayerMotor : MonoBehaviour
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
-    // INPUT FEED (called by state machine)
+    // 入力フィード（ステートマシンから呼ばれる）
     // ───────────────────────────────────────────────────────────────────────────────
 
     public void InputMove(Vector2 input)
     {
-        // holding flag
+        // ホールドフラグ
         _isHoldingMove = input.sqrMagnitude > 0.01f;
 
-        // always capture raw input into buffer (even if input locked)
+        // 入力ロック中でも常に生の入力をバッファに記録する
         _moveInputBuffer = input;
         _moveBufferCounter = _moveBufferTime;
 
-        // only apply to live movement when input enabled
+        // 入力が有効なときのみライブ移動に適用する
         if (_inputEnabled)
         {
             _moveInput = input;
@@ -308,14 +308,14 @@ public class PlayerMotor : MonoBehaviour
         _isJumpHeld = false;
     }
 
-    // Dash start is decided by states/brain
+    // ダッシュ開始はステート/ブレインが判断する
     public bool TryStartDash(Vector2 moveForDirection)
     {
         if (!_inputEnabled) return false; // 入力が無効なら失敗
         if (_isDashing) return false; // 既にダッシュ中なら失敗
         if (_dashCooldownTimer > 0f) return false; // クールダウン中なら失敗
 
-        // only allow if grounded or air-dash unlocked
+        // 接地中またはエアダッシュ解放済みの場合のみ許可
         if (!IsGroundedCheck() && !CanAirDash) return false; // 空中かつエアダッシュ未解放なら失敗
 
         const int dashCost = 20; // ダッシュに必要なスタミナコスト
@@ -336,7 +336,7 @@ public class PlayerMotor : MonoBehaviour
         return true;
     }
 
-    // Combat / Damage lock
+    // 戦闘 / ダメージロック
     public void DisableInput()
     {
         _inputEnabled = false;
@@ -349,12 +349,12 @@ public class PlayerMotor : MonoBehaviour
         _inputEnabled = true;
     }
 
-    // Buff hooks
+    // バフフック
     public void EnableAirDash() => CanAirDash = true;
     public void DisableAirDash() => CanAirDash = false;
     public void EnableExtraJump(int count) => ExtraJumpCount = count;
 
-    // called by respawn systems
+    // リスポーンシステムから呼ばれる
     public void ResetPlayerState()
     {
         _coyoteTimeCounter = 0f;
@@ -383,7 +383,7 @@ public class PlayerMotor : MonoBehaviour
 
     public void OnRespawnSnap()
     {
-        // Clear motion/lock states but DO NOT wipe the player's jump buffer:
+        // 移動・ロック状態をクリアするが、ジャンプバッファは消去しない：
         _isWallJumping = false;
         _isWallJumpLerping = false;
         _wallJumpTimer = 0f;
@@ -395,42 +395,42 @@ public class PlayerMotor : MonoBehaviour
         _dashTimer = 0f;
         _dashCooldownTimer = 0f;
 
-        // Make sure vertical speed is neutral
+        // 垂直速度をニュートラルにする
         if (_rb != null)
         {
             _rb.linearVelocity = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
         }
 
-        // After SNAP + Physics.SyncTransforms(), trust we’re on the ground now.
-        // We also *seed* coyote so a jump pressed right away will work.
+        // SNAP + Physics.SyncTransforms()後、地面にいると信頼する。
+        // すぐにジャンプが動作するようコヨーテタイムも準備しておく。
         _isGrounded = IsGroundedCheck();
-        if (!_isGrounded) _isGrounded = true;     // defensive: kill tiny air gaps
+        if (!_isGrounded) _isGrounded = true;     // 防御的処理：わずかな空中ギャップを解消
         _coyoteTimeCounter = _coyoteTime;
         _hasUsedCoyoteJump = false;
 
-        // Do NOT clear _jumpBufferCounter here – allow buffered jump to fire.
-        // Also don’t force _isJumpHeld = false: if player kept holding jump,
-        // let your normal “short hop cut” logic handle it.
+        // _jumpBufferCounterはここでクリアしない – バッファされたジャンプを発火させる。
+        // _isJumpHeldもfalseに強制しない：プレイヤーがジャンプを押し続けている場合は
+        // 通常の「ショートホップカット」ロジックに委ねる。
     }
 
     // ───────────────────────────────────────────────────────────────────────────────
-    // MOTOR TICKS (called by states)
+    // モーターTick（ステートから呼ばれる）
     // ───────────────────────────────────────────────────────────────────────────────
 
     public void MotorUpdate(bool allowJump, bool allowMomentumGain, bool allowWallSlide)
     {
         _allowWallSlide = allowWallSlide; // 壁スライドの許可状態を更新
-        // dash-jump buffer tracking
+        // ダッシュジャンプバッファの追跡
         if (_isDashing) _dashJumpBufferCounter = _dashJumpBufferTime; // ダッシュ中はバッファをリセット
         else _dashJumpBufferCounter -= PlayerDT; // ダッシュ停止後にカウントダウン
 
-        // wall detection
+        // 壁の検出
         CheckWall();
 
         if (_postWallJumpTimer > 0f)
             _postWallJumpTimer -= PlayerDT;
 
-        // cooldown timers
+        // クールダウンタイマー
         float dt = (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
         ? Time.unscaledDeltaTime
         : Time.deltaTime;
@@ -441,7 +441,7 @@ public class PlayerMotor : MonoBehaviour
         if (_dashCooldownTimer > 0f)
             _dashCooldownTimer -= dt;
 
-        // buffer decay (only while input is live)
+        // バッファの経過（入力が有効なときのみ）
         if (_moveBufferCounter > 0f)
         {
             if (_inputEnabled)
@@ -452,7 +452,7 @@ public class PlayerMotor : MonoBehaviour
             _moveInputBuffer = Vector2.zero;
         }
 
-        // grounded + coyote + reset on land
+        // 接地判定 + コヨーテ + 着地時のリセット
         bool rawGrounded = IsGroundedCheck(); // レイキャストによる純粋な接地確認
         _isGroundedRaw = rawGrounded;
 
@@ -470,7 +470,7 @@ public class PlayerMotor : MonoBehaviour
         }
         else
         {
-            _coyoteTimeCounter -= PlayerDT;     // IMPORTANT: use PlayerDT コヨーテタイムをカウントダウン
+            _coyoteTimeCounter -= PlayerDT;     // 重要：PlayerDTを使用すること。コヨーテタイムをカウントダウン
             if (_coyoteTimeCounter <= 0f)
                 _isGrounded = false; // コヨーテタイム切れで空中扱いに移行
         }
@@ -483,7 +483,7 @@ public class PlayerMotor : MonoBehaviour
     {
         float fdt = PlayerFixedDT;
 
-        // update target rotation FIRST (so this frame uses it)
+        // 目標回転を先に更新する（このフレームで使用するため）
         if (allowHorizontalMovement)
             HandleMovementRotation();
 
@@ -500,7 +500,7 @@ public class PlayerMotor : MonoBehaviour
         }
         else
         {
-            // NEW: kill horizontal drift while attacking/hurt/etc.
+            // 攻撃中・ダメージ中などの水平ドリフトを止める
             var v = _rb.linearVelocity;
             v.x = 0f;
             v.z = 0f;
@@ -523,7 +523,7 @@ public class PlayerMotor : MonoBehaviour
 
 
     // ───────────────────────────────────────────────────────────────────────────────
-    // Core logic (mostly unchanged from your PlayerController)
+    // コアロジック（PlayerControllerからほぼ変更なし）
     // ───────────────────────────────────────────────────────────────────────────────
 
     private void HandleMovement()
@@ -542,7 +542,7 @@ public class PlayerMotor : MonoBehaviour
                          + Vector3.down * 0.1f
                          + transform.right * (_edgeCheckForward * sign);
 
-            bool groundAhead = Physics.Raycast(foot, Vector3.down, _edgeCheckDown, _groundLayer); // 前方に地面があるか確認
+            bool groundAhead = Physics.Raycast(foot, Vector3.down, _edgeCheckDown, _groundLayer); // 前方に地面があるかを確認
             if (!groundAhead) shouldBlock = false; // 崖端でなければブロックしない
         }
 
@@ -568,7 +568,7 @@ public class PlayerMotor : MonoBehaviour
 
         _rb.linearVelocity = new Vector3(
             _currentVelocity.x,
-            _rb.linearVelocity.y, // Y速度は維持（重力に委ねる）
+            _rb.linearVelocity.y, // Y速度を維持（重力に委ねる）
             _currentVelocity.z
         );
     }
@@ -627,11 +627,11 @@ public class PlayerMotor : MonoBehaviour
         if (_jumpBufferCounter > 0f)
             _jumpBufferCounter -= PlayerDT; // ジャンプバッファをカウントダウン
 
-        // Wall Jump
+        // 壁ジャンプ
         if (buffered && canWallJump)
         {
             Vector3 wallJumpDir = (_wallNormal * _wallJumpHorizontalForce) + (Vector3.up * _wallJumpForce); // 壁ジャンプの方向ベクトルを計算
-            RotateOnWallJump(wallJumpDir); // 壁ジャンプ方向に向きを変える
+            RotateOnWallJump(wallJumpDir); // 壁ジャンプ方向に向きを変える（2.5D用）
 
 
             _rb.linearVelocity = Vector3.zero;
@@ -652,7 +652,7 @@ public class PlayerMotor : MonoBehaviour
             return;
         }
 
-        // First Jump
+        // 通常ジャンプ
         if (buffered && canFirstJump)
         {
             Jump(isAirJump: false);
@@ -660,7 +660,7 @@ public class PlayerMotor : MonoBehaviour
             return;
         }
 
-        // Extra Jump
+        // 追加ジャンプ
         if (buffered && canExtraJump)
         {
             Jump(isAirJump: true);
@@ -681,7 +681,7 @@ public class PlayerMotor : MonoBehaviour
         {
             _isWallSliding = false;
 
-            // optional: still clamp max fall speed
+            // 任意：それでも最大落下速度をクランプする
             if (_rb.linearVelocity.y < -_maxFallSpeed)
             {
                 Vector3 clamped = _rb.linearVelocity;
@@ -689,10 +689,10 @@ public class PlayerMotor : MonoBehaviour
                 _rb.linearVelocity = clamped;
             }
 
-            return; // IMPORTANT: do NOT run jump-cut, airComboHang, wall-slide, extra gravity, etc.
+            return; // 重要：ジャンプカット・airComboHang・壁スライド・追加重力などを実行しないこと
         }
 
-        // wall jump lerp
+        // 壁ジャンプ速度補間
         if (_isWallJumpLerping)
         {
             _wallJumpLerpTimer -= fdt;
@@ -702,7 +702,7 @@ public class PlayerMotor : MonoBehaviour
             return;
         }
 
-        // wall jump immunity
+        // 壁ジャンプ免疫時間
         if (_isWallJumping)
         {
             _wallJumpTimer -= fdt;
@@ -710,7 +710,7 @@ public class PlayerMotor : MonoBehaviour
             return;
         }
 
-        // wall slide
+        // 壁スライド
         _isWallSliding = false;
         if (_allowWallSlide && vY < 0f && _isTouchingWall && !_isGrounded)
         {
@@ -720,7 +720,7 @@ public class PlayerMotor : MonoBehaviour
             return;
         }
 
-        // hold-jump height cap
+        // ジャンプホールドの最大高さ制限
         if (!isTapWallJump && vY > 0f && _isJumpHeld && heldHeight >= _maxHoldJumpHeight)
         {
             _isJumpHeld = false;
@@ -731,7 +731,7 @@ public class PlayerMotor : MonoBehaviour
             return;
         }
 
-        // short hop cut
+        // ショートホップカット
         if (!_isDashJump && !isTapWallJump && vY > 0f && !_isJumpHeld)
         {
             _jumpBufferCounter = 0f;
@@ -747,14 +747,14 @@ public class PlayerMotor : MonoBehaviour
             var turbo = TurboModeManager.Instance;
             if (turbo != null && turbo.IsActive)
             {
-                // Cancel slow-mo so this limiter stays the same in REAL TIME
+                // スローモーをキャンセルしてこのリミッターがリアルタイムで同じになるようにする
                 accel *= turbo.RealTimeComp;
             }
 
             _rb.AddForce(Vector3.down * accel, ForceMode.Acceleration);
         }
 
-        // clamp fall speed
+        // 落下速度の上限クランプ
         if (_rb.linearVelocity.y < -_maxFallSpeed)
         {
             Vector3 clamped = _rb.linearVelocity;
@@ -762,7 +762,7 @@ public class PlayerMotor : MonoBehaviour
             _rb.linearVelocity = clamped;
         }
 
-        // air combo hang(freeze Y while attacking in air)
+        // 空中コンボハング（空中攻撃中はY軸をフリーズ）
         if (_airComboHang && !_isGrounded)
         {
             _isWallSliding = false;
@@ -773,7 +773,7 @@ public class PlayerMotor : MonoBehaviour
             return;
         }
 
-        // fast fall
+        // 高速落下
         if (vY < 0f)
         {
             _rb.linearVelocity += Vector3.up * Physics.gravity.y * (_fallMultiplier - 1f) * fdt;
@@ -792,16 +792,16 @@ public class PlayerMotor : MonoBehaviour
         {
             float minDashX = _dashForce * 0.9f;
 
-            // keep dash-jump horizontal consistent (TurboModeManager already scaled _dashForce if needed)
+            // ダッシュジャンプの水平速度を一定に保つ（TurboModeManagerが必要に応じて_dashForceをスケール済み）
             if (Mathf.Abs(vel.x) < minDashX)
                 vel.x = _dashDirection.x * _dashForce;
 
-            // dash-jump vertical: DO NOT use RealTimeComp here (instant velocity)
+            // ダッシュジャンプの垂直速度：RealTimeCompを使わない（即時速度変化）
             vel.y = _dashJumpForce * _dashJumpUpMultiplier;
 
             _rb.linearVelocity = vel;
 
-            // optional extra pop (also instant)
+            // 任意の追加打ち上げ力（こちらも即時）
             if (_dashJumpBonusUpVelocity > 0f)
                 _rb.AddForce(Vector3.up * _dashJumpBonusUpVelocity, ForceMode.VelocityChange);
 
@@ -828,7 +828,7 @@ public class PlayerMotor : MonoBehaviour
 
     private void HandleMovementRotation()
     {
-        // don't let held input override wall-jump facing during lock/lerp
+        // ロック/補間中は壁ジャンプの向きをホールド入力で上書きしない
         if (isTapWallJump || _postWallJumpTimer > 0f) return;
 
         if (Mathf.Abs(_moveInput.x) > 0.01f)
@@ -840,17 +840,17 @@ public class PlayerMotor : MonoBehaviour
 
     private void RotateOnWallJump(Vector3 wallJumpDirection)
     {
-        // 2.5D: face only left/right. Ignore any Z.
+        // 2.5D：左右のみ向く。Zは無視。
         float x = wallJumpDirection.x;
 
-        // fallback if x is near zero
+        // xがゼロに近い場合のフォールバック
         if (Mathf.Abs(x) < 0.001f)
             x = _lastMoveInput.x != 0f ? _lastMoveInput.x : 1f;
 
         float yaw = (x >= 0f) ? 90f : -90f;
         _targetRotation = Quaternion.Euler(0f, yaw, 0f);
 
-        // optional: snap immediately on the wall-jump frame
+        // 任意：壁ジャンプのフレームで即スナップする
         _rb.MoveRotation(_targetRotation);
     }
 
@@ -880,9 +880,9 @@ public class PlayerMotor : MonoBehaviour
         if (turbo == null || !turbo.IsActive) return; // ターボが無効なら何もしない
         if (IsGrounded) return; // 接地中は重力補正不要
 
-        // Cancel the "slow-mo gravity" effect for THIS rigidbody only
+        // このRigidbodyのみに対して「スロー重力」効果をキャンセルする
         float s = Mathf.Clamp(turbo.SlowFactor, 0.05f, 1f); // スロー係数を取得（最小0.05）
-        float extraAccel = Physics.gravity.y * (1f / s - 1f); // gravity.y is negative スロー分だけ弱くなった重力を補正する追加加速度
+        float extraAccel = Physics.gravity.y * (1f / s - 1f); // gravity.yは負の値。スロー分だけ弱くなった重力を補正する追加加速度
 
         _rb.AddForce(Vector3.up * extraAccel, ForceMode.Acceleration); // 上方向に補正力を加える
     }
@@ -922,7 +922,7 @@ public class PlayerMotor : MonoBehaviour
         Vector3 moveDir = new Vector3(bufferedInput.x, 0, bufferedInput.y).normalized;
         Vector3 targetVelocity = moveDir * _moveSpeed;
 
-        // Initialize _currentVelocity from rigidbody if not already set
+        // _currentVelocityが未設定の場合はRigidbodyから初期化する
         if (_currentVelocity == Vector3.zero && targetVelocity != Vector3.zero)
         {
             _currentVelocity = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
@@ -940,7 +940,7 @@ public class PlayerMotor : MonoBehaviour
         }
     }
 
-    /// <summary>Hard-freezes the player for tutorials/cutscenes (no drift, no falling).</summary>
+    /// <summary>チュートリアル/カットシーン用にプレイヤーを完全にフリーズする（ドリフトなし・落下なし）。</summary>
     public void SetFrozen(bool frozen)
     {
         if (_rb == null) return;
@@ -962,7 +962,7 @@ public class PlayerMotor : MonoBehaviour
         {
             _rb.constraints = _savedConstraints; // 保存していた制約を復元
 
-            // avoid “unfreeze kick”
+            // 「解除時の蹴り飛ばし」を防ぐ
             _rb.linearVelocity = Vector3.zero; // 解除時の「蹴り飛ばし」を防ぐために速度をゼロに
             _rb.angularVelocity = Vector3.zero;
             _currentVelocity = Vector3.zero;
@@ -977,7 +977,7 @@ public class PlayerMotor : MonoBehaviour
         _dashTimer = 0f;
     }
 
-    /// <summary>Stops only horizontal drift (use if you still want gravity).</summary>
+    /// <summary>水平ドリフトのみを停止する（重力は引き続き有効にしたい場合に使用）。</summary>
     public void StopHorizontalInstant()
     {
         if (_rb == null) return;
@@ -1013,7 +1013,7 @@ public class PlayerMotor : MonoBehaviour
         }
     }
     /// <summary>
-    /// While true, Motor won't apply dash / jump-cut / air-hang / wall-slide logic that can destroy knockback arcs.
+    /// trueの間、Motorはダッシュ/ジャンプカット/空中ハング/壁スライドのロジックを適用しない（ノックバック軌道を壊さないため）。
     /// </summary>
     public void SetHitReactLock(bool on)
     {
@@ -1021,7 +1021,7 @@ public class PlayerMotor : MonoBehaviour
 
         if (on)
         {
-            // Stop systems that overwrite velocity during hit
+            // ヒット中に速度を上書きするシステムを停止する
             CancelDash();
             SetAirComboHang(false);
 
@@ -1040,14 +1040,14 @@ public class PlayerMotor : MonoBehaviour
     }
 
     /// <summary>
-    /// Force the motor rotation so it doesn't "rotate back" next FixedUpdate.
-    /// Right=90, Left=-90.
+    /// 次のFixedUpdateで「逆回転」しないようにモーターの回転を強制設定する。
+    /// 右=90、左=-90。
     /// </summary>
     public void ForceFacingYaw(float yaw, bool snap = true)
     {
         _targetRotation = Quaternion.Euler(0f, yaw, 0f);
 
-        // keep “facing direction” consistent for knockback fallback
+        // ノックバックのフォールバック用に「向き方向」を一致させる
         _lastMoveInput = (yaw >= 0f) ? Vector2.right : Vector2.left;
 
         if (snap && _rb != null)

@@ -6,8 +6,8 @@ using System.Threading;
 using UnityEngine;
 
 /// <summary>
-/// Global UI Manager singleton, persists across scenes.
-/// Controls result UIs, player HUD, and title menu.
+/// グローバルUIManagerシングルトン。シーンをまたいで持続する。
+/// リザルトUI・プレイヤーHUD・タイトルメニューを統括管理する。
 /// </summary>
 public enum TutorialKey { Move, Jump, Dash, DashJump, WallJump, Attack, Momentum, Turbo } // チュートリアル種別の識別キー
 
@@ -18,9 +18,9 @@ public class UIManager : MonoBehaviour
     [Header("Result UIs")]
     [SerializeField] private GameObject _gameClearUI;     // ゲームクリアUIのルートオブジェクト
     [SerializeField] private GameObject _gameOverUI;      // ゲームオーバーUIのルートオブジェクト
-    [SerializeField] private GameObject _tutorialClearUI; // new
+    [SerializeField] private GameObject _tutorialClearUI; // チュートリアルクリアUIのルートオブジェクト
 
-    // Anim controllers (optional but recommended)
+    // アニメーションコントローラー（任意だが推奨）
     [SerializeField] private GameOverUI_Anim _gameOverAnim; // ゲームオーバーアニメーションコントローラー
 
 
@@ -33,7 +33,7 @@ public class UIManager : MonoBehaviour
     [SerializeField, Tooltip("タイトルメニュー全域(Canvasなら)")]
     private GameObject _titleUIRoot; // タイトルUIのルートオブジェクト
 
-    [Header("Tutorials (assign under UIManager in the Title/Bootstrap scene)")]
+    [Header("チュートリアル（タイトル/ブートストラップシーン内のUIManager以下に割り当てる）")]
     [SerializeField] private List<TutorialEntry> _tutorials; // チュートリアルUIエントリのリスト
 
     private readonly Dictionary<TutorialKey, TutorialUIAnimator> _map = new(); // キーとUIアニメーターのマッピング
@@ -72,7 +72,7 @@ public class UIManager : MonoBehaviour
         if (_gameOverAnim != null) _gameOverAnim.HardHideInstant();       // アニメーション状態もリセット
         if (_tutorialClearUI != null) _tutorialClearUI.SetActive(false);
         if (_playerUIRoot != null) _playerUIRoot.SetActive(false);
-        if (_titleUIRoot != null) _titleUIRoot.SetActive(false); // 最初は Title シーンで GameManager が true にする
+        if (_titleUIRoot != null) _titleUIRoot.SetActive(false); // 最初はTitleシーンでGameManagerがtrueにする
     }
 
     public void SetUICamera(Camera cam)
@@ -88,7 +88,7 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    // ─── Result UI ─────────────────────────────────────────
+    // ─── リザルトUI ─────────────────────────────────────────
     public void ShowGameClearUI()
     {
         if (_gameClearUI != null) _gameClearUI.SetActive(true); // ゲームクリアUIを表示
@@ -106,16 +106,16 @@ public class UIManager : MonoBehaviour
 
     public void ResetAllUI()
     {
-        // Result overlays
+        // リザルトオーバーレイ
         if (_gameClearUI != null) _gameClearUI.SetActive(false);       // クリアUIを非表示
         if (_gameOverAnim != null) _gameOverAnim.HardHideInstant();    // ゲームオーバーUIをアニメーションなしで即非表示
         if (_tutorialClearUI != null) _tutorialClearUI.SetActive(false);
 
 
-        // Tutorials (hide all panels)
+        // チュートリアル（全パネルを非表示）
         HideAllTutorials(); // 全チュートリアルUIを非表示
 
-        // NOTE: HUD / Title visibility are still controlled per-scene by GameManager.
+        // 注意：HUD/タイトルの表示はシーンごとにGameManagerが制御する。
 
         if (_playerUIRoot != null) _playerUIRoot.SetActive(false); // プレイヤーHUDを非表示
         if (_titleUIRoot != null) _titleUIRoot.SetActive(false);   // タイトルUIを非表示
@@ -126,26 +126,26 @@ public class UIManager : MonoBehaviour
         if (_gameOverUI != null) _gameOverUI.SetActive(true);
 
         if (_gameOverAnim == null && _gameOverUI != null)
-            _gameOverAnim = _gameOverUI.GetComponent<GameOverUI_Anim>(); // アニメーターが未設定なら動的に取得
+            _gameOverAnim = _gameOverUI.GetComponent<GameOverUI_Anim>(); // アニメーターが未設定の場合は動的に取得
 
         _gameOverAnim?.Show(); // アニメーション付きでゲームオーバーUIを表示
     }
 
 
-    // ─── Player HUD ────────────────────────────────────────
+    // ─── プレイヤーHUD ────────────────────────────────────────
     public void ShowPlayerUI(bool active)
     {
         if (_playerUIRoot != null) _playerUIRoot.SetActive(active);
         _playerUIRoot.GetComponent<UIPlayerBars>()?.PlayIntroAnimation(); // HUD表示時にバーのイントロアニメーションを再生
     }
 
-    // ─── Title UI ──────────────────────────────────────────
+    // ─── タイトルUI ──────────────────────────────────────────
     public void ShowTitleUI(bool active)
     {
         if (_titleUIRoot != null) _titleUIRoot.SetActive(active); // タイトルUIの表示・非表示を切り替え
     }
 
-    // ─── Tutorial UI ───────────────────────────────────────
+    // ─── チュートリアルUI ───────────────────────────────────────
     private void OnDestroy()
     {
         if (Instance == this) Instance = null; // このインスタンスが破棄されたらシングルトン参照をクリア
@@ -169,7 +169,7 @@ public class UIManager : MonoBehaviour
             await ui.MarkSuccessAndAutoHideAsync(); // 成功マークを付けて自動的に非表示にする
     }
 
-    // Fire-and-forget convenience
+    // 呼び捨て（Fire-and-forget）の簡易版
     public void ShowTutorial(TutorialKey key) => ShowTutorialAsync(key).Forget();    // 非同期を待機しない簡易版
     public void HideTutorial(TutorialKey key) => HideTutorialAsync(key).Forget();    // 非同期を待機しない簡易版
     public void TutorialSuccess(TutorialKey key) => TutorialSuccessAsync(key).Forget(); // 非同期を待機しない簡易版

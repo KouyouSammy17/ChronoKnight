@@ -42,7 +42,7 @@ public class TurboModeManager : MonoBehaviour
     public UnityEvent onTurboStart; // ターボ開始時に発火するイベント
     public UnityEvent onTurboEnd;   // ターボ終了時に発火するイベント
 
-    // runtime
+    // 実行時変数
     private bool _isActive;               // ターボが現在アクティブかどうか
     private bool _onCooldown;             // クールダウン中かどうか
     private float _originalFixedDelta;    // 元のfixedDeltaTimeを保存しておく
@@ -51,7 +51,7 @@ public class TurboModeManager : MonoBehaviour
     private PlayerMotor _player;          // ターボ適用対象のプレイヤー
     private PlayerAnimator _anim;         // アニメーション速度を制御するアニメーター
 
-    // cached originals（ターボ前のプレイヤーパラメータを保存する）
+    // ターボ前のプレイヤーパラメータを保存する
     private float _originalMoveSpeed;
     private float _origAcc, _origDec;
     private float _originalRotateSpeed;
@@ -68,17 +68,17 @@ public class TurboModeManager : MonoBehaviour
     private float _origMaxFallSpeed;
     private float _origWallSlideSpeed;
 
-    // stored comp (mainly for other systems)
+    // 他システムが参照する総合倍率を保持する
     private float _comp; // 他システムが参照するターボ時の総合倍率
 
-    // Expose multipliers for other scripts
-    public float AttackComp => _moveAttackRealMult;         // CombatController uses this (real-time)
-    public float MoveComp => _moveAttackRealMult;           // if you need it elsewhere (real-time)
-    public float OtherAnimComp => _otherRealMult;           // CombatTurboManager uses this (real-time)
+    // 他のスクリプトに倍率を公開する
+    public float AttackComp => _moveAttackRealMult;         // CombatControllerが使用する（リアルタイム）
+    public float MoveComp => _moveAttackRealMult;           // 必要な場合に他の場所で使用する（リアルタイム）
+    public float OtherAnimComp => _otherRealMult;           // CombatTurboManagerが使用する（リアルタイム）
     public float TurboComp => _comp;                        // (1/slowFactor) * 1.5
     public float SlowFactor => _slowFactor;
 
-    // Cancel slow-mo ONLY (no boost). Good for damage impulses.
+    // スロー解除のみ（速度ブーストなし）。ダメージ時のノックバックに適している。
     public float KnockbackComp => 1f / Mathf.Max(0.0001f, _slowFactor); // スロー補正のみ（ノックバック用）
     public float RealTimeComp => 1f / Mathf.Max(0.0001f, _slowFactor);  // timeScaleを打ち消す係数
 
@@ -153,18 +153,18 @@ public class TurboModeManager : MonoBehaviour
         float cost = mm.MaxMomentum * _momentumCostPct;
         if (mm.CurrentMomentum < cost) return false;
 
-        // Spend momentum and pause gain
+        // モメンタムを消費して加算を停止する
         mm.AddMomentum(-cost);      // コスト分を消費する
         mm.SetGainPaused(true);     // ターボ中はモメンタム加算を停止する
 
         _player = player;
         _anim = anim;
 
-        // IMPORTANT: Animator should ignore timeScale during Turbo
+        // 重要：ターボ中はアニメーターがtimeScaleを無視するようにする
         if (_anim != null)
             _anim.SetTurboAnimMode(true); // アニメーターをUnscaledTimeモードに切り替える
 
-        // Cache originals（ターボ前の各パラメータを保存する）
+        // ターボ前の各パラメータを保存する
         _originalMoveSpeed = _player.MoveSpeed;
 
         _origAcc = _player.Acceleration;
@@ -185,14 +185,14 @@ public class TurboModeManager : MonoBehaviour
         _origMaxFallSpeed = _player.MaxFallSpeed;
         _origWallSlideSpeed = _player.WallSlideSpeed;
 
-        // World slowdown（世界の時間をスローにする）
+        // 世界の時間をスローにする
         Time.timeScale = _slowFactor;
         Time.fixedDeltaTime = _originalFixedDelta * _slowFactor;
 
-        // Apply scaling once immediately（即座にスケール済み値を反映する）
+        // 即座にスケール済み値を反映する
         ApplyTurboScaledValues();
 
-        // snap to new move speed if holding input（入力保持中は新しい速度をすぐに反映する）
+        // 入力保持中は新しい速度をすぐに反映する
         if (_player.IsHoldingMove)
             _player.ApplyBufferedMovement(_player.GetLastMoveInput());
 
@@ -207,38 +207,38 @@ public class TurboModeManager : MonoBehaviour
         // timeScaleの逆数で「リアルタイム相当の速さ」を算出する
         float worldComp = 1f / Mathf.Max(0.0001f, _slowFactor);
 
-        // MAIN COMP for other systems (move/attack 1.5 in real time)
+        // 他システムが参照するメイン倍率（移動・攻撃はリアルタイム1.5倍）
         _comp = worldComp * _moveAttackRealMult;
 
-        // Per-second values (affected by timeScale) need worldComp to become "real-time"
-        float movePerSecondComp = worldComp * _moveAttackRealMult; // 1.5x REAL TIME
-        float otherPerSecondComp = worldComp * _otherRealMult;      // 1.1x REAL TIME
-        float dashPerSecondComp = worldComp * _jumpCutTurboScale;    // for dashjump
+        // timeScaleの影響を受ける毎秒換算の値にはworldCompを掛けてリアルタイム相当にする
+        float movePerSecondComp = worldComp * _moveAttackRealMult; // リアルタイム1.5倍
+        float otherPerSecondComp = worldComp * _otherRealMult;      // リアルタイム1.1倍
+        float dashPerSecondComp = worldComp * _jumpCutTurboScale;    // ダッシュジャンプ用
 
-        // Instant takeoff values should NOT multiply by worldComp (or you jump to the moon)
-        float otherInstantComp = _otherRealMult;                  // 1.1x
+        // 瞬間的な力にはworldCompを掛けない（掛けると過剰になる）
+        float otherInstantComp = _otherRealMult;                  // 1.1倍
 
-        // --- Move speed (REAL TIME * 1.5)
+        // --- 移動速度（リアルタイム×1.5）
         _player.SetMoveSpeed(_originalMoveSpeed * movePerSecondComp);
 
-        // --- Others (REAL TIME * 1.1)
+        // --- その他（リアルタイム×1.1）
         _player.SetAccelDecel(_origAcc * otherPerSecondComp, _origDec * otherPerSecondComp);
         _player.RotateSpeed = _originalRotateSpeed * otherPerSecondComp;
 
-        // dash is "per second" feel（ダッシュも毎秒換算で補正する）
+        // ダッシュも毎秒換算で補正する（「毎秒の感触」を維持するため）
         _player.DashForce = _originalDashForce * otherPerSecondComp;
 
-        // jump takeoff (instant)（ジャンプは瞬間的な力なのでworldCompを掛けない）
+        // ジャンプは瞬間的な力なのでworldCompを掛けない
         _player.DashJumpForce = _originalDashJumpForce *dashPerSecondComp;
-        _player.DashJumpBonusUpVelocity = _origDashJumpBonusUpVel * dashPerSecondComp; // contributes to velocity, so compensate too
+        _player.DashJumpBonusUpVelocity = _origDashJumpBonusUpVel * dashPerSecondComp; // 速度に加算されるため同様に補正する
         _player.JumpForce = _origJumpForce * otherPerSecondComp;
         _player.WallJumpForce = _origWallJumpForce * otherPerSecondComp;
         _player.WallJumpHorizontalForce = _origWallJumpHForce * otherPerSecondComp;
 
-        // keep your cut tuning（ジャンプカットのチューニングを維持する）
+        // ジャンプカットのチューニングを維持する
         _player.JumpCutMultiplier = _origJumpCutMultiplier * _jumpCutTurboScale;
 
-        // falling/gravity needs real-time compensation (per-second)（落下も毎秒換算で補正する）
+        // 落下・重力も毎秒換算でリアルタイム補正する
         float fallComp = otherPerSecondComp * _fallTurboScale;
         _player.FallMultiplier = _origFallMultiplier * fallComp;
         _player.MaxFallSpeed = _origMaxFallSpeed * fallComp;
@@ -261,11 +261,11 @@ public class TurboModeManager : MonoBehaviour
     {
         if (!_isActive) return;
 
-        // Restore time（時間スケールを元に戻す）
+        // 時間スケールを元に戻す
         Time.timeScale = 1f;
         Time.fixedDeltaTime = _originalFixedDelta;
 
-        // Restore player（保存しておいたプレイヤーパラメータをすべて復元する）
+        // 保存しておいたプレイヤーパラメータをすべて復元する
         if (_player != null)
         {
             _player.SetMoveSpeed(_originalMoveSpeed);
@@ -288,14 +288,14 @@ public class TurboModeManager : MonoBehaviour
             _player.WallSlideSpeed = _origWallSlideSpeed;
         }
 
-        // Restore animator（アニメーターを通常モードに戻す）
+        // アニメーターを通常モードに戻す
         if (_anim != null)
         {
             _anim.SetTurboAnimMode(false);
             _anim.SetAttackSpeed(1f);
         }
 
-        // Resume momentum gain（モメンタムの加算停止を解除する）
+        // モメンタムの加算停止を解除する
         MomentumManager.Instance?.SetGainPaused(false);
 
         _isActive = false;

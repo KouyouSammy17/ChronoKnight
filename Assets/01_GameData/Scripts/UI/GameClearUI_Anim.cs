@@ -8,27 +8,27 @@ public class GameClearUI_Anim : MonoBehaviour
     [Header("Auto Find (by name)")]
     [SerializeField] private bool _autoFindOnAwake = true; // Awake時に子オブジェクトを自動検索するか
 
-    [Header("Root")]
-    [SerializeField] private RectTransform _rootPanel;     // GameClearUI root
-    [SerializeField] private CanvasGroup _rootGroup;       // CanvasGroup on root
+    [Header("ルート")]
+    [SerializeField] private RectTransform _rootPanel;     // GameClearUIのルート
+    [SerializeField] private CanvasGroup _rootGroup;       // ルートのCanvasGroup
 
-    [Header("Dim")]
-    [SerializeField] private CanvasGroup _dimGroup;        // Dimed (optional)
+    [Header("暗幕")]
+    [SerializeField] private CanvasGroup _dimGroup;        // 暗幕（任意）
 
-    [Header("Title")]
+    [Header("タイトル")]
     [SerializeField] private RectTransform _title;         // Text_Title
-    [SerializeField] private RectTransform _titleGlow;     // TextTitle_Glow (optional)
+    [SerializeField] private RectTransform _titleGlow;     // TextTitle_Glow（任意）
 
-    [Header("Stars (Off/On pairs optional)")]
-    [SerializeField] private Transform _starOffRoot;       // StarStage/Star_Off (if exists)
-    [SerializeField] private Transform _starOnRoot;        // StarStage/Star_On  (if exists)
-    [SerializeField] private RectTransform[] _starIcons;   // fallback: StarStage children icons (if no off/on)
+    [Header("スター（Off/Onペア・任意）")]
+    [SerializeField] private Transform _starOffRoot;       // StarStage/Star_Off（存在する場合）
+    [SerializeField] private Transform _starOnRoot;        // StarStage/Star_On（存在する場合）
+    [SerializeField] private RectTransform[] _starIcons;   // フォールバック：StarStageの子アイコン（off/onがない場合）
 
-    [Header("Checks (Toggle_Check*/On)")]
+    [Header("チェック（Toggle_Check*/On）")]
     [SerializeField] private Transform _textBoxStage;      // TextBox Stage
-    [SerializeField] private RectTransform[] _checkOnIcons; // filled by AutoFind: Toggle_Check*/On
+    [SerializeField] private RectTransform[] _checkOnIcons; // AutoFindで設定：Toggle_Check*/On
 
-    [Header("Buttons (optional anim)")]
+    [Header("ボタン（任意アニメーション）")]
     [SerializeField] private RectTransform _buttons;       // Buttons
 
     [Header("Timing")]
@@ -77,7 +77,7 @@ public class GameClearUI_Anim : MonoBehaviour
             if (_starOffRoot == null) _starOffRoot = starStage.Find("Star_Off");
             if (_starOnRoot == null) _starOnRoot = starStage.Find("Star_On");
 
-            // fallback (if you don't have Star_Off/Star_On)
+            // フォールバック（Star_Off/Star_Onがない場合）
             if ((_starOffRoot == null || _starOnRoot == null) && _starIcons == null)
             {
                 var list = new List<RectTransform>();
@@ -93,12 +93,12 @@ public class GameClearUI_Anim : MonoBehaviour
         if (_textBoxStage == null) _textBoxStage = transform.Find("TextBox Stage");
         if (_buttons == null) _buttons = FindRect("Buttons");
 
-        // Collect Toggle_Check*/On icons in order
+        // Toggle_Check*/Onアイコンを順番に収集する
         if (_textBoxStage != null)
         {
             var checkOnList = new List<RectTransform>();
 
-            // You have: Toggle_Check, Toggle_Check (1), Toggle_Check (2)
+            // Toggle_Check、Toggle_Check (1)、Toggle_Check (2) などを対象にする
             for (int i = 0; i < _textBoxStage.childCount; i++)
             {
                 var child = _textBoxStage.GetChild(i);
@@ -143,11 +143,11 @@ public class GameClearUI_Anim : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────
-    // Public API
+    // 公開API
     // ─────────────────────────────────────────────────────
 
-    /// <param name="starsAchieved">0..3</param>
-    /// <param name="checksAchieved">array length 0..3 (ReachedGoal, 120s, 90s)</param>
+    /// <param name="starsAchieved">0〜3</param>
+    /// <param name="checksAchieved">長さ0〜3の配列（ゴール到達・120秒・90秒）</param>
     public void Show(int starsAchieved, bool[] checksAchieved)
     {
         _seq?.Kill(); // 既存のアニメーションを停止
@@ -156,7 +156,7 @@ public class GameClearUI_Anim : MonoBehaviour
         gameObject.SetActive(true);
         transform.SetAsLastSibling(); // 最前面に表示
 
-        // Setup initial visual state
+        // 初期ビジュアル状態を設定する
         if (_rootGroup != null)
         {
             _rootGroup.alpha = 0f;
@@ -169,22 +169,22 @@ public class GameClearUI_Anim : MonoBehaviour
         if (_title != null) _title.localScale = Vector3.one;
         if (_titleGlow != null) _titleGlow.localScale = Vector3.one;
 
-        // checks: show/hide ON icons immediately, but if achieved we start them at scale 0 for pop
+        // チェック：ONアイコンを即座に表示/非表示する。達成済みの場合はスケール0からポップイン
         SetupChecks(checksAchieved); // チェックアイコンの初期状態を設定
 
-        // stars: setup state
+        // スターの初期状態を設定する
         SetupStars(starsAchieved); // スターアイコンの初期状態を設定
 
-        // buttons start slightly small (optional)
+        // ボタンをわずかに縮小した状態から開始する（任意）
         if (_buttons != null && _animateButtons)
             _buttons.localScale = Vector3.one * 0.96f; // ボタンをわずかに縮小した状態から開始
 
-        // Build sequence
+        // シーケンスを構築する
         _seq = DOTween.Sequence()
             .SetUpdate(true)
             .SetLink(gameObject, LinkBehaviour.KillOnDestroy);
 
-        // dim + root fade
+        // 暗幕 + ルートフェード
         if (_dimGroup != null) _seq.Join(_dimGroup.DOFade(1f, _fadeIn).SetEase(Ease.OutQuad));  // 暗幕フェードイン
         if (_rootGroup != null) _seq.Join(_rootGroup.DOFade(1f, _fadeIn).SetEase(Ease.OutQuad)); // パネルフェードイン
 
@@ -206,7 +206,7 @@ public class GameClearUI_Anim : MonoBehaviour
         }
 
         // ────────────────────────────────────
-        // 1) Toggle checks FIRST (top→bottom)
+        // 1) チェックを先に表示（上から下へ）
         if (_checkOnIcons != null && _checkOnIcons.Length > 0)
         {
             for (int i = 0; i < _checkOnIcons.Length; i++)
@@ -223,10 +223,10 @@ public class GameClearUI_Anim : MonoBehaviour
         }
 
         // ────────────────────────────────────
-        // 2) Stars AFTER checks (left→right)
+        // 2) チェックの後にスターを表示（左から右へ）
         AppendStarTweens(starsAchieved); // スターアニメーションをSequenceに追加
 
-        // Buttons pop
+        // ボタンポップ
         if (_buttons != null && _animateButtons)
         {
             _seq.AppendInterval(0.08f);
@@ -297,7 +297,7 @@ public class GameClearUI_Anim : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────
-    // Internals
+    // 内部処理
     // ─────────────────────────────────────────────────────
 
     private void SetupChecks(bool[] checksAchieved)
@@ -315,7 +315,7 @@ public class GameClearUI_Anim : MonoBehaviour
             check.gameObject.SetActive(achieved);     // 達成したチェックのみ表示
             check.localRotation = Quaternion.identity;
 
-            // achieved checks start from 0 for pop
+            // 達成済みチェックはスケール0からポップインさせる
             check.localScale = achieved ? Vector3.zero : Vector3.one; // 達成チェックはスケール0からポップイン
         }
     }
@@ -337,7 +337,7 @@ public class GameClearUI_Anim : MonoBehaviour
 
     private void SetupStars(int starsAchieved)
     {
-        // Case A: Off/On pairs exist (preferred)
+        // ケースA：Off/Onペアが存在する場合（推奨）
         if (_starOffIcons != null && _starOnIcons != null && _starOffIcons.Length > 0)
         {
             int n = Mathf.Min(_starOffIcons.Length, _starOnIcons.Length);
@@ -353,13 +353,13 @@ public class GameClearUI_Anim : MonoBehaviour
                     _starOnIcons[i].gameObject.SetActive(on);
                     _starOnIcons[i].DOKill(true);
                     _starOnIcons[i].localRotation = Quaternion.identity;
-                    _starOnIcons[i].localScale = on ? Vector3.zero : Vector3.one; // earned stars start hidden
+                    _starOnIcons[i].localScale = on ? Vector3.zero : Vector3.one; // 取得スターはアニメーション前は非表示
                 }
             }
             return;
         }
 
-        // Case B: Single icon per star (fallback) -> we just pop the first N stars
+        // ケースB：スター1個につきアイコン1つ（フォールバック）→ 最初のN個をポップ表示する
         if (_starIcons != null && _starIcons.Length > 0)
         {
             int n = _starIcons.Length;
@@ -378,7 +378,7 @@ public class GameClearUI_Anim : MonoBehaviour
 
     private void AppendStarTweens(int starsAchieved)
     {
-        // Off/On style
+        // Off/Onスタイル
         if (_starOnIcons != null && _starOnIcons.Length > 0)
         {
             int n = _starOnIcons.Length;
@@ -393,7 +393,7 @@ public class GameClearUI_Anim : MonoBehaviour
             return;
         }
 
-        // Fallback style
+        // フォールバックスタイル
         if (_starIcons != null && _starIcons.Length > 0)
         {
             int n = _starIcons.Length;
@@ -426,13 +426,13 @@ public class GameClearUI_Anim : MonoBehaviour
     }
 
 #if UNITY_EDITOR
-    [ContextMenu("DEBUG/Show (2 stars, checks 1&2)")]
+    [ContextMenu("デバッグ/表示（スター2つ、チェック1と2）")]
     private void DebugShow()
     {
         Show(2, new[] { true, true, false }); // エディタ上でのデバッグ表示
     }
 
-    [ContextMenu("DEBUG/Hide")]
+    [ContextMenu("デバッグ/非表示")]
     private void DebugHide() => Hide();
 #endif
 }

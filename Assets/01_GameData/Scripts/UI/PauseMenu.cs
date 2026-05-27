@@ -31,7 +31,7 @@ public class PauseMenu : MonoBehaviour
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // CALLED BY GAMEMANAGER
+    // GAMEMANAGERから呼び出される
     public void ShowMenu()
     {
         _hideSeq?.Kill(); // 非表示アニメーション中なら停止
@@ -52,7 +52,7 @@ public class PauseMenu : MonoBehaviour
         if (_panelRect) _panelRect.localScale = Vector3.zero;
 
         _showSeq = DOTween.Sequence()
-            .SetUpdate(true) // unscaled time (works while paused)
+            .SetUpdate(true) // 非スケール時間（ポーズ中も動作する）
             .SetLink(gameObject, LinkBehaviour.KillOnDestroy)
             .Join(_panelGroup.DOFade(1f, _fadeTime).SetEase(Ease.OutQuad))         // フェードイン
             .Join(_panelRect.DOScale(1.1f, _scaleTime).SetEase(Ease.OutBack))      // スケールポップイン
@@ -81,7 +81,7 @@ public class PauseMenu : MonoBehaviour
         }
 
         _hideSeq = DOTween.Sequence()
-            .SetUpdate(true) // unscaled time
+            .SetUpdate(true) // 非スケール時間
             .SetLink(gameObject, LinkBehaviour.KillOnDestroy)
             .Join(_panelGroup.DOFade(0f, _fadeTime).SetEase(Ease.InQuad))     // フェードアウト
             .Join(_panelRect.DOScale(0f, _scaleTime).SetEase(Ease.InBack))    // スケールアウト
@@ -93,7 +93,7 @@ public class PauseMenu : MonoBehaviour
         _hideSeq.Play();
     }
 
-    // NEW: instant hard hide for scene changes / title
+    // シーン切り替え・タイトルへの遷移時に即座に非表示にする
     public void HideMenuInstant()
     {
         _showSeq?.Kill();
@@ -117,7 +117,7 @@ public class PauseMenu : MonoBehaviour
 
 
     // ──────────────────────────────────────────────────────────────────
-    // Helpers
+    // ヘルパー
     private async UniTaskVoid FocusNextFrameAsync(CancellationToken ct)
     {
         await UniTask.NextFrame(ct); // 次フレームまで待機（UIの初期化が完了してから選択する）
@@ -131,7 +131,7 @@ public class PauseMenu : MonoBehaviour
 
     private void ResetSelectionState()
     {
-        // Clear selected object so we don't reopen focused on wrong button
+        // 選択オブジェクトをクリアして、再表示時に誤ったボタンにフォーカスしないようにする
         if (EventSystem.current != null &&
             EventSystem.current.currentSelectedGameObject != null)
         {
@@ -140,7 +140,7 @@ public class PauseMenu : MonoBehaviour
 
         if (_contentRoot == null) return;
 
-        // Reset all SelectSwap under this menu
+        // このメニュー配下の全SelectSwapをリセットする
         var swaps = _contentRoot.GetComponentsInChildren<SelectSwap>(true);
         foreach (var s in swaps)
         {
@@ -149,7 +149,7 @@ public class PauseMenu : MonoBehaviour
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // Buttons
+    // ボタン
     public void OnClick_Resume() => GameManager.Instance?.ResumeGame(); // 再開ボタン
     public void OnClick_RestartLevel() { GameManager.Instance?.ResumeGame(); GameManager.Instance?.RestartLevel(); } // リスタートボタン
     public void OnClick_QuitToTitle()

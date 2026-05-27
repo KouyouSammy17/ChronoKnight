@@ -35,14 +35,14 @@ public class MomentumGaugeUI : MonoBehaviour
 
     [Header("Glow (>= 50%) - FEEL")]
     [SerializeField] private GameObject _glowRoot;       // GlowImage GameObject
-    [SerializeField] private CanvasGroup _glowGroup;     // CanvasGroup on GlowImage
+    [SerializeField] private CanvasGroup _glowGroup;     // GlowImage上のCanvasGroup
     [SerializeField] private MMFeedbacks _glowAppear;    // plays once when enabling
     [SerializeField] private MMFeedbacks _glowBlinkLoop; // loops while enabled
     [SerializeField, Range(0f, 1f)] private float _glowStartPct = 0.5f; // グロー開始するモメンタム割合
 
     [Header("Outside Glow (ONLY at 100%) - FEEL")]
-    [SerializeField] private GameObject _glowOutsideRoot;        // GlowOutside GameObject
-    [SerializeField] private CanvasGroup _glowOutsideGroup;      // CanvasGroup on GlowOutside
+    [SerializeField] private GameObject _glowOutsideRoot;        // GlowOutsideのGameObject
+    [SerializeField] private CanvasGroup _glowOutsideGroup;      // GlowOutside上のCanvasGroup
     [SerializeField] private MMFeedbacks _glowOutsideAppear;     // plays once when enabling
     [SerializeField] private MMFeedbacks _glowOutsideBlinkLoop;  // loops while enabled
     [SerializeField] private float _maxEpsilon = 0.001f;         // float safety
@@ -66,7 +66,7 @@ public class MomentumGaugeUI : MonoBehaviour
     {
         if (_momentumSlider == null) _momentumSlider = GetComponent<Slider>();
         if (_group == null) _group = GetComponent<CanvasGroup>();
-        if (_group == null) { _group = gameObject.AddComponent<CanvasGroup>(); } // safe default
+        if (_group == null) { _group = gameObject.AddComponent<CanvasGroup>(); } // 安全なデフォルト
         if (_fillImage != null) _baseFillColor = _fillImage.color; // フィル色を保存
         if (_glowRoot != null) _glowRoot.SetActive(false);   // グローは初期非表示
         if (_glowGroup != null) _glowGroup.alpha = 0f;
@@ -78,7 +78,7 @@ public class MomentumGaugeUI : MonoBehaviour
         if (_startHidden)
             SetVisible(false, instant: true); // 初期非表示設定に従って即座に非表示
 
-        // make sure highlight starts off
+        // ハイライトを確実に非表示にする
         if (_highlightRoot != null)
             _highlightRoot.SetActive(false);
 
@@ -164,13 +164,13 @@ public class MomentumGaugeUI : MonoBehaviour
 
         float target = Mathf.Clamp(m, 0f, _momentumSlider.maxValue); // 0〜最大値の範囲にクランプ
 
-        // detect increase BEFORE _lastValue updates
+        // _lastValueを更新する前に増加を検知する
         bool increased = (_lastValue > -900f) && (target > _lastValue + 0.0001f); // モメンタムが増加したか判定
 
         if (Mathf.Approximately(_lastValue, target)) return; // 値が変わっていなければスキップ
         _lastValue = target;
 
-        // your existing slider tween
+        // スライダーのTweenを更新する
         _valueTween?.Kill();
         _valueTween = _momentumSlider
             .DOValue(target, _tweenDuration)
@@ -178,11 +178,11 @@ public class MomentumGaugeUI : MonoBehaviour
             .SetUpdate(_animateWhilePaused)
             .SetLink(_momentumSlider.gameObject, LinkBehaviour.KillOnDestroy);
 
-        // FEEL burst on gain
+        // モメンタム増加時にFEELバーストエフェクトを再生
         if (increased)
             _fillGlowBurst?.PlayFeedbacks(); // モメンタムが増加したときにバーストエフェクト再生
 
-        // FEEL loop from 50%
+        // 50%以上でFEELループグローを有効化
         float pct = (_momentumSlider.maxValue <= 0f) ? 0f : (target / _momentumSlider.maxValue); // モメンタムの割合を計算
         SetLoopGlow(pct >= _glowStartPct); // 閾値以上でグローループを有効化
 
@@ -191,7 +191,7 @@ public class MomentumGaugeUI : MonoBehaviour
     }
 
 
-    // ↓ Timeline-callable helpers ─────────────────────────────────────
+    // ↓ タイムラインから呼び出せるヘルパー ─────────────────────────────────────
     public void TL_HideGauge() => SetVisible(false, instant: false); // タイムラインからゲージを非表示にする
     public void TL_ShowGauge() => SetVisible(true, instant: false);  // タイムラインからゲージを表示する
 
@@ -203,15 +203,15 @@ public class MomentumGaugeUI : MonoBehaviour
             return;
         }
 
-        // stop previous show animation
+        // 前回の表示アニメーションを停止する
         _showSeq?.Kill();
         _showSeq = null;
 
-        bool useUnscaled = _animateWhilePaused; // respect your setting
+        bool useUnscaled = _animateWhilePaused; // 設定を尊重する
 
         if (visible)
         {
-            // IMPORTANT: must be active to render + run tweens
+            // 重要：レンダリングとTweenの実行にはアクティブである必要がある
             if (!gameObject.activeSelf) gameObject.SetActive(true); // Tweenを動かすにはアクティブである必要がある
 
             if (instant || !Application.isPlaying)
@@ -238,7 +238,7 @@ public class MomentumGaugeUI : MonoBehaviour
                 return;
             }
 
-            // start pose
+            // 開始状態を設定する
             _root.localScale = _baseScale * _fromScale; // アニメーション開始スケールに設定
             if (_useSlide)
                 _root.anchoredPosition = _baseAnchoredPos - new Vector2(0f, _slideY); // スライド開始位置に設定
@@ -255,13 +255,13 @@ public class MomentumGaugeUI : MonoBehaviour
             return;
         }
 
-        // HIDE
+        // 非表示
         if (instant || !Application.isPlaying)
         {
             _group.alpha = 0f;
             _group.interactable = false;
             _group.blocksRaycasts = false;
-            // optional: disable instantly
+            // 任意：即座に無効化する場合はコメントを外す
             // gameObject.SetActive(false);
             return;
         }
@@ -273,7 +273,7 @@ public class MomentumGaugeUI : MonoBehaviour
               .SetUpdate(useUnscaled)
               .OnComplete(() =>
               {
-                  // optional: turn off object after fade
+                  // 任意：フェード後にオブジェクトを無効化する場合はコメントを外す
                   // gameObject.SetActive(false);
               });
     }
@@ -300,19 +300,19 @@ public class MomentumGaugeUI : MonoBehaviour
 
         if (enable)
         {
-            // show object first
+            // まずオブジェクトを表示する
             _glowRoot.SetActive(true);
 
-            // reset alpha to start (so appear always looks correct)
+            // 開始アルファをリセットする（appearが常に正しく見えるように）
             if (_glowGroup != null) _glowGroup.alpha = 0f;
 
-            // play appear once, then start blink loop
+            // appearを1回再生してから点滅ループを開始する
             _glowAppear?.PlayFeedbacks();    // 表示アニメーションを1回再生
             _glowBlinkLoop?.PlayFeedbacks(); // 点滅ループアニメーションを開始
         }
         else
         {
-            // stop loop + hide
+            // ループを停止して非表示にする
             _glowBlinkLoop?.StopFeedbacks(); // 点滅ループを停止
             _glowAppear?.StopFeedbacks();
 

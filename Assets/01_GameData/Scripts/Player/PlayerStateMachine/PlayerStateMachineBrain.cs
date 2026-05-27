@@ -19,11 +19,11 @@ public class PlayerStateMachineBrain : MonoBehaviour
     [SerializeField] private PlayerStateID _current = PlayerStateID.Grounded; // 現在の移動ステートID（デバッグ表示用）
     [SerializeField] private PlayerModeID _modeCurrent = PlayerModeID.Normal; // 現在のモードID（デバッグ表示用）
 
-    // FEEL
+    // FEEL（MoreMountains）
     public MMStateMachine<PlayerStateID> MovementState { get; private set; } // MoreMountains製の移動ステートマシン
     public MMStateMachine<PlayerModeID> ModeState { get; private set; } // MoreMountains製のモードステートマシン
 
-    // accessors
+    // アクセサ
     public PlayerMotor Motor => _motor; // モーターへのアクセサ
     public PlayerAnimator Anim => _anim; // アニメーターへのアクセサ
     public PlayerInputRouter Input => _input; // 入力ルーターへのアクセサ
@@ -33,11 +33,11 @@ public class PlayerStateMachineBrain : MonoBehaviour
 
     public PlayerModeID CurrentMode => _modeCurrent; // 現在のモードIDを外部から参照
 
-    // movement states
+    // 移動ステート
     private readonly Dictionary<PlayerStateID, IPlayerState> _states = new(); // 移動ステートの辞書（IDでアクセス）
     private IPlayerState _active; // 現在アクティブな移動ステート
 
-    // mode states
+    // モードステート
     private readonly Dictionary<PlayerModeID, IPlayerModeState> _modeStates = new(); // モードステートの辞書
     private IPlayerModeState _modeActive; // 現在アクティブなモードステート
 
@@ -53,7 +53,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
         MovementState = new MMStateMachine<PlayerStateID>(this.gameObject, true);
         ModeState = new MMStateMachine<PlayerModeID>(this.gameObject, true);
 
-        // Movement
+        // 移動ステート
         Register(new PlayerState_Grounded());
         Register(new PlayerState_Airborne());
         Register(new PlayerState_WallSlide());
@@ -68,7 +68,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
         Register(new PlayerState_Win());
 
 
-        // Mode
+        // モードステート
         RegisterMode(new PlayerMode_Normal());
         RegisterMode(new PlayerMode_Turbo());
     }
@@ -77,7 +77,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
     {
         ChangeState(_motor != null && _motor.IsGrounded ? PlayerStateID.Grounded : PlayerStateID.Airborne, true);
 
-        // Initial mode mirror
+        // 初期モードを同期
         bool turboActive = TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive;
         ChangeMode(turboActive ? PlayerModeID.Turbo : PlayerModeID.Normal, true);
     }
@@ -85,7 +85,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
     private void Update()
     {
         // ─────────────────────────────────────────────
-        // 1) Turbo input -> start Turbo via TurboModeManager
+        // 1) ターボ入力 -> TurboModeManager経由でターボを開始
         // ─────────────────────────────────────────────
         if (Input != null && Input.ConsumeTurboPressed())
         {
@@ -94,21 +94,21 @@ public class PlayerStateMachineBrain : MonoBehaviour
             {
                 ChangeState(PlayerStateID.TurboStart); // ターボ入力を受け付けたらTurboStartステートへ
             }
-            // else: ignore input (or play a “cooldown” SFX/UI flash)
+            // else: 入力を無視する（またはクールダウンのSFX/UIフラッシュを再生する）
         }
 
 
         // ─────────────────────────────────────────────
-        // 2) Mirror runtime Turbo -> ModeState (Normal/Turbo)
+        // 2) ランタイムのターボ状態をModeState（Normal/Turbo）に同期
         // ─────────────────────────────────────────────
         bool turboNow = TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive;
         ChangeMode(turboNow ? PlayerModeID.Turbo : PlayerModeID.Normal); // ターボ状態に合わせてモードを切り替える
 
-        // optional mode tick (UI/VFX hooks live here)
+        // 任意のモードTick（UI/VFXフックはここで処理される）
         _modeActive?.Tick(this); // 現在のモードのTickを実行
 
         // ─────────────────────────────────────────────
-        // 3) Movement state tick + transitions
+        // 3) 移動ステートのTick + 遷移評価
         // ─────────────────────────────────────────────
         _active?.Tick(this); // 現在の移動ステートのTickを実行
         EvaluateTransitions(); // ステート遷移の条件を評価
@@ -121,7 +121,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────
-    // Movement state machine
+    // 移動ステートマシン
     // ─────────────────────────────────────────────
     private void Register(IPlayerState state) => _states[state.ID] = state;
 
@@ -142,7 +142,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
     {
         if (_current == PlayerStateID.Win) return; // 勝利状態はステート遷移を行わない
 
-        // DEAD overrides everything — also stop turbo so timeScale resets
+        // 死亡は全てに優先される — TimeScaleをリセットするためにターボも停止する
         if (_stats != null && _stats.CurrentHP <= 0)
         {
             if (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
@@ -166,14 +166,14 @@ public class PlayerStateMachineBrain : MonoBehaviour
             return;
         }
 
-        // Dash ends -> fall back
+        // ダッシュ終了 -> 移動ステートへ戻る
         if (_current == PlayerStateID.Dash && _motor != null && !_motor.IsDashing)
         {
             ChangeState(_motor.IsGrounded ? PlayerStateID.Grounded : PlayerStateID.Airborne); // ダッシュ終了後は接地状態で判断
             return;
         }
 
-        // Dash attack: if player attacks during dash, go to DashAttack
+        // ダッシュ攻撃：ダッシュ中に攻撃するとDashAttackへ
         if (_motor != null && _motor.IsDashing && _input != null && _input.ConsumeAttackPressed())
         {
             ChangeState(PlayerStateID.DashAttack); // ダッシュ中に攻撃入力でDashAttackステートへ
@@ -186,7 +186,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
             return;
         }
 
-        // Attack/Hurt end -> fall back
+        // 攻撃/ヒット終了 -> 移動ステートへ戻る
         if ((_current == PlayerStateID.Attack && (_combat == null || !_combat.IsComboActive)) ||
             (_current == PlayerStateID.Hurt && (_damage == null || !_damage.IsInHitStun)))
         {
@@ -194,7 +194,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
             return;
         }
 
-        // WallSlide logic
+        // 壁スライドのロジック
         if (_motor != null)
         {
             if (_current == PlayerStateID.Airborne && _motor.ShouldWallSlide)
@@ -210,7 +210,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
             }
         }
 
-        // Grounded/Airborne swap
+        // 接地/空中の切り替え
         if (_motor != null)
         {
             if (_current == PlayerStateID.Grounded && !_motor.IsGrounded)
@@ -221,7 +221,7 @@ public class PlayerStateMachineBrain : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────
-    // Mode state machine (Normal/Turbo)
+    // モードステートマシン（Normal/Turbo）
     // ─────────────────────────────────────────────
     private void RegisterMode(IPlayerModeState state) => _modeStates[state.ID] = state;
 
@@ -240,21 +240,21 @@ public class PlayerStateMachineBrain : MonoBehaviour
 
     public void ResetAfterRespawn(bool forceSnapYawRight = true)
     {
-        // 0) Stop turbo and normalize mode (so DT / fixedDT go back to normal)
+        // 0) ターボを停止してモードを正規化する（DT / fixedDTを通常に戻す）
         if (TurboModeManager.Instance != null && TurboModeManager.Instance.IsActive)
             TurboModeManager.Instance.StopTurbo(); // ターボを停止してTimeScaleを正常に戻す
         ChangeMode(PlayerModeID.Normal, true); // モードを強制的にノーマルに戻す
 
-        // 1) Clear stateful gameplay systems
+        // 1) ステートフルなゲームプレイシステムをクリア
         Combat?.CancelCombo(); // 進行中のコンボをキャンセル
 
-        // 2) Clear buffered inputs so we don't "auto attack / auto jump" after respawn
+        // 2) リスポーン後に「自動攻撃/自動ジャンプ」が起きないようにバッファされた入力をクリア
         Input?.ClearPressedBuffers(); // リスポーン後に自動攻撃・ジャンプが起きないようにバッファをクリア
         Motor?.ClearBufferedMovement(); // バッファされた移動入力もクリア
 
-        // 3) Reset motor runtime flags (dash, wall jump locks, etc.)
-        // Use OnRespawnSnap if you're already teleporting + SyncTransforms in GameManager
-        Motor?.OnRespawnSnap(); // keeps jump buffer behavior you designed テレポート後の物理状態をリセット
+        // 3) モーターのランタイムフラグをリセット（ダッシュ・壁ジャンプロックなど）
+        // GameManagerでテレポート + SyncTransformsを使っている場合はOnRespawnSnapを使用する
+        Motor?.OnRespawnSnap(); // 設計したジャンプバッファ動作を維持してテレポート後の物理状態をリセット
         Motor?.SetHitReactLock(false); // ヒットリアクションロックを解除
         Motor?.SetAirComboHang(false); // 空中コンボハングを解除
         Motor?.SetFrozen(false); // フリーズを解除
@@ -262,13 +262,13 @@ public class PlayerStateMachineBrain : MonoBehaviour
         Motor?.StopHorizontalInstant(); // 水平速度を即時停止
         GetComponent<PlayerDamageReceiver>()?.CancelForRespawn(); // 保留中のヒットリアクション処理をキャンセル
 
-        // 4) Reset animator flags (hurt/down/rootmotion/attack speed/etc.)
+        // 4) アニメーターのフラグをリセット（ヒット・ダウン・ルートモーション・攻撃速度など）
         Anim?.ResetForRespawn(); // アニメーター状態をリスポーン用にリセット
 
-        // 5) Force the movement state back to grounded
+        // 5) 移動ステートを強制的にGroundedに戻す
         ChangeState(PlayerStateID.Grounded, true); // 移動ステートを強制的にGroundedに戻す
 
-        // Optional: force facing yaw to a known default on respawn
+        // 任意：リスポーン時に既知のデフォルト向きにスナップする
         if (forceSnapYawRight)
             Motor?.ForceFacingYaw(90f, snap: true); // リスポーン時に右向き（90度）にスナップ
     }

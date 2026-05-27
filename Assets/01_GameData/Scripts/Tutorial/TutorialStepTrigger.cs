@@ -14,16 +14,16 @@ public class TutorialStepTrigger : MonoBehaviour
     [SerializeField] private TriggerAction action = TriggerAction.Show; // 進入時に表示するか完了とするか
 
     [Header("Visibility")]
-    [SerializeField] private bool hideOnExit = true;         // only relevant if action=Show   // 退出時に非表示にするか
+    [SerializeField] private bool hideOnExit = true;         // 退出時に非表示にするか（action=Showの場合のみ有効）
 
     [Header("Level Gate")]
-    [SerializeField] private bool onlyInFirstLevel = true;   // prevent firing in later levels  // 最初のレベルのみ発動するか
+    [SerializeField] private bool onlyInFirstLevel = true;   // 後続のレベルで発動しないよう最初のレベルのみに限定するか
 
     private bool _fired;    // 既に発動済みかどうかのフラグ
 
     private void Awake()
     {
-        // ensure trigger collider
+        // トリガーコライダーを確認
         var col = GetComponent<Collider>();
         if (col) col.isTrigger = true;  // コライダーをトリガーモードに設定
     }
@@ -32,11 +32,11 @@ public class TutorialStepTrigger : MonoBehaviour
     {
         if (!onlyInFirstLevel) return true;     // レベル制限なしなら常に許可
 
-        // Prefer GameManager gate if available
+        // GameManagerのゲートを優先使用
         if (GameManager.Instance != null)
             return GameManager.Instance.IsTutorialLevelActive();
 
-        // Fallback to name check
+        // フォールバック：シーン名で判定
         return SceneManager.GetActiveScene().name == "Level_01";    // フォールバック：シーン名で判定
     }
 
@@ -46,7 +46,7 @@ public class TutorialStepTrigger : MonoBehaviour
         if (!other.CompareTag("Player")) return;        // プレイヤー以外は無視
         if (!Allowed()) return;                         // 条件外のレベルなら無視
 
-        // If already learned, no need to show/complete again
+        // 学習済みの場合は表示・完了処理を再度行う必要はない
         if (TutorialProgress.IsLearned(key))
             return;     // 学習済みなら何もしない
 
@@ -54,12 +54,12 @@ public class TutorialStepTrigger : MonoBehaviour
 
         if (action == TriggerAction.Show)
         {
-            //  Centralized routing (Momentum/Turbo special cases handled inside TutorialManager)
+            // 表示ルーティングを一元管理（モメンタム・ターボの特殊ケースはTutorialManager内で処理）
             TutorialManager.Instance?.RequestShow(key); // TutorialManagerに表示リクエストを送る
         }
-        else // Complete
+        else // 完了
         {
-            // Centralized completion (handles SetLearned + success + special resume for Momentum/Turbo)
+            // 完了処理を一元管理（SetLearned + 成功演出 + モメンタム・ターボの特殊再開処理を含む）
             TutorialManager.Instance?.CompleteTutorial(key);   // TutorialManagerに完了処理を委譲
         }
     }
@@ -72,7 +72,7 @@ public class TutorialStepTrigger : MonoBehaviour
         if (!other.CompareTag("Player")) return;        // プレイヤー以外は無視
         if (!Allowed()) return;
 
-        // Only hide if not learned (Momentum/Turbo will ignore hide inside TutorialManager)
+        // 未学習の場合のみ非表示（モメンタム・ターボはTutorialManager内で非表示を無視）
         if (!TutorialProgress.IsLearned(key))
             TutorialManager.Instance?.RequestHide(key); // 未学習の場合のみ非表示リクエストを送る
     }

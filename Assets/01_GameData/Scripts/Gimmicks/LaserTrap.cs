@@ -7,8 +7,8 @@ using SciFiArsenal;
 public class LaserTrap : MonoBehaviour
 {
     [Header("Beam FX (SciFi Arsenal)")]
-    [SerializeField] private GameObject _beamFxRoot;                 // Put SciFiArsenalBeamStatic on this object (recommended: child object)  // ビームFXの親オブジェクト
-    [SerializeField] private SciFiArsenalBeamStatic _beamFx;         // Auto-found from _beamFxRoot if null  // ビームFXコンポーネント（nullなら自動取得）
+    [SerializeField] private GameObject _beamFxRoot;                 // ビームFXの親オブジェクト（SciFiArsenalBeamStaticをここにアタッチ推奨：子オブジェクト）
+    [SerializeField] private SciFiArsenalBeamStatic _beamFx;         // ビームFXコンポーネント（nullなら_beamFxRootから自動取得）
 
     [Header("Loop Timing")]
     [SerializeField] private bool _startOn = true;              // 開始時にレーザーをオン状態にするか
@@ -18,7 +18,7 @@ public class LaserTrap : MonoBehaviour
     [SerializeField] private bool _useUnscaledTime = false;     // タイムスケールを無視した時間を使うか
 
     [Header("Damage")]
-    [SerializeField] private Collider _damageTrigger;                // Trigger collider used for damage (BoxCollider recommended)   // ダメージ判定に使うトリガーコライダー
+    [SerializeField] private Collider _damageTrigger;                // ダメージ判定に使うトリガーコライダー（BoxCollider推奨）
     [SerializeField] private int _damage = 20;                       // プレイヤーに与えるダメージ量
 
     [Tooltip("If > 0: deals damage repeatedly while inside the trigger (laser burn). If = 0: only on enter.")]
@@ -31,20 +31,20 @@ public class LaserTrap : MonoBehaviour
     private Coroutine _loopCo;  // 点滅ループのコルーチン参照
     private bool _isOn;         // 現在レーザーがオンかどうか
 
-    // single-player friendly tick gate
+    // シングルプレイヤー向けのティックゲート
     private float _nextDamageTime = 0f; // 次にダメージを与えられる時刻
 
     private void Awake()
     {
-        // Beam fx refs
+        // ビームFX参照の補完
         if (_beamFxRoot == null && _beamFx != null) _beamFxRoot = _beamFx.gameObject;
         if (_beamFx == null && _beamFxRoot != null) _beamFx = _beamFxRoot.GetComponent<SciFiArsenalBeamStatic>(); // 相互参照を補完
 
-        // Damage trigger ref
+        // ダメージトリガー参照の補完
         if (_damageTrigger == null) _damageTrigger = GetComponent<Collider>();  // 自身のコライダーをフォールバックで使用
         if (_damageTrigger != null) _damageTrigger.isTrigger = true;            // トリガーモードに設定
 
-        // Start hidden until loop decides (prevents accidental always-on in editor)
+        // ループが判断するまで非表示にする（エディタで常時オンになる誤作動を防ぐ）
         ApplyState(_startOn, immediate: true);
     }
 
@@ -62,7 +62,7 @@ public class LaserTrap : MonoBehaviour
             _loopCo = null;
         }
 
-        // Safety: turn everything off when disabled
+        // 安全のため、無効化時はすべてをオフにする
         ApplyState(false, immediate: true); // 無効化時にレーザーを強制オフ
     }
 
@@ -75,7 +75,7 @@ public class LaserTrap : MonoBehaviour
             else yield return new WaitForSeconds(_initialDelay);
         }
 
-        // Ensure the starting state is applied once here too
+        // 初期状態をここでも一度適用する
         ApplyState(_startOn, immediate: true);  // 初期状態を適用
 
         while (true)
@@ -94,23 +94,23 @@ public class LaserTrap : MonoBehaviour
     {
         _isOn = on;
 
-        // 1) Beam FX ON/OFF
+        // 1) ビームFXのオン／オフ
         if (_beamFxRoot != null)
         {
-            // This effectively 'spawns on/off' visually:
-            // - When activated the first time, SciFiArsenalBeamStatic.Start() runs and spawns the beam.
-            // - Afterwards it just toggles visibility.
+            // 視覚的に「スポーン・デスポーン」を擬似的に実現する：
+            // - 初回アクティブ化時にSciFiArsenalBeamStatic.Start()が実行されてビームがスポーンされる。
+            // - その後は表示・非表示を切り替えるだけ。
             _beamFxRoot.SetActive(on);  // ビームFXの表示・非表示を切り替え
         }
 
-        // 2) Damage trigger ON/OFF
+        // 2) ダメージトリガーのオン／オフ
         if (_damageTrigger != null)
             _damageTrigger.enabled = on;    // ダメージトリガーのコライダーを有効・無効化
 
-        // reset tick gate on each ON so it can deal damage immediately
+        // オン時にすぐダメージを与えられるようティックゲートをリセット
         if (on) _nextDamageTime = 0f;  // オンになった瞬間にすぐダメージを与えられるようにリセット
 
-        // Optional: snap-fit once immediately (so collider matches as soon as it turns on)
+        // オン時に即座にスナップフィットを実行（コライダーをビーム長に合わせる）
         if (on && _autoFitDamageBox)
             FitDamageBoxToBeam();   // 即座にビーム長に合わせてコライダーを調整
     }
@@ -125,7 +125,7 @@ public class LaserTrap : MonoBehaviour
     {
         if (_beamFx == null) return;
 
-        // Only supports BoxCollider fitting
+        // BoxColliderのフィットのみ対応
         if (!(_damageTrigger is BoxCollider box)) return;   // BoxCollider以外は対応しない
 
         float maxLen = Mathf.Max(0.01f, _beamFx.beamLength);   // ビームの最大長
@@ -138,13 +138,13 @@ public class LaserTrap : MonoBehaviour
         {
             if (Physics.Raycast(origin, dir, out RaycastHit hit, maxLen))
             {
-                // Match SciFiArsenalBeamStatic end offset logic
+                // SciFiArsenalBeamStaticのエンドオフセットロジックに合わせる
                 distance = Mathf.Clamp(hit.distance - _beamFx.beamEndOffset, 0.01f, maxLen);  // 衝突位置とオフセットに基づいてビーム長を決定
             }
         }
 
-        // We assume your box local Z axis points along the beam forward direction.
-        // Size/center are in local space.
+        // ボックスのローカルZ軸がビームの前方向を向いていることを前提とする。
+        // サイズと中心はローカル空間で指定する。
         Vector3 size = box.size;
         Vector3 center = box.center;
 
@@ -179,10 +179,10 @@ public class LaserTrap : MonoBehaviour
             return;
         }
 
-        // tick mode: allow immediate hit on enter
+        // ティックモード：進入時に即ヒットを許可
         _nextDamageTime = 0f;   // 進入時は待機時間をリセットして即ダメージを許可
         TryTickDamage(other);
-        Debug.Log("LaserTrap OnTriggerEnter: dealt damage");
+        Debug.Log("LaserTrap OnTriggerEnter: ダメージを与えた");
     }
 
     private void OnTriggerStay(Collider other)

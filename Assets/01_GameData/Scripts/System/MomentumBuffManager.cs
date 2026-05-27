@@ -3,12 +3,11 @@ using UnityEngine;
 using Cysharp.Threading.Tasks;
 
 /// <summary>
-/// Handles momentum-based buffs for the player. Listens to the MomentumManager's
-/// onMomentumChanged event and applies or removes buffs based on the player's
-/// momentum tier. Buffs include damage multiplier, move speed, extra jumps,
-/// air dash, and attack speed. This is a local copy of the upstream
-/// MomentumBuffsManager.cs from the ChronoKnight project. It is needed for
-/// testing Turbo Mode interactions with momentum buffs.
+/// プレイヤーのモメンタム段階に応じたバフを管理する。
+/// MomentumManagerのonMomentumChangedイベントを購読し、段階に応じてバフの付与・除去を行う。
+/// バフの種類はダメージ倍率・移動速度・追加ジャンプ・空中ダッシュ・攻撃速度。
+/// ChronoKnightプロジェクトのMomentumBuffsManager.csをローカルにコピーしたもので、
+/// ターボモードとモメンタムバフの相互作用をテストするために使用する。
 /// </summary>
 [RequireComponent(typeof(CombatController), typeof(PlayerMotor))]
 public class MomentumBuffsManager : MonoBehaviour
@@ -16,7 +15,7 @@ public class MomentumBuffsManager : MonoBehaviour
     private CombatController _combat; // ダメージ倍率・攻撃速度を操作する戦闘コントローラー
     private PlayerMotor _ctrl;        // 移動速度・追加ジャンプ等を操作するプレイヤーモーター
 
-    // Base move speed used when resetting from buffs
+    // バフをリセットする際に使用するベースの移動速度
     [SerializeField] private float baseMoveSpeed = 6f; // バフなしの基本移動速度
 
     private MomentumState _activeState = MomentumState.None; // 現在適用中のバフ段階
@@ -43,7 +42,7 @@ public class MomentumBuffsManager : MonoBehaviour
 
     private async UniTaskVoid SubscribeAsync()
     {
-        // Wait until the MomentumManager singleton is available
+        // MomentumManagerシングルトンが利用可能になるまで待機する
         await UniTask.WaitUntil(() => MomentumManager.Instance != null);
         MomentumManager.Instance.onMomentumChanged.AddListener(OnMomentumChanged);
     }
@@ -54,14 +53,13 @@ public class MomentumBuffsManager : MonoBehaviour
         // 段階に変化がなければ何もしない
         if (newState == _activeState) return;
 
-        // Remove old buffs if downgrading (except from Max unless forced)
-        // 段階が下がった場合は古いバフを除去する
+        // 段階が下がった場合は古いバフを除去する（Maxからの降格も強制でなければ含む）
         if (newState < _activeState)
         {
             RemoveBuffs(_activeState);
         }
 
-        // Apply new buffs if upgrading（段階が上がった場合は新しいバフを付与する）
+        // 段階が上がった場合は新しいバフを付与する
         if (newState > _activeState)
         {
             ApplyBuffs(newState);
@@ -97,11 +95,9 @@ public class MomentumBuffsManager : MonoBehaviour
             case MomentumState.Max:
                 // 攻撃力50%アップ・攻撃速度20%アップ・最高速度に設定
                 _combat.SetDamageMultiplier(1.5f);
-                // At maximum momentum, increase attack speed by 20% (1.2×).  When
-                // Turbo Mode is active, the Turbo attack‑speed buff overrides
-                // this momentum buff (see CombatController), so we avoid stacking
-                // the two multipliers.  Previously this used a 1.25× bonus, but
-                // game design now specifies a 1.2× increase at max momentum.
+                // 最大モメンタム時は攻撃速度を20%（1.2倍）アップする。
+                // ターボモード中はターボの攻撃速度バフが優先されるため（CombatController参照）、
+                // 二重掛けを避ける。以前は1.25倍だったが、現在のゲームデザインでは1.2倍に変更された。
                 _combat.SetAttackSpeedBuff(1.2f);
                 _ctrl.SetMoveSpeed(11f);
                 break;
@@ -141,7 +137,7 @@ public class MomentumBuffsManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Called when the player takes damage to forcibly remove the MAX tier buff.
+    /// ダメージを受けたときに呼ばれ、Maxバフを強制的に除去する。
     /// </summary>
     public void RemoveMaxBuffIfActive()
     {
@@ -149,8 +145,8 @@ public class MomentumBuffsManager : MonoBehaviour
         if (_activeState == MomentumState.Max)
         {
             RemoveBuffs(MomentumState.Max);
-            _activeState = MomentumManager.Instance.CurrentState; // update to new valid state
-            // Check if Tier2 was also lost（Tier2も失われていれば追加ジャンプを無効化する）
+            _activeState = MomentumManager.Instance.CurrentState; // 現在の有効な段階に更新する
+            // Tier2も失われていれば追加ジャンプを無効化する
             if (_activeState < MomentumState.Tier2)
                 _ctrl.EnableExtraJump(0);
         }

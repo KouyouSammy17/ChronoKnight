@@ -37,7 +37,7 @@ public class TimeAttackManager : MonoBehaviour
     {
         // 無効・停止中・一時停止中はカウントしない
         if (!Enabled || !IsRunning) return;
-        Elapsed += Time.unscaledDeltaTime; // ignores timeScale (good for result screens)
+        Elapsed += Time.unscaledDeltaTime; // timeScaleに影響されない（リザルト画面でも正確に計測できる）
     }
 
     public void Configure(bool enable)

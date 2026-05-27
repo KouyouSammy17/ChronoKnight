@@ -5,20 +5,20 @@ using DG.Tweening;
 
 public static class DOTweenUniTaskExtensions
 {
-    /// Await a tween/sequence. Cancels if token is canceled.
-    /// No queries on a killed tween (prevents "killed and invalid" warnings).
+    /// TweenまたはSequenceをawaitで待機する。キャンセルトークンが発火した場合はキャンセルされる。
+    /// Kill済みのTweenへのクエリは行わない（"killed and invalid"警告を防ぐため）。
     public static UniTask Await(this Tween tween, CancellationToken ct = default, bool killOnCancel = true)
     {
-        // If null or inactive, nothing to wait for
+        // nullまたは非アクティブなら待機不要
         if (tween == null || !tween.IsActive()) return UniTask.CompletedTask;
 
-        // If already complete, return immediately (safe because it's still active)
+        // 既に完了していれば即座に返す（まだアクティブなので安全）
         if (tween.IsComplete()) return UniTask.CompletedTask;
 
         var tcs = new UniTaskCompletionSource(); // Tweenの完了を外部に伝えるためのTaskCompletionSource
         bool completed = false; // OnComplete とOnKillの競合を防ぐフラグ
 
-        // Mark completion BEFORE the tween gets killed/despawned
+        // TweenがKill/デスポーンされる前に完了をマークする
         tween.OnComplete(() =>
         {
             completed = true;        // 正常完了としてフラグを立てる
@@ -27,7 +27,7 @@ public static class DOTweenUniTaskExtensions
 
         tween.OnKill(() =>
         {
-            // DO NOT call tween.IsComplete() here — tween is invalid now.
+            // ここでtween.IsComplete()を呼ばないこと — Tween はすでに無効になっている。
             if (!completed) tcs.TrySetCanceled(); // 未完了でKillされた場合はキャンセル扱いにする
         });
 
@@ -35,10 +35,10 @@ public static class DOTweenUniTaskExtensions
         {
             ct.Register(() =>
             {
-                // If not completed yet, optionally kill the tween
+                // まだ完了していなければ、必要に応じてTweenを停止する
                 if (!completed && killOnCancel && tween.IsActive())
                 {
-                    // Kill without callbacks? If you want, pass complete:false to avoid triggering OnComplete.
+                    // コールバックなしでKillする場合は complete:false を渡してOnCompleteを発火させないこともできる。
                     tween.Kill(); // キャンセルトークンが発火したらTweenも停止する
                 }
                 tcs.TrySetCanceled(); // Taskをキャンセル状態にする
