@@ -112,7 +112,6 @@ public class PlayerStateMachineBrain : MonoBehaviour
         // ─────────────────────────────────────────────
         _active?.Tick(this); // 現在の移動ステートのTickを実行
         EvaluateTransitions(); // ステート遷移の条件を評価
-        Debug.Log(_motor.MoveSpeed);
     }
 
     private void FixedUpdate()

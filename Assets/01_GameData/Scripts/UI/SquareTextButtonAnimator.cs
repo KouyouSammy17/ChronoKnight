@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using TMPro;
 using DG.Tweening;
+using MoreMountains.Tools;
 
 public class SquareTextButtonAnimator :
     MonoBehaviour,
@@ -21,6 +22,12 @@ public class SquareTextButtonAnimator :
     [Header("時間設定")]
     [SerializeField] private bool _ignoreTimeScale = true; // DOTweenで非スケール時間を使用する
 
+    [Header("SE")]
+    [SerializeField] private AudioClip _selectSE;
+    [SerializeField] private AudioClip _pressSE;
+    [SerializeField, Range(0f, 2f)] private float _seVolume = 1f;
+    [SerializeField, Range(-3f, 3f)] private float _sePitch = 1f;
+
     [Header("Scale")]
     [SerializeField] private float _hoverScale = 1.08f;  // ホバー時のスケール
     [SerializeField] private float _scaleTime = 0.12f;   // スケールアニメーション時間
@@ -38,6 +45,10 @@ public class SquareTextButtonAnimator :
     [SerializeField] private float _disabledScale = 0.95f; // 無効時のスケール
 
     private bool _interactable = true; // インタラクト可能かどうかのフラグ
+
+    // マウスホバーとOnSelectが同時に鳴るのを防ぐ
+    private float _lastSelectSoundTime = -999f;
+    private const float SELECT_SOUND_INTERVAL = 0.05f;
 
     private void Reset()
     {
@@ -107,6 +118,7 @@ public class SquareTextButtonAnimator :
 
     private void HoverIn()
     {
+        PlaySelectSE(); // 選択音を再生
         _root.DOKill(); // 前のTweenをキャンセル
         U(_root.DOScale(_hoverScale, _scaleTime).SetEase(Ease.OutCubic)); // ホバースケールへアニメーション
     }
@@ -135,6 +147,8 @@ public class SquareTextButtonAnimator :
 
     private void Press()
     {
+        PlayPressSE(); // プレス音を再生
+
         _root.DOKill();
         U(_root.DOPunchScale(
             Vector3.one * _punchStrength,
@@ -150,5 +164,38 @@ public class SquareTextButtonAnimator :
                 .SetEase(Ease.OutQuad)
                 .OnComplete(() => U(_text.DOLocalMoveX(0f, _textSlideTime)))); // テキストを右へスライドして元に戻す
         }
+    }
+
+    /// <summary>
+    /// 選択音を再生する。マウスホバーとOnSelectが同時に鳴るのを防ぐため、連続再生を短時間制限する。
+    /// </summary>
+    private void PlaySelectSE()
+    {
+        if (_selectSE == null) return;
+
+        if (Time.unscaledTime - _lastSelectSoundTime < SELECT_SOUND_INTERVAL)
+            return;
+
+        _lastSelectSoundTime = Time.unscaledTime;
+        MMSoundManagerSoundPlayEvent.Trigger(
+            _selectSE,
+            MMSoundManager.MMSoundManagerTracks.UI,
+            Vector3.zero,
+            volume: _seVolume,
+            pitch: _sePitch);
+    }
+
+    /// <summary>
+    /// プレス音を再生する。DOTweenのパンチアニメーションと組み合わせて、クリック感を強調する。
+    /// </summary>
+    private void PlayPressSE()
+    {
+        if (_pressSE == null) return;
+        MMSoundManagerSoundPlayEvent.Trigger(
+            _pressSE,
+            MMSoundManager.MMSoundManagerTracks.UI,
+            Vector3.zero,
+            volume: _seVolume,
+            pitch: _sePitch);
     }
 }

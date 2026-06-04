@@ -3,9 +3,10 @@ using DG.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using MoreMountains.Tools;
 
 [RequireComponent(typeof(Selectable))]
-public class SelectSwap : MonoBehaviour, ISelectHandler, IDeselectHandler, IPointerEnterHandler
+public class SelectSwap : MonoBehaviour, ISelectHandler, IDeselectHandler, IPointerEnterHandler, ISubmitHandler
 {
     [Header("Visuals")]
     [SerializeField] private GameObject inactiveRoot; // 非選択時に表示するオブジェクト
@@ -20,6 +21,10 @@ public class SelectSwap : MonoBehaviour, ISelectHandler, IDeselectHandler, IPoin
     [SerializeField] private Ease deselectEase = Ease.OutQuad;
     [SerializeField] private bool useUnscaledTime = true;   // ポーズ中もアニメーションする
 
+    [Header("Sound Effects")]
+    [SerializeField] private AudioClip selectSE;                    // 選択時の音声
+    [SerializeField] private AudioClip confirmSE;                   // 確定時の音声
+  
     private Selectable _sel;   // このオブジェクトのSelectableコンポーネント
     private Tween _scaleTween; // 現在実行中のスケールTween
 
@@ -27,7 +32,7 @@ public class SelectSwap : MonoBehaviour, ISelectHandler, IDeselectHandler, IPoin
     {
         _sel = GetComponent<Selectable>();
         if (!tweenTarget) tweenTarget = transform; // tweenTargetが未設定なら自身を使用
-        ForceUnselectImmediate(); // use the same logic
+        ForceUnselectImmediate();
     }
 
     private void OnDisable() => SafeKill(); // 無効化時にTweenを停止
@@ -37,12 +42,18 @@ public class SelectSwap : MonoBehaviour, ISelectHandler, IDeselectHandler, IPoin
     {
         SetVisual(true);                                    // 選択状態のビジュアルに切り替え
         TweenTo(selectedScale, selectDur, selectEase);     // 選択スケールへアニメーション
+        PlaySelectSound();                                  // 選択音を再生
     }
 
     public void OnDeselect(BaseEventData eventData)
     {
         SetVisual(false);                                       // 非選択状態のビジュアルに切り替え
         TweenTo(1f, deselectDur, deselectEase);               // 通常スケールへアニメーション
+    }
+
+    public void OnSubmit(BaseEventData eventData)
+    {
+        PlayConfirmSound(); // 確定音を再生
     }
 
     public void ForceUnselectImmediate()
@@ -84,5 +95,29 @@ public class SelectSwap : MonoBehaviour, ISelectHandler, IDeselectHandler, IPoin
         if (_scaleTween != null && _scaleTween.IsActive())
             _scaleTween.Kill(); // アクティブなTweenのみKillする
         _scaleTween = null;
+    }
+
+    /// <summary>
+    /// 選択音を再生する
+    /// </summary>
+    private void PlaySelectSound()
+    {
+        if (!selectSE) return;
+        MMSoundManagerSoundPlayEvent.Trigger(
+            selectSE,
+            MMSoundManager.MMSoundManagerTracks.UI,
+            Vector3.zero);
+    }
+
+    /// <summary>
+    /// 確定音を再生する
+    /// </summary>
+    private void PlayConfirmSound()
+    {
+        if (!confirmSE) return;
+        MMSoundManagerSoundPlayEvent.Trigger(
+            confirmSE,
+            MMSoundManager.MMSoundManagerTracks.UI,
+            Vector3.zero);
     }
 }

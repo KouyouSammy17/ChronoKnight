@@ -1,9 +1,10 @@
 // チュートリアルUIの表示・成功・非表示アニメーションを非同期で制御するスクリプト
+using Cysharp.Threading.Tasks;
+using DG.Tweening;
+using MoreMountains.Tools;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.UI;
-using DG.Tweening;
-using Cysharp.Threading.Tasks;
-using System.Threading;
 
 public class TutorialUIAnimator : MonoBehaviour
 {
@@ -19,17 +20,17 @@ public class TutorialUIAnimator : MonoBehaviour
     [SerializeField] private Image burst;              // 成功時のバースト・グロー画像（任意）
 
     [Header("Show timings")]
-    [SerializeField] private float panelFadeIn   = 0.25f;  // パネルのフェードイン時間
-    [SerializeField] private float bgFillTime    = 0.35f;  // 背景フレームを0→1に塗りつぶす時間
+    [SerializeField] private float panelFadeIn = 0.25f;  // パネルのフェードイン時間
+    [SerializeField] private float bgFillTime = 0.35f;  // 背景フレームを0→1に塗りつぶす時間
     [SerializeField] private float contentFadeIn = 0.30f;  // コンテンツのフェードイン時間
 
     [Header("Outline Fill (no spin)")]
     [SerializeField] private float arcFillDuration = 1.0f; // アウトライン弧が0→1に塗りつぶされる秒数
-    [SerializeField] private float arcAlpha        = 0.9f; // 表示中のアウトライン透明度
-    [SerializeField] private bool  arcYoyo         = true; // true: 0→1→0のヨーヨー、false: 0→1を繰り返す
+    [SerializeField] private float arcAlpha = 0.9f; // 表示中のアウトライン透明度
+    [SerializeField] private bool arcYoyo = true; // true: 0→1→0のヨーヨー、false: 0→1を繰り返す
 
     [Header("Success")]
-    [SerializeField] private float swapToCheck   = 0.20f;      // コンテンツを隠してチェックに切り替えるまでの時間
+    [SerializeField] private float swapToCheck = 0.20f;      // コンテンツを隠してチェックに切り替えるまでの時間
     [SerializeField] private float successMinScale = 0.7f;     // チェックマークの開始スケール（小）
     [SerializeField] private float successPeakScale = 1.2f;    // チェックマークのピークスケール（大）
     [SerializeField] private float successEndScale = 0.85f;    // フェードアウト前の最終スケール（縮小後）
@@ -44,7 +45,8 @@ public class TutorialUIAnimator : MonoBehaviour
 
     [Header("Hide timings")]
     [SerializeField] private float contentFadeOut = 0.18f;     // コンテンツのフェードアウト時間
-    [SerializeField] private float panelFadeOut   = 0.20f;     // パネルのフェードアウト時間
+    [SerializeField] private float panelFadeOut = 0.20f;     // パネルのフェードアウト時間
+
 
     private CancellationToken _destroyToken;    // オブジェクト破棄時にasyncを中断するトークン
     private Tween _arcFillTween;                // アウライン弧のループtween参照
@@ -55,8 +57,8 @@ public class TutorialUIAnimator : MonoBehaviour
         if (!panelGroup) panelGroup = GetComponent<CanvasGroup>();
     }
 
-    void OnDisable()  { _arcFillTween?.Kill(); }    // 無効化時に弧アニメーションを停止
-    void OnDestroy()  { _arcFillTween?.Kill(); }    // 破棄時に弧アニメーションを停止
+    void OnDisable() { _arcFillTween?.Kill(); }    // 無効化時に弧アニメーションを停止
+    void OnDestroy() { _arcFillTween?.Kill(); }    // 破棄時に弧アニメーションを停止
 
     // ───────────────────────────────────────────────────────────
     // 表示: 1) 背景の縦方向フィル  2) コンテンツのフェード  3) 弧のフィルループ
@@ -71,10 +73,10 @@ public class TutorialUIAnimator : MonoBehaviour
         // 状態をリセット
         panelGroup.alpha = 0f;
         if (contentGroup) { contentGroup.alpha = 0f; contentGroup.gameObject.SetActive(true); }
-        if (checkGroup)   { checkGroup.alpha = 0f;   checkGroup.gameObject.SetActive(false); }   // チェックは最初非表示
-        if (burst)        { burst.gameObject.SetActive(false); burst.color = new Color(1,1,1,0); }
+        if (checkGroup) { checkGroup.alpha = 0f; checkGroup.gameObject.SetActive(false); }   // チェックは最初非表示
+        if (burst) { burst.gameObject.SetActive(false); burst.color = new Color(1, 1, 1, 0); }
 
-        if (bgFrame)   bgFrame.fillAmount   = 0f;   // 背景フレームをゼロからスタート
+        if (bgFrame) bgFrame.fillAmount = 0f;   // 背景フレームをゼロからスタート
         if (outlineArc)
         {
             // 透明な状態からスタート；表示中のalphaを確保
@@ -87,7 +89,7 @@ public class TutorialUIAnimator : MonoBehaviour
 
         // 並列：背景フィルアップ & コンテンツのフェードイン
         var seq = DOTween.Sequence().SetUpdate(true);
-        if (bgFrame)      seq.Join(bgFrame.DOFillAmount(1f, bgFillTime).SetEase(Ease.OutCubic)); // 背景を下から上へ塗りつぶす
+        if (bgFrame) seq.Join(bgFrame.DOFillAmount(1f, bgFillTime).SetEase(Ease.OutCubic)); // 背景を下から上へ塗りつぶす
         if (contentGroup) seq.Join(contentGroup.DOFade(1f, contentFadeIn).SetEase(Ease.OutQuad));
         await seq.Await(token);
 
@@ -189,7 +191,7 @@ public class TutorialUIAnimator : MonoBehaviour
 
         // 次のShow用にリセット
         rt.localScale = baseScale;      // スケールを元に戻す
-        if (bgFrame)    bgFrame.fillAmount = 0f;    // 背景フレームをリセット
+        if (bgFrame) bgFrame.fillAmount = 0f;    // 背景フレームをリセット
         if (outlineArc)
         {
             // 次の表示に備えてalphaを復元し、フィル量をリセット

@@ -2,6 +2,7 @@
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using MoreMountains.Feedbacks;
+using MoreMountains.Tools;
 using System;
 using System.Reflection;
 using System.Threading;
@@ -69,6 +70,11 @@ public class TutorialManager : MonoBehaviour
     [SerializeField] private string _turboTrapCamTag = "TurboTrapCam";      // トラップカメラを自動検索するタグ
 #endif
 
+    [Header("Tutorial Success SE")]
+    [SerializeField] private AudioClip _tutorialSuccessSE;                  // チュートリアルクリア時に鳴らす効果音
+    [SerializeField, Range(0f, 2f)] private float _successSEVolume = 1f;   // 再生ボリューム
+    [SerializeField, Range(-3f, 3f)] private float _successSEPitch = 1f;   // 再生ピッチ
+
     [Header("Ready / Go UI")]
     [SerializeField] private ReadyGoUI_Anim _readyGoUI;     // 「Ready? Go!」UIアニメーション参照
 
@@ -130,6 +136,14 @@ public class TutorialManager : MonoBehaviour
         _player = null;
         _playerInput = null;
         _gauge = null;
+
+        // セッションフラグとシーケンス実行フラグをリセットする。
+        // レベル再スタート時にコルーチンがキャンセルされると、シーケンス内の
+        // _turboSequenceRunning = false が実行されないまま残るため、ここで必ずクリアする。
+        _shownMomentumThisSession = false;
+        _shownTurboThisSession    = false;
+        _momentumSequenceRunning  = false;
+        _turboSequenceRunning     = false;
 
         ResolveSceneReferences();   // 新しいシーンの参照を再取得
     }
@@ -219,6 +233,17 @@ public class TutorialManager : MonoBehaviour
     {
         if (!TutorialProgress.IsLearned(key))
             TutorialProgress.SetLearned(key);   // 未学習なら学習済みとして保存
+
+        // チュートリアルクリア音をMMSoundManagerのUIトラックで再生する
+        if (_tutorialSuccessSE != null)
+        {
+            MMSoundManagerSoundPlayEvent.Trigger(
+                _tutorialSuccessSE,
+                MMSoundManager.MMSoundManagerTracks.UI,
+                Vector3.zero,
+                volume: _successSEVolume,
+                pitch: _successSEPitch);
+        }
 
         UIManager.Instance?.TutorialSuccess(key);   // 成功アニメーションを再生
 

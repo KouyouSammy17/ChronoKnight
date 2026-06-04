@@ -36,7 +36,7 @@ public class TutorialCompleteOnEnemyDeath : MonoBehaviour
         if (_done || !Allowed() || TutorialProgress.IsLearned(key)) return; // 二重実行・条件外・学習済みを除外
         _done = true;
 
-        TutorialProgress.SetLearned(key);               // チュートリアルを学習済みとして記録
-        UIManager.Instance?.TutorialSuccess(key);   // UIManagerを経由して成功演出を再生
+        // CompleteTutorialを経由することで、学習済み記録・成功SE・成功演出を一括処理する
+        TutorialManager.Instance?.CompleteTutorial(key);
     }
 }
