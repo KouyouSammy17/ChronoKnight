@@ -28,10 +28,8 @@ public class EnemyStats : MonoBehaviour
         _currentHP = Mathf.Max(_currentHP - dmg, 0);   // HPが0未満にならないようにクランプ
         Debug.Log($"Enemy took {dmg} damage, HP now {_currentHP}");
 
-        // AIに短いよろめきを発生させる
-        var ai = GetComponent<SciFiRobotAI>();
-        if (ai != null)
-            ai.Stagger();   // ダメージを受けたAIをよろめかせる
+        // AIに短いよろめきを発生させる（IStaggerable を実装している全AI型に対応）
+        GetComponent<IStaggerable>()?.Stagger();
 
         if (_currentHP == 0)
             Die();  // HPが0になったら死亡処理を実行
@@ -46,10 +44,14 @@ public class EnemyStats : MonoBehaviour
         if (droidSM != null)
             droidSM.State = TGDroidStateManager.TDroidState.Sleep;  // ドロイドをスリープ状態へ移行
 
-        // 2) 追跡・射撃を停止する
-        var ai = GetComponent<SciFiRobotAI>();
-        if (ai != null)
-            ai.enabled = false;     // AIスクリプトを無効化して追跡・射撃を停止
+        // 2) 追跡・射撃を停止する（SciFiRobotAI / MeleeRobotAI 両対応）
+        var sciFiAI = GetComponent<SciFiRobotAI>();
+        if (sciFiAI != null)
+            sciFiAI.enabled = false;    // SF ロボット AI を無効化して追跡・射撃を停止
+
+        var meleeAI = GetComponent<MeleeRobotAI>();
+        if (meleeAI != null)
+            meleeAI.enabled = false;    // 近接ロボット AI を無効化して追跡・攻撃を停止
 
         // 3) 物理演算を停止してコライダーを無効化する
         if (_rb != null)

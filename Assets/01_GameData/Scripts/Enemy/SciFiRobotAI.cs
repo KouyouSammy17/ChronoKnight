@@ -3,7 +3,7 @@ using UnityEngine;
 using TGRobotsWheeled;    // アセットの名前空間と一致していることを確認すること
 
 [RequireComponent(typeof(TGDroidStateManager))]
-public class SciFiRobotAI : MonoBehaviour
+public class SciFiRobotAI : MonoBehaviour, IStaggerable
 {
     public float aggroRadius = 6f;          // プレイヤーを検知する半径
     public float attackRange = 10f;         // 攻撃可能な最大距離
