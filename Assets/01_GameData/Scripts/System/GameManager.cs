@@ -74,6 +74,11 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float _pauseInputBuffer = 0.35f;  // ポーズ連続入力を防ぐバッファ時間
     [SerializeField] private bool _freezeTimeOnResults = true; // リザルト画面でtimeScale=0にするかどうか
 
+    [Header("Scene Transition Delay")]
+    [Tooltip("ボタン音・アニメーションを再生させてからシーン遷移するまでの待機時間（秒）")]
+    [SerializeField, Range(0f, 1f)] private float _sceneTransitionDelay = 0.25f;
+    private bool _transitionInProgress = false; // 遷移の二重起動を防ぐフラグ
+
     [Header("Tutorial Stage Flag")]
     private TutorialClearUI_Anim _tutorialClearAnim; // Inspectorで設定するか自動検索する
     [SerializeField] private bool _forceTutorialStage = false; // テスト用強制フラグ
@@ -190,29 +195,32 @@ public class GameManager : MonoBehaviour
     // 公開API
     public void LoadTitle()
     {
+        if (_transitionInProgress) return;
+        _transitionInProgress = true;
+
         // ポーズ状態を確実に解除する
         Time.timeScale = 1f;
         _isPaused = false;
 
-        // ポーズメニューを確実に非表示にする
+        // ポーズメニューをアニメーション付きで非表示にする（遷移待機中に再生）
         ResolvePauseMenu();
-        _pauseMenu?.HideMenuInstant();   // トゥイーンなしで即時非表示
-        // ゲームプレイ関連のUI（チュートリアル含む）をリセット・非表示にする
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.ResetAllUI();      // 既存の全体リセット処理
-        }
-
-        // Feelローダーを使ってシーン遷移する
-        LoadWithFeel(_titleScene, GameState.Title);
+        _pauseMenu?.HideMenu();
+        // UIのリセットは LoadWithFeel 内で行う（ここで呼ぶとアニメーションが中断される場合がある）
 
         // タイトル画面ではカーソルを表示する
         UpdateCursorState();
         CancelGameOverSequence();
+
+        // ボタン音・アニメーションを再生させてからシーン遷移する
+        DoTransitionAsync(() => LoadWithFeel(_titleScene, GameState.Title),
+            this.GetCancellationTokenOnDestroy()).Forget();
     }
 
     public void StartNewGame()
     {
+        if (_transitionInProgress) return;
+        _transitionInProgress = true;
+
         // クリーンな状態で開始できるよう初期化する
         Time.timeScale = 1f;
         _isPaused = false;
@@ -228,48 +236,71 @@ public class GameManager : MonoBehaviour
         // 新規ゲーム開始時はチュートリアルの進行状態をすべてリセットする
         TutorialProgress.ResetAll();
 
-        // チュートリアルステージをロードする
-        LoadWithFeel(_tutorialLevel, GameState.Playing);
-
         UpdateCursorState();
         CancelGameOverSequence();
+
+        // ボタン音・アニメーションを再生させてからシーン遷移する
+        DoTransitionAsync(() => LoadWithFeel(_tutorialLevel, GameState.Playing),
+            this.GetCancellationTokenOnDestroy()).Forget();
     }
 
     public void RestartLevel()
     {
+        if (_transitionInProgress) return;
+        _transitionInProgress = true;
+
         TurboModeManager.Instance?.ForceReset(clearCooldown: true);
-        string current = SceneManager.GetActiveScene().name;
-        LoadWithFeel(current, GameState.Playing); // 現在のシーンを再ロードする
-        _player?.EnableInput();
+        Time.timeScale = 1f;                    // ターボ等でtimeScaleが変更されている場合に備えて戻す
+        _player?.DisableInput();                // 遷移待機中に誤操作されないよう入力を無効化
         _isPaused = false;
         _checkpoint = null; // チェックポイントをリセットする
 
         ResolvePauseMenu();
-        _pauseMenu?.HideMenu();  // <-- direct call
+        // HideMenu はポーズ経由なら ResumeGame() が呼び済み。
+        // 直接呼びで表示中だった場合は LoadWithFeel 冒頭の HideMenuInstant でフォールバック。
         UpdateCursorState();
         CancelGameOverSequence();
+
+        // ボタン音・アニメーションを再生させてからシーン遷移する
+        string current = SceneManager.GetActiveScene().name;
+        DoTransitionAsync(() => LoadWithFeel(current, GameState.Playing),
+            this.GetCancellationTokenOnDestroy()).Forget();
     }
 
     public void LoadNextLevel()
     {
-        string current = SceneManager.GetActiveScene().name;
+        if (_transitionInProgress) return;
+        _transitionInProgress = true;
 
-        // タイトルからはチュートリアルへ進む
+        string current = SceneManager.GetActiveScene().name;
+        string nextScene;
+        GameState nextState;
+
         if (current == _titleScene)
         {
-            LoadWithFeel(_tutorialLevel, GameState.Playing);
-            return;
+            nextScene = _tutorialLevel;
+            nextState = GameState.Playing;
         }
-
-        // チュートリアルからはLevel_02へ進む
-        if (current == _tutorialLevel)
+        else if (current == _tutorialLevel)
         {
-            LoadWithFeel(_level02, GameState.Playing);
-            return;
+            nextScene = _level02;
+            nextState = GameState.Playing;
+        }
+        else
+        {
+            // Level_02以降またはそれ以外はタイトルに戻る
+            nextScene = _titleScene;
+            nextState = GameState.Title;
+            Time.timeScale = 1f;
+            _isPaused = false;
+            UIManager.Instance?.ResetAllUI();
+            UpdateCursorState();
+            CancelGameOverSequence();
         }
 
-        // Level_02以降またはそれ以外はタイトルに戻る
-        LoadTitle();
+        // ボタン音・アニメーションを再生させてからシーン遷移する
+        DoTransitionAsync(() => LoadWithFeel(nextScene, nextState),
+            this.GetCancellationTokenOnDestroy()).Forget();
     }
 
 
@@ -631,6 +662,9 @@ public class GameManager : MonoBehaviour
     // チュートリアルクリア・クリアUIのリスタートボタンから呼ばれる
     public void RestartFromClearUI()
     {
+        if (_transitionInProgress) return;
+        _transitionInProgress = true;
+
         // リザルト中はtimeScale=0になっているので元に戻す
         Time.timeScale = 1f;
         _isPaused = false;
@@ -642,26 +676,43 @@ public class GameManager : MonoBehaviour
         // ターボ・時間エフェクトを停止する
         TurboModeManager.Instance?.ForceReset(clearCooldown: true);
 
-        // チュートリアルステージの場合はチュートリアル全体もリセットする
+        // チュートリアルステージの場合はチュートリアルの状態をリセットする
+        // （内部で RestartLevel が呼ばれても _transitionInProgress で二重起動を防ぐ）
         if (IsTutorialStage)
-        {
-            // このメソッドはプロジェクト内で既に定義されている
             TutorialManager.Instance?.ResetAllTutorialsAndRestart();
-            // 注意：そのメソッド内でシーン再ロードされる場合は早期リターンしてよい。
-            // 再ロードされない場合はそのまま下の処理へ進む。
-        }
 
         // シーン再ロード前にUIをすべてリセットする
         UIManager.Instance?.ResetAllUI();
 
-        // 現在のシーンを再ロードする
-        string current = SceneManager.GetActiveScene().name;
-        LoadWithFeel(current, GameState.Playing);
-
         UpdateCursorState();
         CancelGameOverSequence();
+
+        // ボタン音・アニメーションを再生させてからシーン遷移する
+        string current = SceneManager.GetActiveScene().name;
+        DoTransitionAsync(() => LoadWithFeel(current, GameState.Playing),
+            this.GetCancellationTokenOnDestroy()).Forget();
     }
 
+
+    // ───────────────────────────────────────────────────────────────────────────────
+    // 遷移ディレイヘルパー
+
+    /// <summary>
+    /// _sceneTransitionDelay 秒待ってから load を実行する。
+    /// ボタン押下音・アニメーションを再生しきってからシーン遷移するための猶予を与える。
+    /// </summary>
+    private async UniTaskVoid DoTransitionAsync(System.Action load, CancellationToken ct)
+    {
+        if (_sceneTransitionDelay > 0f)
+            await UniTask.Delay(
+                TimeSpan.FromSeconds(_sceneTransitionDelay),
+                DelayType.Realtime, PlayerLoopTiming.Update, ct);
+
+        if (!ct.IsCancellationRequested)
+            load();
+
+        _transitionInProgress = false;
+    }
 
     // ───────────────────────────────────────────────────────────────────────────────
     // Feelシーンロードのラッパー
@@ -677,6 +728,11 @@ public class GameManager : MonoBehaviour
     // DOTweenをクリアしてUIをリセットしたうえでFeelのローダーでシーン遷移する
     private void LoadWithFeel(string sceneName, GameState targetState)
     {
+        // HideMenu アニメーションが DOTween.KillAll で中断されても
+        // contentRoot が非表示になるよう、先に即時非表示を呼ぶ
+        ResolvePauseMenu();
+        _pauseMenu?.HideMenuInstant();
+
         DOTween.KillAll();
         DOTween.Clear();
 
@@ -715,6 +771,9 @@ public class GameManager : MonoBehaviour
             UIManager.Instance?.ShowTitleUI(false);
             return;
         }
+
+        // シーンが確定したら遷移フラグを解除する
+        _transitionInProgress = false;
 
         // シーン名に応じてゲーム状態を設定する
         State = scene.name == _titleScene ? GameState.Title : GameState.Playing;
