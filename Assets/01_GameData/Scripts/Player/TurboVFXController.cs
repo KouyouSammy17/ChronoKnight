@@ -34,6 +34,54 @@ public class TurboVFXController : MonoBehaviour
     private GameObject _activeAura;
     private Coroutine _loopDelayCoroutine;
 
+    // TurboModeManager のイベントに登録済みかどうかのフラグ（二重登録を防ぐ）
+    private bool _registered = false;
+
+    // ────────────────────────────────────────────────────────────────
+    // Unity ライフサイクル
+    // ────────────────────────────────────────────────────────────────
+
+    private void OnEnable()
+    {
+        // TurboModeManager はシーンをまたいで存在する DontDestroyOnLoad のシングルトン。
+        // Inspector 接続はシーンをまたぐと無効になるため、コードで毎回登録し直す。
+        TryRegister();
+    }
+
+    private void Start()
+    {
+        // OnEnable 時に Instance がまだ存在しない場合（シーン起動直後など）の再試行
+        TryRegister();
+    }
+
+    private void OnDisable()
+    {
+        Unregister();
+    }
+
+    private void TryRegister()
+    {
+        if (_registered) return;
+        var mgr = TurboModeManager.Instance;
+        if (mgr == null) return;
+
+        mgr.onTurboStart.AddListener(OnTurboStart);
+        mgr.onTurboEnd.AddListener(OnTurboEnd);
+        _registered = true;
+    }
+
+    private void Unregister()
+    {
+        if (!_registered) return;
+        var mgr = TurboModeManager.Instance;
+        if (mgr != null)
+        {
+            mgr.onTurboStart.RemoveListener(OnTurboStart);
+            mgr.onTurboEnd.RemoveListener(OnTurboEnd);
+        }
+        _registered = false;
+    }
+
     // ────────────────────────────────────────────────────────────────
     // TurboModeManagerのイベントから呼ぶ処理
     // ────────────────────────────────────────────────────────────────
