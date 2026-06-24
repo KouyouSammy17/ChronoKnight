@@ -7,14 +7,27 @@ using UnityEngine;
 
 /// <summary>
 /// 近接攻撃型ロボット敵のAI。<br/>
-/// 巡回（A-B往復）→ 感知で追跡 → 射程内で停止してスイング攻撃。<br/>
+/// 巡回（A-B往復）→ 感知で追跡 → 射程内で停止してコンボ攻撃。<br/>
 /// 子オブジェクト <see cref="_hitboxRoot"/> に付いた <see cref="MeleeHitbox"/> を
-/// 攻撃ウィンドウ中だけ有効化してプレイヤーへダメージを与える。
+/// 各ヒットのウィンドウ中だけ有効化してプレイヤーへダメージを与える。
 /// </summary>
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(EnemyStats))]
 public class MeleeRobotAI : MonoBehaviour, IStaggerable
 {
+    // ─────────────────────────────────────────────────────────────
+    //  コンボ1段分のタイミング定義
+    // ─────────────────────────────────────────────────────────────
+
+    [System.Serializable]
+    private struct HitTiming
+    {
+        [Tooltip("前段終了（またはコンボ開始）からヒットボックスが有効になるまでの振りかぶり時間（秒）")]
+        [Range(0f, 1.5f)] public float windup;
+
+        [Tooltip("ヒットボックスが有効な時間（秒）")]
+        [Range(0f, 0.5f)] public float activeTime;
+    }
     // ─────────────────────────────────────────────────────────────
     //  Inspector 設定
     // ─────────────────────────────────────────────────────────────
@@ -22,6 +35,9 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
     [Header("Detection")]
     [Tooltip("この半径内にプレイヤーが入ると追跡を開始する")]
     [SerializeField] private float _aggroRadius = 6f;
+
+    [Tooltip("プレイヤーを初めて発見したときに停止する時間（秒）。Alarmed アニメーションの長さに合わせる。")]
+    [SerializeField, Range(0f, 2f)] private float _alertStopDuration = 0.6f;
 
     [Tooltip("この距離以内に入ると攻撃を開始する")]
     [SerializeField] private float _attackRange = 2.0f;
@@ -39,15 +55,26 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
     [Tooltip("巡回の折り返し地点 B")]
     [SerializeField] private Transform _pointB;
 
-    [Header("Attack Timing")]
-    [Tooltip("1 回の攻撃が終わってから次を開始するまでの待機時間（秒）")]
-    [SerializeField] private float _attackCooldown   = 2.00f;
-    [Tooltip("攻撃アニメーション開始 〜 ヒットボックス有効までの振りかぶり時間（秒）")]
-    [SerializeField] private float _attackWindup     = 0.25f;
-    [Tooltip("ヒットボックスが有効な時間（秒）")]
-    [SerializeField] private float _attackActiveTime = 0.20f;
-    [Tooltip("ヒットボックス無効 〜 戦闘状態復帰までの硬直時間（秒）")]
-    [SerializeField] private float _attackRecovery   = 0.45f;
+    [Header("Combo Timing")]
+    [Tooltip("ON: Animation Event でヒットボックスを制御する（推奨・アニメーションと完全同期）。\nOFF: 下の _comboHits 配列の秒数でコードから制御する。")]
+    [SerializeField] private bool _useAnimationEvents = true;
+
+    [Tooltip("_useAnimationEvents が OFF のときだけ使用。各ヒットの振りかぶり・有効時間をアニメクリップの長さに合わせて設定する。")]
+    [SerializeField] private HitTiming[] _comboHits = new HitTiming[]
+    {
+        new HitTiming { windup = 0.25f, activeTime = 0.15f },  // Hit 1
+        new HitTiming { windup = 0.30f, activeTime = 0.15f },  // Hit 2
+        new HitTiming { windup = 0.35f, activeTime = 0.20f },  // Hit 3
+    };
+
+    [Tooltip("コンボ全段終了後の硬直時間（秒）。Animation Event モード時はコンボアニメ総尺 + この値だけ待つ。")]
+    [SerializeField] private float _attackRecovery = 0.45f;
+
+    [Tooltip("_useAnimationEvents が ON のとき、コンボアニメーションの総尺（秒）を入力する。Attack1+2+3 クリップの合計時間。")]
+    [SerializeField] private float _comboDuration = 1.20f;
+
+    [Tooltip("1 コンボ終了から次のコンボ開始までの待機時間（秒）")]
+    [SerializeField] private float _attackCooldown = 2.00f;
 
     [Header("Hitbox")]
     [Tooltip("MeleeHitbox コンポーネントが付いた子 GameObject。デフォルトは Inactive にすること。")]
@@ -71,19 +98,23 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
     [SerializeField] private string _animAttackTrigger  = "Attack";
 
     [Tooltip("よろめきアニメーションのトリガー名（空欄でスキップ）")]
-    [SerializeField] private string _animStaggerTrigger = "Stagger";
+    [SerializeField] private string _animStaggerTrigger = "Damage";
+
+    [Tooltip("死亡アニメーションのトリガー名（空欄でスキップ）")]
+    [SerializeField] private string _animDieTrigger     = "Die";
 
     // ─────────────────────────────────────────────────────────────
     //  内部状態
     // ─────────────────────────────────────────────────────────────
 
-    private enum AIState { Patrol, Alert, Combat, Attacking, Staggered }
+    private enum AIState { Patrol, Alert, Combat, Attacking, Staggered, Dead }
     private AIState _aiState = AIState.Patrol;
 
     private Transform _player;
 
     private float _attackCooldownTimer = 0f;
     private float _staggerTimer        = 0f;
+    private float _alertStopTimer      = 0f;   // 発見直後の硬直タイマー
     private Vector3 _currentPatrolTarget;
 
     private CancellationTokenSource _attackCts;
@@ -129,6 +160,10 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
 
         switch (_aiState)
         {
+            // ── 死亡（EnemyStats が enabled = false にするまでの1フレームを無視する）
+            case AIState.Dead:
+                return;
+
             // ── よろめき ─────────────────────────────────────────
             case AIState.Staggered:
                 _staggerTimer -= Time.deltaTime;
@@ -145,6 +180,8 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
                 if (dist < _aggroRadius)
                 {
                     _aiState = AIState.Alert;
+                    // 発見直後の硬直タイマーをセットする（Alarmed アニメーションを見せる）
+                    _alertStopTimer = _alertStopDuration;
                     break;
                 }
                 DoPatrol();
@@ -157,14 +194,26 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
                 if (dist > _aggroRadius * 1.25f)
                 {
                     _aiState = AIState.Patrol;
+                    _alertStopTimer = 0f;   // パトロールに戻るときはタイマーをリセット
                     break;
                 }
                 // 攻撃射程の 0.5m 手前で戦闘モードに切り替える
                 if (dist <= _attackRange + 0.5f)
                 {
                     _aiState = AIState.Combat;
+                    _alertStopTimer = 0f;
                     break;
                 }
+
+                // ── 発見直後の硬直（Alarmed アニメーションを再生する）──
+                if (_alertStopTimer > 0f)
+                {
+                    _alertStopTimer -= Time.deltaTime;
+                    Face(_player.position.x - transform.position.x); // プレイヤーの方を向く
+                    SetAnimParams(speed: 0f, alert: true);            // Alarmed ステートを再生
+                    break;
+                }
+
                 DoChase();
                 SetAnimParams(speed: _chaseSpeed, alert: true);
                 break;
@@ -232,32 +281,54 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
 
         try
         {
-            // 攻撃アニメーションをトリガーする
+            // 攻撃アニメーションをトリガーする（Animator 側が Attack1→2→3 のコンボを処理する）
             TriggerAnim(_animAttackTrigger);
             SetAnimParams(speed: 0f, alert: true);
 
-            // ── 振りかぶり（ヒットボックス無効）──────────────────
-            if (_attackWindup > 0f)
-                await UniTask.Delay(
-                    TimeSpan.FromSeconds(_attackWindup),
-                    DelayType.Realtime, PlayerLoopTiming.Update, ct);
+            if (_useAnimationEvents)
+            {
+                // ── Animation Event モード ────────────────────────────
+                // ActivateHitbox() / DeactivateHitbox() は各 Attack クリップの
+                // Animation Event から呼ばれる。ここではコンボ総尺 + 硬直だけ待つ。
+                float waitSec = _comboDuration + _attackRecovery;
+                if (waitSec > 0f)
+                    await UniTask.Delay(
+                        TimeSpan.FromSeconds(waitSec),
+                        DelayType.Realtime, PlayerLoopTiming.Update, ct);
+            }
+            else
+            {
+                // ── コードベース タイミングモード ────────────────────
+                var hits = (_comboHits != null && _comboHits.Length > 0)
+                    ? _comboHits
+                    : new[] { new HitTiming { windup = 0.25f, activeTime = 0.20f } };
 
-            // ── ヒットボックス有効 ───────────────────────────────
-            _hitboxRoot?.SetActive(true);
+                for (int i = 0; i < hits.Length; i++)
+                {
+                    // 振りかぶり：ヒットボックスは無効のまま待つ
+                    if (hits[i].windup > 0f)
+                        await UniTask.Delay(
+                            TimeSpan.FromSeconds(hits[i].windup),
+                            DelayType.Realtime, PlayerLoopTiming.Update, ct);
 
-            if (_attackActiveTime > 0f)
-                await UniTask.Delay(
-                    TimeSpan.FromSeconds(_attackActiveTime),
-                    DelayType.Realtime, PlayerLoopTiming.Update, ct);
+                    // ヒットボックス有効（OnEnable で前段のヒットフラグが自動リセットされる）
+                    _hitboxRoot?.SetActive(true);
 
-            // ── ヒットボックス無効 ──────────────────────────────
-            _hitboxRoot?.SetActive(false);
+                    if (hits[i].activeTime > 0f)
+                        await UniTask.Delay(
+                            TimeSpan.FromSeconds(hits[i].activeTime),
+                            DelayType.Realtime, PlayerLoopTiming.Update, ct);
 
-            // ── 硬直（リカバリー）────────────────────────────────
-            if (_attackRecovery > 0f)
-                await UniTask.Delay(
-                    TimeSpan.FromSeconds(_attackRecovery),
-                    DelayType.Realtime, PlayerLoopTiming.Update, ct);
+                    // ヒットボックス無効（次の段の前に必ず落とす）
+                    _hitboxRoot?.SetActive(false);
+                }
+
+                // コンボ全段終了後の硬直
+                if (_attackRecovery > 0f)
+                    await UniTask.Delay(
+                        TimeSpan.FromSeconds(_attackRecovery),
+                        DelayType.Realtime, PlayerLoopTiming.Update, ct);
+            }
         }
         catch (OperationCanceledException) { /* Stagger / Die によるキャンセル */ }
         finally
@@ -290,6 +361,52 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
         _staggerTimer = _staggerDuration;
 
         TriggerAnim(_animStaggerTrigger);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  死亡通知（EnemyStats から呼ばれる）
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// EnemyStats.Die() から <c>enabled = false</c> の直前に呼ばれる。<br/>
+    /// AIを即座に停止し、死亡アニメーションを再生する。<br/>
+    /// Animator コンポーネントは MonoBehaviour の enabled に関係なく動き続けるので、
+    /// このメソッドを呼んだ後に enabled = false にしても Die アニメーションは最後まで再生される。
+    /// </summary>
+    public void NotifyDeath()
+    {
+        // 攻撃シーケンスをキャンセルしてヒットボックスを無効化する
+        _attackCts?.Cancel();
+        _hitboxRoot?.SetActive(false);
+
+        _aiState = AIState.Dead;
+
+        // Alert ブールを落として locomotion が干渉しないようにする
+        SetAnimParams(speed: 0f, alert: false);
+
+        // Die トリガーを発火する（Any State → Die 遷移が走る）
+        TriggerAnim(_animDieTrigger);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  Animation Event から呼ぶメソッド
+    //  （_useAnimationEvents = true のとき有効）
+    //  使い方: Animation ウィンドウで Attack1 / Attack2 / Attack3 クリップを開き、
+    //          拳が出るフレームに ActivateHitbox、引くフレームに DeactivateHitbox を追加する。
+    // ─────────────────────────────────────────────────────────────
+
+    /// <summary>Animation Event: ヒットボックスを有効にする（拳が出るタイミング）。</summary>
+    public void ActivateHitbox()
+    {
+        // Stagger / Dead 状態中は無効にしない（攻撃状態のときだけ受け付ける）
+        if (_aiState != AIState.Attacking) return;
+        _hitboxRoot?.SetActive(true);
+    }
+
+    /// <summary>Animation Event: ヒットボックスを無効にする（拳が引くタイミング）。</summary>
+    public void DeactivateHitbox()
+    {
+        _hitboxRoot?.SetActive(false);
     }
 
     // ─────────────────────────────────────────────────────────────

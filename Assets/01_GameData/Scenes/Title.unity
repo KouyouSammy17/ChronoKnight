@@ -164,6 +164,10 @@ PrefabInstance:
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
       objectReference: {fileID: 2068396671}
+    - target: {fileID: 2024616274984463057, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: StartNewGame
+      objectReference: {fileID: 0}
     - target: {fileID: 2645903843804382029, guid: 3244d8d311999594c87b51e861c4fb86, type: 3}
       propertyPath: m_Name
       value: UIManager
@@ -340,7 +344,7 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 563405210}
   m_Enabled: 1
-  serializedVersion: 12
+  serializedVersion: 13
   m_Type: 1
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
   m_Intensity: 1
@@ -392,7 +396,7 @@ Light:
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ForceVisible: 0
-  m_ShadowRadius: 0
+  m_ShapeRadius: 0
   m_ShadowAngle: 0
   m_LightUnit: 1
   m_LuxAtDistance: 1

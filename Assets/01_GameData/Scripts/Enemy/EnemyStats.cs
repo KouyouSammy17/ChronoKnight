@@ -51,7 +51,10 @@ public class EnemyStats : MonoBehaviour
 
         var meleeAI = GetComponent<MeleeRobotAI>();
         if (meleeAI != null)
+        {
+            meleeAI.NotifyDeath();      // 死亡アニメーションを再生してから
             meleeAI.enabled = false;    // 近接ロボット AI を無効化して追跡・攻撃を停止
+        }
 
         // 3) 物理演算を停止してコライダーを無効化する
         if (_rb != null)
