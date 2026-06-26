@@ -8,7 +8,7 @@ using UnityEngine;
 /// <summary>
 /// 近接攻撃型ロボット敵のAI。<br/>
 /// 巡回（A-B往復）→ 感知で追跡 → 射程内で停止してコンボ攻撃。<br/>
-/// 子オブジェクト <see cref="_hitboxRoot"/> に付いた <see cref="MeleeHitbox"/> を
+/// 左右の拳ヒットボックス（<see cref="_leftHitboxRoot"/> / <see cref="_rightHitboxRoot"/>）を
 /// 各ヒットのウィンドウ中だけ有効化してプレイヤーへダメージを与える。
 /// </summary>
 [RequireComponent(typeof(Rigidbody))]
@@ -77,8 +77,11 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
     [SerializeField] private float _attackCooldown = 2.00f;
 
     [Header("Hitbox")]
-    [Tooltip("MeleeHitbox コンポーネントが付いた子 GameObject。デフォルトは Inactive にすること。")]
-    [SerializeField] private GameObject _hitboxRoot;
+    [Tooltip("左拳の MeleeHitbox GameObject。デフォルトは Inactive にすること。")]
+    [SerializeField] private GameObject _leftHitboxRoot;
+
+    [Tooltip("右拳の MeleeHitbox GameObject。デフォルトは Inactive にすること。")]
+    [SerializeField] private GameObject _rightHitboxRoot;
 
     [Header("Stagger")]
     [Tooltip("よろめき継続時間（秒）")]
@@ -118,6 +121,7 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
     private Vector3 _currentPatrolTarget;
 
     private CancellationTokenSource _attackCts;
+    private Rigidbody _rb;
 
     // ─────────────────────────────────────────────────────────────
     //  Unity ライフサイクル
@@ -125,6 +129,8 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
 
     private void Awake()
     {
+        _rb = GetComponent<Rigidbody>();
+
         if (_animator == null)
             _animator = GetComponentInChildren<Animator>();
 
@@ -132,7 +138,7 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
         _currentPatrolTarget = _pointB != null ? _pointB.position : transform.position;
 
         // ヒットボックスは必ず非表示からスタートする
-        _hitboxRoot?.SetActive(false);
+        DeactivateAllHitboxes();
     }
 
     private void OnDisable()
@@ -142,7 +148,7 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
         _attackCts?.Dispose();
         _attackCts = null;
 
-        _hitboxRoot?.SetActive(false);
+        DeactivateAllHitboxes();
     }
 
     private void Update()
@@ -273,6 +279,13 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
         //   次の Update() が走るまでに確実にフラグが立つ）
         _aiState = AIState.Attacking;
 
+        // 攻撃開始時に残留速度を消してスライドを防ぐ
+        if (_rb != null)
+        {
+            _rb.linearVelocity  = Vector3.zero;
+            _rb.angularVelocity = Vector3.zero;
+        }
+
         // 前回の CTS を破棄して新しいリンク済みトークンを作成する
         _attackCts?.Cancel();
         _attackCts?.Dispose();
@@ -312,7 +325,7 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
                             DelayType.Realtime, PlayerLoopTiming.Update, ct);
 
                     // ヒットボックス有効（OnEnable で前段のヒットフラグが自動リセットされる）
-                    _hitboxRoot?.SetActive(true);
+                    ActivateAllHitboxes();
 
                     if (hits[i].activeTime > 0f)
                         await UniTask.Delay(
@@ -320,7 +333,7 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
                             DelayType.Realtime, PlayerLoopTiming.Update, ct);
 
                     // ヒットボックス無効（次の段の前に必ず落とす）
-                    _hitboxRoot?.SetActive(false);
+                    DeactivateAllHitboxes();
                 }
 
                 // コンボ全段終了後の硬直
@@ -334,7 +347,7 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
         finally
         {
             // 中断されてもヒットボックスを必ず無効化してクールダウンをセットする
-            _hitboxRoot?.SetActive(false);
+            DeactivateAllHitboxes();
             _attackCooldownTimer = _attackCooldown;
 
             // Stagger など外部から上書きされていなければ戦闘状態に戻る
@@ -355,7 +368,7 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
     {
         // 攻撃シーケンスをキャンセルしてヒットボックスを即座に無効化する
         _attackCts?.Cancel();
-        _hitboxRoot?.SetActive(false);
+        DeactivateAllHitboxes();
 
         _aiState      = AIState.Staggered;
         _staggerTimer = _staggerDuration;
@@ -377,7 +390,7 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
     {
         // 攻撃シーケンスをキャンセルしてヒットボックスを無効化する
         _attackCts?.Cancel();
-        _hitboxRoot?.SetActive(false);
+        DeactivateAllHitboxes();
 
         _aiState = AIState.Dead;
 
@@ -389,24 +402,44 @@ public class MeleeRobotAI : MonoBehaviour, IStaggerable
     }
 
     // ─────────────────────────────────────────────────────────────
-    //  Animation Event から呼ぶメソッド
-    //  （_useAnimationEvents = true のとき有効）
-    //  使い方: Animation ウィンドウで Attack1 / Attack2 / Attack3 クリップを開き、
-    //          拳が出るフレームに ActivateHitbox、引くフレームに DeactivateHitbox を追加する。
+    //  Animation Event から呼ぶメソッド（MeleeAnimEventRelay 経由）
+    //  使い方:
+    //    Attack 1 clip (左パンチ) → ActivateLeftHitbox  / DeactivateHitbox
+    //    Attack 2 clip (右パンチ) → ActivateRightHitbox / DeactivateHitbox
+    //    Attack 3 clip (左パンチ) → ActivateLeftHitbox  / DeactivateHitbox
     // ─────────────────────────────────────────────────────────────
 
-    /// <summary>Animation Event: ヒットボックスを有効にする（拳が出るタイミング）。</summary>
-    public void ActivateHitbox()
+    /// <summary>Animation Event: 左拳ヒットボックスを有効にする。</summary>
+    public void ActivateLeftHitbox()
     {
-        // Stagger / Dead 状態中は無効にしない（攻撃状態のときだけ受け付ける）
         if (_aiState != AIState.Attacking) return;
-        _hitboxRoot?.SetActive(true);
+        _leftHitboxRoot?.SetActive(true);
     }
 
-    /// <summary>Animation Event: ヒットボックスを無効にする（拳が引くタイミング）。</summary>
-    public void DeactivateHitbox()
+    /// <summary>Animation Event: 右拳ヒットボックスを有効にする。</summary>
+    public void ActivateRightHitbox()
     {
-        _hitboxRoot?.SetActive(false);
+        if (_aiState != AIState.Attacking) return;
+        _rightHitboxRoot?.SetActive(true);
+    }
+
+    /// <summary>Animation Event: 全ヒットボックスを無効にする（拳が引くタイミング）。</summary>
+    public void DeactivateHitbox() => DeactivateAllHitboxes();
+
+    // ─────────────────────────────────────────────────────────────
+    //  内部ヒットボックス補助
+    // ─────────────────────────────────────────────────────────────
+
+    private void ActivateAllHitboxes()
+    {
+        _leftHitboxRoot?.SetActive(true);
+        _rightHitboxRoot?.SetActive(true);
+    }
+
+    private void DeactivateAllHitboxes()
+    {
+        _leftHitboxRoot?.SetActive(false);
+        _rightHitboxRoot?.SetActive(false);
     }
 
     // ─────────────────────────────────────────────────────────────

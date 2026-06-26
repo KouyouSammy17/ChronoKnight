@@ -91,6 +91,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!135 &5884924364510930890
 SphereCollider:
@@ -152,6 +153,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1503455c82df4fd45afc82efaec868d6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Damage: 3
+  Damage: 5
   Speed: 7
   LifeTime: 2
